@@ -1,0 +1,78 @@
+# Environment
+.env
+.env.local
+.env.*.local
+.environment
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Dependencies (language-specific - uncomment as needed)
+# Python
+# __pycache__/
+# *.py[cod]
+# *$py.class
+# .venv/
+# venv/
+# .eggs/
+# *.egg-info/
+# dist/
+# build/
+# .mypy_cache/
+# .ruff_cache/
+# .pytest_cache/
+# htmlcov/
+# .coverage
+
+# Node.js
+# node_modules/
+# npm-debug.log*
+# yarn-debug.log*
+# yarn-error.log*
+# .pnpm-debug.log*
+
+# Go
+# vendor/
+
+# Build outputs
+# dist/
+# build/
+# out/
+# target/
+
+# Test coverage
+# coverage/
+# *.lcov
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Credentials and secrets
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Generated files (uncomment as needed)
+# prisma/client/
+# generated/
