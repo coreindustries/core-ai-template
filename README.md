@@ -1,101 +1,33 @@
 # Core AI Template
 
-A language-agnostic template for AI-assisted software development. This template provides best practices, documentation structure, and tooling patterns that work with any programming language or framework.
+A template for starting agentic-based software projects. Provides structure, documentation patterns, and workflows optimized for AI-assisted development with tools like Claude Code, Cursor, and similar AI coding assistants.
 
-## Overview
+## Purpose
 
-This template is designed for:
-- **AI-assisted development** with Claude Code, Cursor, or similar tools
-- **Any programming language** (Python, TypeScript, Go, etc.)
-- **Production-ready code** with proper testing, linting, and security standards
+This template establishes a foundation for projects where AI agents are primary contributors to the codebase. It includes:
 
-## What's Included
+- **Structured guidance** for AI agents via `CLAUDE.md` and `AGENTS.md`
+- **Product requirements documentation** (PRD) for maintaining project context
+- **Task tracking** for long-running features and session recovery
+- **Reusable skills** (slash commands) for common development workflows
 
-```
-core-ai-template/
-├── CLAUDE.md              # Project guidance for Claude Code
-├── AGENTS.md              # Quick reference for AI agents
-├── prd/
-│   ├── 00_PRD_index.md    # PRD index and task tracking
-│   ├── 01_Technical_standards.md  # Code quality & AI agent patterns
-│   ├── 02_Tech_stack.md   # Technology stack TEMPLATE
-│   ├── 03_Security.md     # Security standards (OWASP)
-│   └── tasks/
-│       └── TASK_TEMPLATE.md  # Task tracking template
-└── .claude/
-    ├── agents/
-    │   └── codex-style-agent.md  # Code review agent
-    └── skills/
-        ├── checkpoint.md   # Save progress
-        ├── db-migrate.md   # Database migrations
-        ├── lint.md         # Code quality checks
-        ├── new-feature.md  # Scaffold features
-        ├── refactor.md     # Safe refactoring
-        ├── review.md       # Code review
-        ├── security-scan.md  # Security scanning
-        └── test.md         # Run tests
-```
+## Features
 
-## Getting Started
+### AI Agent Guidance
+- `CLAUDE.md` - Project-level instructions and coding standards
+- `AGENTS.md` - Quick reference for agent behavior patterns
+- `.claude/agents/` - Specialized agent configurations
 
-### 1. Copy the Template
+### Documentation Structure
+- `prd/01_Technical_standards.md` - Code quality and agent development principles
+- `prd/02_Tech_stack.md` - Technology stack template (customize per project)
+- `prd/03_Security.md` - Security standards and OWASP guidelines
 
-```bash
-cp -r core-ai-template my-project
-cd my-project
-git init
-```
+### Task Management
+- `prd/tasks/` - Directory for feature task tracking
+- `TASK_TEMPLATE.md` - Template for progress tracking and context recovery
 
-### 2. Fill in the Tech Stack
-
-Edit `prd/02_Tech_stack.md` with your technology choices:
-- Programming language and version
-- Package manager
-- API framework
-- Database and ORM
-- Testing framework
-- Linting tools
-
-### 3. Update CLAUDE.md
-
-Replace placeholder commands in `CLAUDE.md` with your actual commands:
-- Install dependencies
-- Run tests
-- Start development server
-- etc.
-
-### 4. Start Developing
-
-Use the skills and patterns defined in the template:
-
-```bash
-/new-feature user_profile --with-db --crud
-/test
-/lint --fix
-/checkpoint
-```
-
-## Key Concepts
-
-### AI Agent Development Principles
-
-From `prd/01_Technical_standards.md`:
-
-1. **Autonomy**: Bias to action, implement with reasonable assumptions
-2. **Persistence**: Complete tasks end-to-end, don't stop at plans
-3. **Correctness**: Prioritize quality over speed
-4. **Comprehensiveness**: Update all relevant surfaces
-
-### Task Tracking
-
-For long-running features, create task files in `prd/tasks/`:
-
-1. Copy `TASK_TEMPLATE.md` to `prd/tasks/{feature}_tasks.md`
-2. Update every 30-60 minutes with `/checkpoint`
-3. Use for context recovery after session breaks
-
-### Skills
-
+### Skills (Slash Commands)
 | Skill | Purpose |
 |-------|---------|
 | `/new-feature` | Scaffold a new feature |
@@ -107,23 +39,179 @@ For long-running features, create task files in `prd/tasks/`:
 | `/security-scan` | Run security scans |
 | `/db-migrate` | Manage database migrations |
 
-## Documentation
+## Workflow
 
-| Document | Purpose |
-|----------|---------|
-| `prd/01_Technical_standards.md` | Code quality and AI agent patterns |
-| `prd/02_Tech_stack.md` | Technology decisions (fill in) |
-| `prd/03_Security.md` | Security standards and OWASP |
-| `AGENTS.md` | Quick reference for AI agents |
+1. **Start a feature** - Create a task file in `prd/tasks/` using the template
+2. **Develop with AI** - Use skills and agent guidance for consistent output
+3. **Track progress** - Run `/checkpoint` every 30-60 minutes
+4. **Review and test** - Use `/review`, `/test`, and `/lint` before commits
+5. **Recover context** - Task files enable session resumption
 
-## Technology Examples
+## Getting Started
 
-The template includes example configurations for:
-- **Python**: FastAPI, pytest, ruff, mypy
-- **TypeScript**: NestJS/Express, Vitest/Jest, ESLint
-- **Go**: Chi/Gin, go test, golangci-lint
+### 1. Copy the Template
 
-See `prd/02_Tech_stack.md` for detailed examples.
+```bash
+cp -r core-ai-template my-project
+cd my-project
+git init
+```
+
+### 2. Configure Your Tech Stack
+
+Edit `prd/02_Tech_stack.md` with your technology choices:
+- Programming language and version
+- Package manager and commands
+- Frameworks and libraries
+- Testing and linting tools
+
+### 3. Update Project Guidance
+
+Customize `CLAUDE.md` with project-specific:
+- Commands and scripts
+- Architecture patterns
+- Environment variables
+
+### 4. Start Building
+
+```bash
+/new-feature my_feature --with-db
+/test
+/lint --fix
+/checkpoint
+```
+
+## Tech Stack Examples
+
+Copy one of these configurations into `prd/02_Tech_stack.md` as a starting point.
+
+### Python
+
+| Component | Choice |
+|-----------|--------|
+| Language | Python 3.13+ |
+| Package Manager | uv |
+| Framework | FastAPI |
+| ORM | Prisma |
+| Database | PostgreSQL (Docker) |
+
+| Category | Tools |
+|----------|-------|
+| Testing | pytest, pytest-cov, pytest-asyncio |
+| Linting | ruff (linting + formatting) |
+| Type Checking | mypy |
+| Security | bandit, safety, pip-audit |
+
+**Common Commands:**
+```bash
+# Package management
+uv sync                          # Install dependencies
+uv add <package>                 # Add package
+
+# Database
+uv run prisma generate           # Generate Prisma client
+uv run prisma migrate dev        # Run migrations
+docker compose up -d             # Start PostgreSQL
+
+# Testing
+uv run pytest                    # Run tests
+uv run pytest --cov=src          # Run with coverage
+uv run pytest -x                 # Stop on first failure
+
+# Linting & formatting
+uv run ruff check --fix .        # Lint and fix
+uv run ruff format .             # Format code
+uv run mypy .                    # Type check
+
+# Security scanning
+uv run bandit -r src/            # Static security analysis
+uv run pip-audit                 # Dependency vulnerabilities
+uv run safety check              # Known vulnerability check
+```
+
+### Node.js / TypeScript
+
+| Component | Choice |
+|-----------|--------|
+| Language | TypeScript 5.x |
+| Runtime | Node.js 22+ or Bun |
+| Package Manager | Bun |
+| Framework | Hono or Express |
+| ORM | Drizzle |
+| Database | PostgreSQL (Docker) |
+
+| Category | Tools |
+|----------|-------|
+| Testing | Vitest, @testing-library, supertest |
+| Linting | ESLint, Prettier, typescript-eslint |
+| Type Checking | tsc (TypeScript compiler) |
+| Security | npm-audit, snyk, eslint-plugin-security |
+
+**Common Commands:**
+```bash
+# Package management
+bun install                      # Install dependencies
+bun add <package>                # Add package
+
+# Database
+bun run drizzle-kit generate     # Generate migrations
+bun run drizzle-kit migrate      # Run migrations
+docker compose up -d             # Start PostgreSQL
+
+# Testing
+bun test                         # Run tests
+bun test --coverage              # Run with coverage
+bun test --bail                  # Stop on first failure
+
+# Linting & formatting
+bun run lint --fix               # Lint and fix
+bun run format                   # Format with Prettier
+bun run typecheck                # Type check (tsc --noEmit)
+
+# Security scanning
+bun audit                        # Dependency vulnerabilities
+bunx snyk test                   # Snyk security scan
+bun run lint:security            # ESLint security rules
+```
+
+### Docker Compose (Shared)
+
+Both stacks can use a common `docker-compose.yml` for local development:
+
+```yaml
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+```
+
+## Directory Structure
+
+```
+core-ai-template/
+├── CLAUDE.md                    # AI agent project guidance
+├── AGENTS.md                    # Agent quick reference
+├── prd/
+│   ├── 00_PRD_index.md          # PRD index
+│   ├── 01_Technical_standards.md
+│   ├── 02_Tech_stack.md         # Tech stack template
+│   ├── 03_Security.md
+│   └── tasks/
+│       └── TASK_TEMPLATE.md
+└── .claude/
+    ├── agents/                  # Specialized agents
+    └── skills/                  # Slash commands
+```
 
 ## License
 
