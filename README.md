@@ -28,6 +28,8 @@ This template establishes a foundation for projects where AI agents are primary 
 - `TASK_TEMPLATE.md` - Template for progress tracking and context recovery
 
 ### Skills (Slash Commands)
+
+**Development**
 | Skill | Purpose |
 |-------|---------|
 | `/feature` | Full feature lifecycle (PRD → code → tests → PR) |
@@ -35,9 +37,25 @@ This template establishes a foundation for projects where AI agents are primary 
 | `/lint` | Run linting, formatting, type checking |
 | `/refactor` | Safely refactor code with tests |
 | `/review` | Code review against standards |
+| `/debug` | Systematic debugging workflow |
+| `/api` | Design REST/GraphQL endpoints |
+
+**Git & Workflow**
+| Skill | Purpose |
+|-------|---------|
+| `/commit` | Create conventional commits |
+| `/pr` | Create pull requests with descriptions |
+| `/hotfix` | Quick patch for production issues |
 | `/checkpoint` | Save progress to task file |
+
+**Project & Infrastructure**
+| Skill | Purpose |
+|-------|---------|
+| `/init` | Initialize new project with boilerplate |
+| `/deps` | Audit and manage dependencies |
 | `/scan` | Run security scans |
 | `/migrate` | Manage database migrations |
+| `/docs` | Generate documentation |
 
 ## Workflow
 
@@ -201,6 +219,7 @@ volumes:
 core-ai-template/
 ├── CLAUDE.md                    # AI agent project guidance
 ├── AGENTS.md                    # Agent quick reference
+├── marketplace.json             # Plugin marketplace manifest
 ├── prd/
 │   ├── 00_PRD_index.md          # PRD index
 │   ├── 01_Technical_standards.md
@@ -212,6 +231,45 @@ core-ai-template/
     ├── agents/                  # Specialized agents
     └── skills/                  # Slash commands
 ```
+
+## Plugin Marketplace
+
+This template includes a `marketplace.json` manifest for the [Anthropic Agent Skills](https://github.com/anthropics/skills) ecosystem.
+
+### Installing Skills
+
+Users can install skills from this template using Claude Code:
+
+```bash
+# Add the marketplace
+claude plugin add https://github.com/your-org/your-project
+
+# Install individual skills
+claude plugin install feature
+claude plugin install test
+claude plugin install scan
+```
+
+### Available Skills
+
+| Skill | Category | Description |
+|-------|----------|-------------|
+| `feature` | development | Full feature lifecycle (PRD → code → PR) |
+| `test` | development | Run tests with coverage |
+| `lint` | development | Linting, formatting, type checking |
+| `refactor` | development | Safe code refactoring |
+| `review` | development | Code review against standards |
+| `debug` | development | Systematic debugging workflow |
+| `api` | design | Design REST/GraphQL endpoints |
+| `commit` | git | Create conventional commits |
+| `pr` | git | Create pull requests |
+| `hotfix` | git | Quick patch for production |
+| `checkpoint` | productivity | Task tracking and context preservation |
+| `init` | project | Initialize new project |
+| `deps` | dependencies | Audit and manage dependencies |
+| `docs` | documentation | Generate documentation |
+| `scan` | security | Security scans (deps, code, secrets) |
+| `migrate` | database | Database schema migrations |
 
 ## License
 
