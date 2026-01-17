@@ -1,4 +1,4 @@
-# /security-scan
+# /scan
 
 Run security scans against the codebase.
 
@@ -147,7 +147,7 @@ From `prd/03_Security.md`:
 ## Example Output
 
 ```
-$ /security-scan
+$ /scan
 
 🔒 Running security scans...
 

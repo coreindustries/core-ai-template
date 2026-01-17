@@ -30,14 +30,14 @@ This template establishes a foundation for projects where AI agents are primary 
 ### Skills (Slash Commands)
 | Skill | Purpose |
 |-------|---------|
-| `/new-feature` | Scaffold a new feature |
+| `/feature` | Full feature lifecycle (PRD → code → tests → PR) |
 | `/test` | Run tests with coverage |
-| `/lint` | Run code quality checks |
-| `/refactor` | Safely refactor code |
+| `/lint` | Run linting, formatting, type checking |
+| `/refactor` | Safely refactor code with tests |
 | `/review` | Code review against standards |
 | `/checkpoint` | Save progress to task file |
-| `/security-scan` | Run security scans |
-| `/db-migrate` | Manage database migrations |
+| `/scan` | Run security scans |
+| `/migrate` | Manage database migrations |
 
 ## Workflow
 
@@ -75,7 +75,7 @@ Customize `CLAUDE.md` with project-specific:
 ### 4. Start Building
 
 ```bash
-/new-feature my_feature --with-db
+/feature my-feature --scaffold --with-db
 /test
 /lint --fix
 /checkpoint

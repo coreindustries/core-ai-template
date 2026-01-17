@@ -1,4 +1,4 @@
-# /db-migrate
+# /migrate
 
 Manage database schema migrations.
 
@@ -34,7 +34,7 @@ When this skill is invoked:
 #### Create Migration
 
 ```bash
-/db-migrate create --name add_user_profile
+/migrate create --name add_user_profile
 ```
 
 1. **Read `prd/02_Tech_stack.md`** for migration command
@@ -48,7 +48,7 @@ When this skill is invoked:
 #### Run Migrations
 
 ```bash
-/db-migrate run
+/migrate run
 ```
 
 1. **Check migration status**:
@@ -68,7 +68,7 @@ When this skill is invoked:
 #### Check Status
 
 ```bash
-/db-migrate status
+/migrate status
 ```
 
 1. **Show migration status**:
@@ -81,7 +81,7 @@ When this skill is invoked:
 #### Rollback (Careful!)
 
 ```bash
-/db-migrate rollback
+/migrate rollback
 ```
 
 1. **⚠️ Warn about data loss**
@@ -96,30 +96,30 @@ When this skill is invoked:
 **After schema changes:**
 ```bash
 # 1. Generate client (if ORM requires)
-/db-migrate create --name describe_changes
+/migrate create --name describe_changes
 
 # 2. Review generated migration
 
 # 3. Run migration
-/db-migrate run
+/migrate run
 
 # 4. Verify
-/db-migrate status
+/migrate status
 ```
 
 **Before deployment:**
 ```bash
 # Check pending migrations
-/db-migrate status
+/migrate status
 
 # Run in production (with backup!)
-/db-migrate run
+/migrate run
 ```
 
 ## Example Output
 
 ```
-$ /db-migrate create --name add_user_preferences
+$ /migrate create --name add_user_preferences
 
 📋 Creating migration: add_user_preferences
 
@@ -129,12 +129,12 @@ Running: {migration_create_command} --name add_user_preferences
 
 Next steps:
 1. Review the generated migration
-2. Run: /db-migrate run
+2. Run: /migrate run
 3. Regenerate client: {db_generate_command}
 ```
 
 ```
-$ /db-migrate status
+$ /migrate status
 
 📋 Migration Status
 
@@ -146,5 +146,5 @@ Applied:
 Pending:
 ⏳ 004_add_user_preferences
 
-Run '/db-migrate run' to apply pending migrations.
+Run '/migrate run' to apply pending migrations.
 ```
