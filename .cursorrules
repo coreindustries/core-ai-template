@@ -1,0 +1,57 @@
+# Cursor IDE Rules
+
+This project uses AI agent-assisted development with Claude Code and Cursor IDE.
+
+## Quick Reference
+
+- **Main Instructions:** See `CLAUDE.md` for project guidance
+- **Agent Patterns:** See `AGENTS.md` for AI agent quick reference
+- **Rules:** See `.claude/rules/` for modular rules (Claude Code)
+- **Tech Stack:** See `prd/02_Tech_stack.md` for technology decisions
+
+## Code Standards
+
+- **Type annotations** on all functions, attributes, and returns
+- **Docstrings** on all public functions and classes
+- **DRY principle** - search for existing implementations first
+- **Modern syntax** for your language version
+- **Test coverage** minimum as defined in tech stack (typically 66-100%)
+
+## AI Agent Principles
+
+- **Autonomy:** Complete tasks end-to-end, don't stop at plans
+- **Persistence:** Continue until working code is delivered
+- **Correctness:** Prioritize correctness over speed
+- **Comprehensiveness:** Update all relevant surfaces
+
+## Quality Checks
+
+Run quality checks every 15-30 minutes during development:
+- Lint and format
+- Type check
+- Run tests
+- Security scan (before commits)
+
+## Git Workflow
+
+- Use conventional commit format: `<type>: <description>`
+- Never revert changes you didn't make
+- Preserve existing changes in dirty worktrees
+- Include `Co-Authored-By: Claude` in commits
+
+## Security
+
+- Never hardcode secrets (use environment variables)
+- Validate all user inputs
+- Use parameterized queries
+- Implement audit logging for security events
+- See `.claude/rules/security.md` for full security standards
+
+## For More Details
+
+- **Code Quality:** `.claude/rules/code-quality.md`
+- **Testing:** `.claude/rules/testing.md`
+- **Error Handling:** `.claude/rules/error-handling.md`
+- **Git Workflow:** `.claude/rules/git-workflow.md`
+- **Security:** `.claude/rules/security.md`
+- **AI Patterns:** `.claude/rules/ai-agent-patterns.md`

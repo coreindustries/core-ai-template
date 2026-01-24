@@ -116,7 +116,24 @@ See `prd/02_Tech_stack.md` for technology-specific gotchas.
 | `prd/02_Tech_stack.md` | Technology decisions and commands |
 | `prd/03_Security.md` | OWASP, secrets, audit logging |
 | `AGENTS.md` | Agent quick reference |
+| `.claude/rules/` | Modular rules (automatically loaded) |
 | `.claude/skills/` | Slash commands |
+
+## Rules Directory
+
+This project uses Claude Code's modular rules system (`.claude/rules/`). All rule files are automatically loaded.
+
+**Available Rules:**
+- `code-quality.md` - Code quality standards
+- `testing.md` - Testing requirements
+- `ai-agent-patterns.md` - AI agent development principles
+- `error-handling.md` - Error handling patterns
+- `git-workflow.md` - Git workflow standards
+- `security.md` - Security standards
+- `quality-checks.md` - Quality check requirements
+- `task-management.md` - Task tracking workflow
+
+See `.claude/rules/README.md` for details.
 
 ## Audit Logging (Security Events)
 

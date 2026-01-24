@@ -16,6 +16,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `AGENTS.md` - Quick reference for agent behavior patterns
+- `.claude/rules/` - Modular rules (automatically loaded by Claude Code)
 - `.claude/agents/` - Specialized agent configurations
 
 ### Documentation Structure
@@ -67,37 +68,81 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ## Getting Started
 
-### 1. Copy the Template
+### Step 1: Copy Template (1 minute)
 
 ```bash
 cp -r core-ai-template my-project
 cd my-project
 git init
+git add .
+git commit -m "chore: initial project setup"
 ```
 
-### 2. Configure Your Tech Stack
+### Step 2: Configure Tech Stack (3 minutes)
 
-Edit `prd/02_Tech_stack.md` with your technology choices:
-- Programming language and version
-- Package manager and commands
-- Frameworks and libraries
-- Testing and linting tools
+Edit `prd/02_Tech_stack.md` with your technology choices. See examples below (Python, TypeScript, Go).
 
-### 3. Update Project Guidance
+**Minimum Required Sections:**
+- Language & Runtime (Section 1)
+- Package Manager (Section 1.2)
+- Database (Section 2)
+- ORM (Section 3)
+- API Framework (Section 4)
+- Testing (Section 8)
+- Code Quality Tools (Section 9)
 
-Customize `CLAUDE.md` with project-specific:
-- Commands and scripts
-- Architecture patterns
-- Environment variables
+### Step 3: Update Project Commands (2 minutes)
 
-### 4. Start Building
+Edit `CLAUDE.md` and replace placeholders:
+- `{package_manager}` → `uv` / `bun` / `pnpm` / etc.
+- `{runner}` → `uv run` / `bun` / `pnpm exec` / etc.
+- `{start_dev_server}` → your dev server command
+
+### Step 4: Set Up Environment (1 minute)
 
 ```bash
-/feature my-feature --scaffold --with-db
-/test
+# Copy environment template (if .env.example exists)
+cp .env.example .env
+
+# Configure git commit template
+git config commit.template .gitmessage
+
+# Install dependencies
+{package_manager} install
+```
+
+### Step 5: Set Up CI/CD (2 minutes)
+
+```bash
+cp .github/workflows/ci.yml.example .github/workflows/ci.yml
+# Edit ci.yml and replace {placeholders} with your commands
+```
+
+See [`.github/workflows/README.md`](.github/workflows/README.md) for detailed setup.
+
+### Step 6: Start Building (5 minutes)
+
+```bash
+# Create task file for your first feature
+cp prd/tasks/TASK_TEMPLATE.md prd/tasks/my-feature_tasks.md
+
+# Create feature branch
+git checkout -b feat/my-feature
+
+# Scaffold feature (in AI coding assistant)
+/feature my-feature --scaffold --with-api --with-tests
+
+# Run quality checks
 /lint --fix
+/test --coverage
+
+# Save progress
 /checkpoint
 ```
+
+**Total Setup Time:** ~15 minutes
+
+For detailed walkthrough, see [QUICKSTART.md](QUICKSTART.md).
 
 ## Tech Stack Examples
 
@@ -217,19 +262,39 @@ volumes:
 
 ```
 core-ai-template/
+├── README.md                    # This file - project overview
+├── QUICKSTART.md                # Detailed 15-minute setup guide
 ├── CLAUDE.md                    # AI agent project guidance
 ├── AGENTS.md                    # Agent quick reference
+├── TDD.md                       # Technical Design Document template
+├── .gitmessage                  # Git commit message template
+├── .cursorrules                 # Cursor IDE rules
 ├── marketplace.json             # Plugin marketplace manifest
+├── .github/
+│   └── workflows/
+│       ├── ci.yml.example       # CI/CD pipeline template
+│       └── README.md            # CI/CD setup instructions
 ├── prd/
 │   ├── 00_PRD_index.md          # PRD index
-│   ├── 01_Technical_standards.md
-│   ├── 02_Tech_stack.md         # Tech stack template
-│   ├── 03_Security.md
+│   ├── 01_Technical_standards.md # Code quality standards
+│   ├── 02_Tech_stack.md         # Tech stack template (customize)
+│   ├── 03_Security.md           # Security standards
 │   └── tasks/
-│       └── TASK_TEMPLATE.md
+│       └── TASK_TEMPLATE.md     # Task tracking template
 └── .claude/
+    ├── rules/                   # Modular rules (auto-loaded)
+    │   ├── README.md            # Rules directory documentation
+    │   ├── code-quality.md      # Code quality standards
+    │   ├── testing.md           # Testing requirements
+    │   ├── ai-agent-patterns.md # AI agent principles
+    │   ├── error-handling.md    # Error handling patterns
+    │   ├── git-workflow.md      # Git workflow standards
+    │   ├── security.md           # Security standards
+    │   ├── quality-checks.md     # Quality check requirements
+    │   └── task-management.md   # Task tracking workflow
     ├── agents/                  # Specialized agents
-    └── skills/                  # Slash commands
+    │   └── codex-style-agent.md
+    └── skills/                  # Slash commands (16 skills)
 ```
 
 ## Plugin Marketplace
@@ -270,6 +335,60 @@ claude plugin install scan
 | `docs` | documentation | Generate documentation |
 | `scan` | security | Security scans (deps, code, secrets) |
 | `migrate` | database | Database schema migrations |
+
+## Git Commit Template
+
+The template includes a `.gitmessage` file for consistent commit messages following [Conventional Commits](https://www.conventionalcommits.org/).
+
+**Setup:**
+```bash
+# Configure git to use the commit template
+git config commit.template .gitmessage
+
+# Or set globally for all repositories
+git config --global commit.template ~/.gitmessage
+cp .gitmessage ~/.gitmessage
+```
+
+When you run `git commit` (without `-m`), the template will appear in your editor with guidance on:
+- Commit types (feat, fix, docs, etc.)
+- Scope usage
+- Body and footer formatting
+- Examples
+
+You can also use the `/commit` skill for AI-assisted commit message generation.
+
+## CI/CD Pipeline
+
+The template includes a GitHub Actions CI/CD pipeline with **5 quality gates**:
+
+1. **Lint & Format** - Code quality and formatting checks
+2. **Type Check** - Static type checking
+3. **Test & Coverage** - Unit/integration tests with coverage threshold
+4. **Security Scan** - Dependency and code security scanning
+5. **Build** - Application build verification
+
+**Setup:**
+```bash
+cp .github/workflows/ci.yml.example .github/workflows/ci.yml
+# Edit ci.yml and customize for your tech stack
+```
+
+See [`.github/workflows/README.md`](.github/workflows/README.md) for detailed setup instructions.
+
+## Documentation Reference
+
+| Document | Purpose | When to Read |
+|----------|---------|--------------|
+| `README.md` | Project overview and quick setup | Start here |
+| `QUICKSTART.md` | Detailed 15-minute setup walkthrough | First time setup |
+| `CLAUDE.md` | Project-level instructions for Claude Code | Customize for your project |
+| `AGENTS.md` | AI agent quick reference | Daily development |
+| `.claude/rules/` | Modular rules (auto-loaded) | Reference as needed |
+| `prd/01_Technical_standards.md` | Full technical standards | Deep dive into standards |
+| `prd/02_Tech_stack.md` | Tech stack template | Configure your stack |
+| `prd/03_Security.md` | Security standards | Security implementation |
+| `.github/workflows/README.md` | CI/CD setup guide | Setting up pipelines |
 
 ## License
 

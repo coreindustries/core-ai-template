@@ -1,0 +1,417 @@
+# CI Pipeline Template
+#
+# Copy this file to .github/workflows/ci.yml and customize for your tech stack.
+# Replace {placeholders} with your actual commands from prd/02_Tech_stack.md
+#
+# Quality Gates:
+# 1. Lint - Code quality and formatting
+# 2. Type Check - Static type checking
+# 3. Test - Unit and integration tests with coverage
+# 4. Security - Dependency and code security scanning
+# 5. Build - Application build verification
+#
+# All gates must pass before merge is allowed.
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# Cancel in-progress runs for the same workflow and branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # Quality Gate 1: Linting and Formatting
+  # ============================================================================
+  lint:
+    name: Lint & Format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup {language}
+        # Python example:
+        # uses: actions/setup-python@v5
+        # with:
+        #   python-version: '3.13'
+        #   cache: 'uv'
+        #
+        # Node.js example:
+        # uses: actions/setup-node@v4
+        # with:
+        #   node-version: '22'
+        #   cache: 'npm' # or 'pnpm' or 'yarn'
+        #
+        # Go example:
+        # uses: actions/setup-go@v5
+        # with:
+        #   go-version: '1.22'
+
+      - name: Install dependencies
+        run: |
+          # Replace with your package manager command
+          # Python: uv sync
+          # Node.js: npm ci / pnpm install --frozen-lockfile
+          # Go: go mod download
+          {package_manager} install
+
+      - name: Run linter
+        run: |
+          # Replace with your lint command
+          # Python: uv run ruff check src/ tests/
+          # Node.js: npm run lint
+          # Go: golangci-lint run
+          {lint_check_command}
+
+      - name: Check formatting
+        run: |
+          # Replace with your format check command
+          # Python: uv run ruff format --check src/ tests/
+          # Node.js: npm run format:check
+          # Go: gofmt -l .
+          {format_check_command}
+
+      - name: Upload lint results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: |
+            lint-report.txt
+            format-report.txt
+          retention-days: 7
+
+  # ============================================================================
+  # Quality Gate 2: Type Checking
+  # ============================================================================
+  typecheck:
+    name: Type Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Skip for languages without static typing or if type checking is integrated in lint
+    # if: false  # Uncomment to disable
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup {language}
+        # Same setup as lint job
+
+      - name: Install dependencies
+        run: {package_manager} install
+
+      - name: Run type checker
+        run: |
+          # Replace with your type check command
+          # Python: uv run mypy src/
+          # TypeScript: npm run typecheck
+          # Go: (type checking is part of go build)
+          {type_check_command}
+
+      - name: Upload type check results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: typecheck-results
+          path: typecheck-report.txt
+          retention-days: 7
+
+  # ============================================================================
+  # Quality Gate 3: Testing with Coverage
+  # ============================================================================
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      # Database service for integration tests
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      # Redis service (if using cache)
+      # redis:
+      #   image: redis:7-alpine
+      #   options: >-
+      #     --health-cmd "redis-cli ping"
+      #     --health-interval 10s
+      #     --health-timeout 5s
+      #     --health-retries 5
+      #   ports:
+      #     - 6379:6379
+
+    env:
+      DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      # REDIS_URL: redis://localhost:6379
+      LOG_LEVEL: INFO
+      ENVIRONMENT: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup {language}
+        # Same setup as lint job
+
+      - name: Install dependencies
+        run: {package_manager} install
+
+      - name: Setup database
+        run: |
+          # Generate database client if needed
+          # Python: uv run prisma generate
+          # Node.js: npm run prisma:generate
+          # Run migrations
+          # {db_generate}
+          # {db_migrate}
+
+      - name: Run unit tests
+        run: |
+          # Replace with your test command
+          # Python: uv run pytest tests/unit/ -v
+          # Node.js: npm run test:unit
+          # Go: go test ./... -v
+          {test_unit_command}
+
+      - name: Run integration tests
+        run: |
+          # Replace with your integration test command
+          # Python: uv run pytest tests/integration/ -v
+          # Node.js: npm run test:integration
+          # Go: go test ./... -tags=integration -v
+          {test_integration_command}
+
+      - name: Run tests with coverage
+        run: |
+          # Replace with your coverage command
+          # Python: uv run pytest --cov=src --cov-report=xml --cov-report=html
+          # Node.js: npm run test:coverage
+          # Go: go test ./... -coverprofile=coverage.out
+          {test_coverage_command}
+
+      - name: Check coverage threshold
+        run: |
+          # Python example:
+          # uv run pytest --cov=src --cov-report=term --cov-fail-under=66
+          #
+          # Node.js example:
+          # npm run test:coverage -- --coverageThreshold='{"global":{"branches":66,"functions":66,"lines":66,"statements":66}}'
+          #
+          # Go example:
+          # go tool cover -func=coverage.out | grep total | awk '{if ($3+0 < 66) exit 1}'
+          {coverage_threshold_check}
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        with:
+          files: |
+            coverage.xml
+            coverage.json
+            coverage.out
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }} # Optional: Add for private repos
+
+      - name: Upload coverage HTML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            htmlcov/
+            coverage/
+          retention-days: 30
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            test-results.xml
+            pytest-results.xml
+          retention-days: 7
+
+  # ============================================================================
+  # Quality Gate 4: Security Scanning
+  # ============================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
+
+      - name: Setup {language}
+        # Same setup as lint job
+
+      - name: Install dependencies
+        run: {package_manager} install
+
+      - name: Dependency vulnerability scan
+        run: |
+          # Replace with your dependency scan command
+          # Python: uv run pip-audit || uv run safety check
+          # Node.js: npm audit --audit-level=moderate
+          # Go: govulncheck ./...
+          {dependency_scan_command}
+        continue-on-error: true  # Don't fail on warnings, only critical
+
+      - name: Static security analysis
+        run: |
+          # Replace with your security scan command
+          # Python: uv run bandit -r src/ -f json -o bandit-report.json
+          # Node.js: npm run lint:security
+          # Go: gosec ./...
+          {security_scan_command}
+        continue-on-error: true
+
+      - name: Secret scanning
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+      - name: Upload security reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            bandit-report.json
+            security-report.json
+          retention-days: 30
+
+      - name: Comment PR with security findings
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ Security scan found issues. Please review the security reports artifact.'
+            })
+
+  # ============================================================================
+  # Quality Gate 5: Build Verification
+  # ============================================================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [lint, typecheck]  # Only build if linting and type checking pass
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup {language}
+        # Same setup as lint job
+
+      - name: Install dependencies
+        run: {package_manager} install
+
+      - name: Build application
+        run: |
+          # Replace with your build command
+          # Python: uv run build (if using build tool)
+          # Node.js: npm run build
+          # Go: go build ./...
+          {build_command}
+
+      - name: Upload build artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            build/
+            target/
+          retention-days: 7
+
+  # ============================================================================
+  # Quality Gate Summary
+  # ============================================================================
+  quality-gate:
+    name: Quality Gate Summary
+    runs-on: ubuntu-latest
+    needs: [lint, typecheck, test, security, build]
+    if: always()
+
+    steps:
+      - name: Check all quality gates
+        run: |
+          echo "## Quality Gate Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint & Format | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Type Check | ${{ needs.typecheck.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Tests & Coverage | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Fail if any gate failed
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.typecheck.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.security.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ]; then
+            echo "❌ One or more quality gates failed"
+            exit 1
+          else
+            echo "✅ All quality gates passed"
+          fi
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = '${{ needs.lint.result }}' === 'success' &&
+                          '${{ needs.typecheck.result }}' === 'success' &&
+                          '${{ needs.test.result }}' === 'success' &&
+                          '${{ needs.security.result }}' === 'success' &&
+                          '${{ needs.build.result }}' === 'success';
+
+            const emoji = status ? '✅' : '❌';
+            const message = status
+              ? 'All quality gates passed! Ready for review.'
+              : 'Some quality gates failed. Please fix issues before merging.';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${emoji} **Quality Gate Results**\n\n${message}\n\nCheck the workflow run for details.`
+            });
