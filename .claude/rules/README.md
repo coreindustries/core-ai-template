@@ -17,6 +17,7 @@ All `.md` files in `.claude/rules/` are automatically loaded into Claude Code's 
 | `git-workflow.md` | Git workflow and commit standards | PRD 01 Section 9 |
 | `gitmoji.md` | Gitmoji emoji prefixes for commits | Gitmoji standard |
 | `nextjs.md` | Next.js 16+ development best practices | Next.js patterns |
+| `security-core.md` | Core security practices (always applies) | Universal security |
 | `security.md` | Security standards and OWASP Top 10 | PRD 03 |
 | `quality-checks.md` | Quality check requirements and CI/CD | PRD 01 Section 8 |
 | `task-management.md` | Task tracking and PRD workflow | PRD 01 Section 10 |

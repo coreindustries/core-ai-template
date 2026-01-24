@@ -1,0 +1,309 @@
+---
+description: Core security practices for all development
+alwaysApply: true
+---
+# Core Security Rules
+
+These rules apply to **all development** regardless of platform (web, mobile, backend). Security is not optional—these practices must be followed in every codebase.
+
+## 1. Secrets Management
+
+Never hardcode sensitive information in source code.
+
+### 1.1 What Constitutes a Secret
+
+| Type            | Examples                                        |
+|-----------------|-------------------------------------------------|
+| API Keys        | Stripe, Twilio, SendGrid, Firebase, AWS         |
+| Credentials     | Database passwords, OAuth client secrets        |
+| Tokens          | JWT signing keys, access tokens, refresh tokens |
+| Encryption Keys | AES keys, RSA private keys, certificates        |
+| Service URLs    | Internal service endpoints with embedded auth   |
+
+### 1.2 Rules
+
+- **NEVER** commit secrets to version control
+- **NEVER** log secrets, even in debug mode
+- **NEVER** include secrets in error messages or stack traces
+- **NEVER** pass secrets via URL query parameters
+
+### 1.3 Approved Storage Methods
+
+| Environment       | Method                                                                  |
+|-------------------|-------------------------------------------------------------------------|
+| Local Development | `.env` files (must be in `.gitignore`)                                  |
+| CI/CD             | Pipeline secrets (GitHub Secrets, GitLab CI Variables)                  |
+| Production        | Secret managers (AWS Secrets Manager, HashiCorp Vault, Azure Key Vault) |
+| Containers        | Mounted secrets, environment injection at runtime                       |
+
+### 1.4 Environment Variable Patterns
+
+```typescript
+// CORRECT: Use environment variables
+const apiKey = process.env.STRIPE_API_KEY;
+
+if (!apiKey) {
+  throw new Error('STRIPE_API_KEY environment variable is required');
+}
+```
+
+```typescript
+// WRONG: Hardcoded secret
+const apiKey = 'sk_live_abc123xyz789';
+```
+
+### 1.5 .gitignore Requirements
+
+Always ensure these patterns are in `.gitignore`:
+
+```
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+secrets/
+```
+
+
+## 2. Auto-Run Prevention
+
+Prevent automatic execution of generated or untrusted code.
+
+### 2.1 Rules
+
+- **Turn OFF** auto-run for AI-generated code snippets
+- **Use allow-lists** for trusted scripts and operations
+- **Review** all generated code before execution
+- **Sandbox** untrusted code execution when necessary
+
+### 2.2 Safe Practices
+
+```typescript
+// CORRECT: Explicit execution with validation
+function executeCommand(command: string, allowList: string[]) {
+  if (!allowList.includes(command)) {
+    throw new Error(`Command not in allow-list: ${command}`);
+  }
+  // Execute only after validation
+}
+```
+
+```typescript
+// WRONG: Arbitrary code execution
+eval(userProvidedCode);
+new Function(userProvidedCode)();
+```
+
+### 2.3 Prohibited Patterns
+
+| Pattern                                          | Risk                     |
+|--------------------------------------------------|--------------------------|
+| `eval()`                                         | Arbitrary code execution |
+| `new Function()`                                 | Dynamic code creation    |
+| `child_process.exec()` with user input           | Command injection        |
+| `dangerouslySetInnerHTML` with unsanitized input | XSS                      |
+
+
+## 3. Database Safety
+
+Protect database integrity and prevent data loss.
+
+### 3.1 Prohibited Operations (Without Explicit Approval)
+
+| Operation                | Risk Level | Requirement                                       |
+|--------------------------|------------|---------------------------------------------------|
+| `DROP TABLE`             | Critical   | Requires team lead approval + backup verification |
+| `DROP DATABASE`          | Critical   | Never in application code                         |
+| `TRUNCATE`               | High       | Requires explicit confirmation                    |
+| `DELETE` without `WHERE` | High       | Must have WHERE clause                            |
+| `UPDATE` without `WHERE` | High       | Must have WHERE clause                            |
+
+### 3.2 Migration Rules
+
+- **Preview only**: Always run migrations in preview/dry-run mode first
+- **Reversible**: All migrations must have rollback scripts
+- **Tested**: Migrations must be tested on a copy of production data
+- **Staged**: Apply to staging before production
+
+```bash
+# CORRECT: Preview migration first
+npx prisma migrate dev --preview-feature
+npx drizzle-kit push:pg --dry-run
+
+# Then apply after review
+npx prisma migrate deploy
+```
+
+### 3.3 Query Safety
+
+```typescript
+// CORRECT: Parameterized query
+const user = await db.query(
+  'SELECT * FROM users WHERE id = $1',
+  [userId]
+);
+
+// CORRECT: ORM with type safety
+const user = await prisma.user.findUnique({
+  where: { id: userId }
+});
+```
+
+```typescript
+// WRONG: String interpolation (SQL injection risk)
+const user = await db.query(
+  `SELECT * FROM users WHERE id = ${userId}`
+);
+```
+
+
+## 4. Dependency Security
+
+Maintain secure and up-to-date dependencies.
+
+### 4.1 Rules
+
+- **Audit regularly**: Run security audits on every PR and weekly
+- **Pin versions**: Use exact versions, not ranges, for production
+- **Review changes**: Check changelogs before updating
+- **Avoid deprecated**: Replace deprecated packages promptly
+
+### 4.2 Audit Commands
+
+```bash
+# npm
+npm audit
+npm audit fix
+
+# yarn
+yarn audit
+
+# pnpm
+pnpm audit
+```
+
+### 4.3 Lock Files
+
+| Package Manager | Lock File           | Must Commit |
+|-----------------|---------------------|-------------|
+| npm             | `package-lock.json` | Yes         |
+| yarn            | `yarn.lock`         | Yes         |
+| pnpm            | `pnpm-lock.yaml`    | Yes         |
+
+### 4.4 Dependency Review Checklist
+
+Before adding a new dependency:
+
+- [ ] Check download count and maintenance status
+- [ ] Review open security issues
+- [ ] Verify the package source and maintainers
+- [ ] Assess the dependency tree size
+- [ ] Consider if the functionality can be implemented without the dependency
+
+
+## 5. Error Handling
+
+Handle errors securely without leaking sensitive information.
+
+### 5.1 Rules
+
+- **NEVER** expose stack traces to end users
+- **NEVER** include sensitive data in error messages
+- **Log securely**: Sanitize logs, use structured logging
+- **Fail safely**: Default to secure state on errors
+
+### 5.2 Error Response Patterns
+
+```typescript
+// CORRECT: Generic user-facing error
+function handleError(error: Error, res: Response) {
+  // Log full error internally
+  logger.error('Request failed', {
+    error: error.message,
+    stack: error.stack,
+    requestId: req.id
+  });
+
+  // Return generic message to user
+  res.status(500).json({
+    error: 'An unexpected error occurred',
+    requestId: req.id
+  });
+}
+```
+
+```typescript
+// WRONG: Exposing internal details
+res.status(500).json({
+  error: error.message,
+  stack: error.stack,
+  query: sqlQuery,
+  connectionString: dbUrl
+});
+```
+
+### 5.3 Logging Security
+
+| Do                             | Don't                        |
+|--------------------------------|------------------------------|
+| Log request IDs for tracing    | Log passwords or tokens      |
+| Log sanitized user identifiers | Log full credit card numbers |
+| Log error types and codes      | Log API keys or secrets      |
+| Use structured logging (JSON)  | Log PII without masking      |
+
+
+## 6. Security Code Review Checklist
+
+Before committing code, verify:
+
+### 6.1 Secrets
+
+- [ ] No hardcoded secrets, API keys, or credentials
+- [ ] Secrets loaded from environment variables or secret stores
+- [ ] `.env` files are gitignored
+
+### 6.2 Input Handling
+
+- [ ] All user input is validated and sanitized
+- [ ] No SQL injection vulnerabilities
+- [ ] No command injection vulnerabilities
+
+### 6.3 Data Protection
+
+- [ ] Sensitive data is encrypted at rest and in transit
+- [ ] PII is handled according to privacy requirements
+- [ ] Proper access controls are in place
+
+### 6.4 Error Handling
+
+- [ ] Errors don't expose sensitive information
+- [ ] Logging doesn't include secrets or PII
+- [ ] Application fails safely to a secure state
+
+### 6.5 Dependencies
+
+- [ ] New dependencies are vetted for security
+- [ ] No known vulnerabilities in dependencies
+- [ ] Lock files are committed
+
+
+## 7. AI-Assisted Development
+
+When generating code with AI assistance:
+
+### 7.1 Rules
+
+- **Review all generated code** before committing
+- **Verify security patterns** are correctly implemented
+- **Test edge cases** that AI may not consider
+- **Don't trust** AI-generated secrets or example credentials
+
+### 7.2 Common AI Security Pitfalls
+
+| Issue               | Example                                        |
+|---------------------|------------------------------------------------|
+| Placeholder secrets | `apiKey = "your-api-key-here"` committed as-is |
+| Insecure defaults   | `cors({ origin: '*' })`                        |
+| Missing validation  | No input sanitization on user data             |
+| Outdated patterns   | Using deprecated security libraries            |
