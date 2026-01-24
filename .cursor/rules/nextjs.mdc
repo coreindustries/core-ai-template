@@ -1,0 +1,1383 @@
+---
+description: Next.js development best practices, patterns, and conventions
+alwaysApply: false
+---
+# Next.js Development Rules
+
+Use this rule when developing Next.js applications. These guidelines prioritize modern Next.js 16+ patterns, React Server Components, and performance optimization.
+
+
+## 1. Project Structure
+
+Organize files consistently for maintainability and scalability.
+
+### 1.1 Directory Structure
+
+```
+src/
+├── app/                    # App Router pages and layouts
+│   ├── (auth)/             # Route groups (no URL impact)
+│   ├── api/                # API routes
+│   ├── layout.tsx          # Root layout
+│   └── page.tsx            # Home page
+├── components/
+│   ├── ui/                 # Reusable UI primitives
+│   └── features/           # Feature-specific components
+├── hooks/                  # Custom React hooks
+├── lib/                    # Utility functions and configurations
+├── types/                  # TypeScript type definitions
+└── styles/                 # Global styles
+```
+
+### 1.2 File Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Directories | kebab-case | `components/auth-wizard/` |
+| Components | kebab-case file, PascalCase export | `user-profile.tsx` → `UserProfile` |
+| Utilities | kebab-case | `format-date.ts` |
+| Types | kebab-case | `user-types.ts` |
+| Constants | kebab-case file, SCREAMING_SNAKE_CASE values | `api-endpoints.ts` |
+
+### 1.3 Component File Structure
+
+Order content consistently within component files:
+
+```typescript
+// 1. Imports (external, then internal, then styles)
+import { Suspense } from 'react'
+import { cn } from '@/lib/utils'
+
+// 2. Types/Interfaces
+interface UserCardProps {
+  user: User
+  isCompact?: boolean
+}
+
+// 3. Component
+export function UserCard({ user, isCompact = false }: UserCardProps) {
+  return (...)
+}
+
+// 4. Subcomponents (if not extracted)
+function UserAvatar({ src }: { src: string }) {
+  return (...)
+}
+
+// 5. Helper functions
+function formatUserName(user: User): string {
+  return `${user.firstName} ${user.lastName}`
+}
+```
+
+
+## 2. TypeScript Standards
+
+Enable strict TypeScript for type safety and better developer experience.
+
+### 2.1 Configuration
+
+```json
+{
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
+```
+
+### 2.2 Type Definitions
+
+| Prefer | Avoid | Reason |
+|--------|-------|--------|
+| `interface` | `type` for objects | Interfaces are extendable and provide better error messages |
+| Object maps | `enum` | Enums have runtime overhead and edge cases |
+| `unknown` | `any` | Forces type checking |
+| Explicit return types | Implicit | Improves readability and catches errors |
+
+### 2.3 Interface Patterns
+
+```typescript
+// CORRECT: Use interfaces for object shapes
+interface User {
+  id: string
+  email: string
+  profile: UserProfile
+}
+
+interface UserProfile {
+  displayName: string
+  avatarUrl?: string
+}
+
+// CORRECT: Extend interfaces
+interface AdminUser extends User {
+  permissions: string[]
+}
+
+// CORRECT: Use type for unions, intersections, primitives
+type Status = 'pending' | 'active' | 'inactive'
+type UserWithStatus = User & { status: Status }
+
+// CORRECT: Object map instead of enum
+const OrderStatus = {
+  Pending: 'pending',
+  Processing: 'processing',
+  Shipped: 'shipped',
+  Delivered: 'delivered',
+} as const
+
+type OrderStatus = typeof OrderStatus[keyof typeof OrderStatus]
+```
+
+### 2.4 Component Props
+
+```typescript
+// CORRECT: Interface for props
+interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'ghost'
+  size?: 'sm' | 'md' | 'lg'
+  isLoading?: boolean
+  children: React.ReactNode
+  onClick?: () => void
+}
+
+// CORRECT: Extend HTML attributes
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary'
+  isLoading?: boolean
+}
+```
+
+### 2.5 Async Dynamic APIs (Next.js 16+)
+
+In Next.js 16, `params`, `searchParams`, `headers()`, and `cookies()` are now async and **MUST be awaited**:
+
+```typescript
+// CORRECT: Await params and searchParams
+export default async function Page({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ sort?: string }>
+}) {
+  const { id } = await params
+  const { sort } = await searchParams
+
+  return <div>Post {id}</div>
+}
+
+// CORRECT: Await headers and cookies
+import { headers, cookies } from 'next/headers'
+
+export async function GET() {
+  const headersList = await headers()
+  const cookieStore = await cookies()
+
+  const token = headersList.get('authorization')
+  const session = cookieStore.get('session')
+
+  return Response.json({ data: 'example' })
+}
+
+// CORRECT: generateMetadata with async params
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const post = await getPost(slug)
+
+  return {
+    title: post.title,
+    description: post.excerpt,
+  }
+}
+```
+
+
+## 3. React Server Components (RSC)
+
+Default to Server Components. Use Client Components only when necessary.
+
+### 3.1 Server vs Client Components
+
+| Use Server Components For | Use Client Components For |
+|---------------------------|---------------------------|
+| Data fetching | Event handlers (onClick, onChange) |
+| Database queries | Browser APIs (localStorage, geolocation) |
+| Accessing backend resources | Stateful logic (useState, useReducer) |
+| Rendering static content | Effects (useEffect) |
+| SEO-critical content | Third-party client libraries |
+
+### 3.2 Server Component Patterns
+
+```typescript
+// app/users/page.tsx - Server Component (default)
+import { getUsers } from '@/lib/data'
+
+export default async function UsersPage() {
+  const users = await getUsers()
+
+  return (
+    <main>
+      <h1>Users</h1>
+      <UserList users={users} />
+    </main>
+  )
+}
+```
+
+### 3.3 Client Component Patterns
+
+```typescript
+// components/ui/counter.tsx
+'use client'
+
+import { useState } from 'react'
+
+interface CounterProps {
+  initialValue?: number
+}
+
+export function Counter({ initialValue = 0 }: CounterProps) {
+  const [count, setCount] = useState(initialValue)
+
+  return (
+    <button onClick={() => setCount((c) => c + 1)}>
+      Count: {count}
+    </button>
+  )
+}
+```
+
+### 3.4 Composition Pattern
+
+Keep Client Components small and push them to the leaves of your component tree:
+
+```typescript
+// CORRECT: Server Component with small Client Component leaf
+// app/dashboard/page.tsx (Server)
+import { getDashboardData } from '@/lib/data'
+import { InteractiveChart } from '@/components/charts/interactive-chart'
+
+export default async function DashboardPage() {
+  const data = await getDashboardData()
+
+  return (
+    <main>
+      <h1>Dashboard</h1>
+      <StatsSummary stats={data.stats} />       {/* Server */}
+      <InteractiveChart data={data.chartData} /> {/* Client */}
+    </main>
+  )
+}
+```
+
+### 3.5 React 19 Features
+
+Next.js 16 includes React 19 with new hooks and components:
+
+**useEffectEvent - Extract non-reactive logic from Effects:**
+
+```typescript
+'use client'
+
+import { useEffect, useEffectEvent } from 'react'
+
+function ChatRoom({ roomId, theme }: { roomId: string; theme: string }) {
+  // Event function doesn't re-run effect when theme changes
+  const onConnected = useEffectEvent(() => {
+    showNotification('Connected!', theme)
+  })
+
+  useEffect(() => {
+    const connection = createConnection(roomId)
+    connection.on('connected', () => {
+      onConnected() // Uses latest theme without re-connecting
+    })
+    connection.connect()
+    return () => connection.disconnect()
+  }, [roomId]) // Only roomId as dependency, not theme
+
+  return <div>Chat Room {roomId}</div>
+}
+```
+
+**`<Activity>` - Hide and restore UI with preserved state:**
+
+```typescript
+'use client'
+
+import { Activity, useState } from 'react'
+
+export function Dashboard() {
+  const [isShowingSidebar, setIsShowingSidebar] = useState(true)
+
+  return (
+    <div>
+      <button onClick={() => setIsShowingSidebar(!isShowingSidebar)}>
+        Toggle Sidebar
+      </button>
+
+      {/* Sidebar state is preserved when hidden */}
+      <Activity mode={isShowingSidebar ? 'visible' : 'hidden'}>
+        <Sidebar />
+      </Activity>
+    </div>
+  )
+}
+```
+
+
+## 4. Data Fetching
+
+Use modern Next.js data fetching patterns.
+
+### 4.1 Server-Side Data Fetching
+
+```typescript
+// CORRECT: Fetch in Server Components with async params
+async function getUser(id: string): Promise<User> {
+  const res = await fetch(`${process.env.API_URL}/users/${id}`, {
+    next: { revalidate: 3600, tags: ['user', `user-${id}`] },
+  })
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch user')
+  }
+
+  return res.json()
+}
+
+export default async function UserPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const user = await getUser(id)
+  return <UserProfile user={user} />
+}
+```
+
+### 4.2 Caching Strategies (Next.js 16)
+
+Next.js 16 introduces Cache Components with the `'use cache'` directive and improved revalidation APIs.
+
+**Enable Cache Components:**
+
+```typescript
+// next.config.ts
+const nextConfig = {
+  cacheComponents: true, // Enable Cache Components
+  reactCompiler: true,   // Enable React Compiler (stable)
+}
+
+export default nextConfig
+```
+
+**Using 'use cache' directive:**
+
+```typescript
+// File level - Cache entire page
+'use cache'
+import { cacheLife } from 'next/cache'
+
+export default async function BlogPage() {
+  cacheLife('days') // Presets: seconds, minutes, hours, days, weeks, max
+  const posts = await getBlogPosts()
+  return <div>{/* render posts */}</div>
+}
+
+// Component level - Cache specific component
+export async function ProductList() {
+  'use cache'
+  cacheLife('hours')
+  const products = await getProducts()
+  return <div>{/* render products */}</div>
+}
+
+// Function level - Cache data fetching
+export async function getStats() {
+  'use cache'
+  cacheLife('minutes')
+  const stats = await fetchStats()
+  return stats
+}
+```
+
+**Caching Strategy Reference:**
+
+| Strategy | Implementation | Use Case |
+|----------|----------------|----------|
+| Static | `'use cache'` with `cacheLife('max')` | Content rarely changes |
+| Time-based | `'use cache'` with `cacheLife('hours')` | Periodic updates |
+| Fetch revalidation | `fetch(url, { next: { revalidate: 3600, tags: ['posts'] } })` | API data with ISR |
+| Dynamic | `fetch(url, { cache: 'no-store' })` | Real-time data |
+| On-demand (mutation) | `updateTag()` in Server Actions | User mutations |
+| Background refresh | `revalidateTag(tag, 'max')` in Route Handlers | CMS webhooks |
+
+**Revalidation APIs:**
+
+```typescript
+// In Server Actions - Use updateTag for immediate consistency
+'use server'
+
+import { updateTag } from 'next/cache'
+
+export async function createPost(formData: FormData) {
+  const post = await db.post.create({...})
+
+  // User sees their changes immediately (no stale content)
+  updateTag('posts')
+  updateTag(`post-${post.id}`)
+
+  redirect('/posts')
+}
+
+// In Route Handlers - Use revalidateTag for background refresh
+import { revalidateTag } from 'next/cache'
+
+export async function POST(request: Request) {
+  const body = await request.json()
+
+  // Serves stale while fetching fresh (stale-while-revalidate)
+  revalidateTag('posts', 'max')
+
+  return Response.json({ revalidated: true })
+}
+
+// refresh() - For refreshing uncached data only
+import { refresh } from 'next/cache'
+
+export async function refreshData() {
+  'use server'
+  refresh() // Refreshes uncached data on current route
+}
+```
+
+**Key Differences:**
+
+| API | Where | Behavior |
+|-----|-------|----------|
+| `updateTag()` | Server Actions only | Immediate consistency (waits for fresh data) |
+| `revalidateTag()` | Server Actions + Route Handlers | Stale-while-revalidate with cache profile |
+| `refresh()` | Server Actions only | Refreshes uncached data without touching cache |
+
+### 4.3 URL State Management
+
+Use `nuqs` for URL search parameter state instead of client-side state:
+
+```typescript
+'use client'
+
+import { useQueryState } from 'nuqs'
+
+export function SearchFilters() {
+  const [search, setSearch] = useQueryState('q')
+  const [sort, setSort] = useQueryState('sort', { defaultValue: 'date' })
+
+  return (
+    <div>
+      <input
+        value={search ?? ''}
+        onChange={(e) => setSearch(e.target.value || null)}
+        placeholder="Search..."
+      />
+      <select value={sort} onChange={(e) => setSort(e.target.value)}>
+        <option value="date">Date</option>
+        <option value="name">Name</option>
+      </select>
+    </div>
+  )
+}
+```
+
+### 4.4 Server Actions
+
+Use Server Actions for mutations with `updateTag` for immediate consistency:
+
+```typescript
+// app/actions/user.ts
+'use server'
+
+import { updateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
+import { z } from 'zod'
+
+const UpdateUserSchema = z.object({
+  name: z.string().min(2).max(100),
+  email: z.string().email(),
+})
+
+export async function updateUser(formData: FormData) {
+  const validated = UpdateUserSchema.safeParse({
+    name: formData.get('name'),
+    email: formData.get('email'),
+  })
+
+  if (!validated.success) {
+    return { error: validated.error.flatten() }
+  }
+
+  const userId = formData.get('id') as string
+
+  await db.user.update({
+    where: { id: userId },
+    data: validated.data,
+  })
+
+  // User sees changes immediately
+  updateTag('users')
+  updateTag(`user-${userId}`)
+
+  return { success: true }
+}
+```
+
+
+## 5. Routing and Navigation
+
+Leverage App Router features for optimal user experience.
+
+### 5.1 Route Organization
+
+```
+app/
+├── (marketing)/           # Route group for marketing pages
+│   ├── about/
+│   └── pricing/
+├── (dashboard)/           # Route group for authenticated pages
+│   ├── layout.tsx         # Shared dashboard layout
+│   ├── settings/
+│   └── profile/
+├── api/
+│   └── webhooks/
+└── [...catchAll]/         # Catch-all route
+```
+
+### 5.2 Middleware and Proxy
+
+Next.js 16 introduces `proxy.ts` (formerly `middleware.ts`). Both are supported:
+
+```typescript
+// proxy.ts (new) or middleware.ts (backwards compatible)
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+export async function middleware(request: NextRequest) {
+  // Authentication check
+  const token = request.cookies.get('session')
+
+  if (!token && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', request.url))
+  }
+
+  return NextResponse.next()
+}
+
+export const config = {
+  matcher: '/dashboard/:path*',
+}
+```
+
+### 5.3 Loading and Error States
+
+```typescript
+// app/users/loading.tsx
+export default function UsersLoading() {
+  return <UserListSkeleton />
+}
+
+// app/users/error.tsx
+'use client'
+
+interface ErrorProps {
+  error: Error & { digest?: string }
+  reset: () => void
+}
+
+export default function UsersError({ error, reset }: ErrorProps) {
+  return (
+    <div>
+      <h2>Something went wrong!</h2>
+      <button onClick={reset}>Try again</button>
+    </div>
+  )
+}
+```
+
+### 5.4 Parallel and Intercepting Routes
+
+```
+// Parallel routes for modals
+app/
+├── @modal/
+│   └── (.)photo/[id]/
+│       └── page.tsx      # Modal view
+├── photo/[id]/
+│   └── page.tsx          # Full page view
+└── layout.tsx            # Renders both slots
+```
+
+### 5.5 Navigation
+
+```typescript
+// CORRECT: Use Link for navigation
+import Link from 'next/link'
+
+function Navigation() {
+  return (
+    <nav>
+      <Link href="/dashboard" prefetch={true}>
+        Dashboard
+      </Link>
+      <Link href="/settings" prefetch={false}>
+        Settings
+      </Link>
+    </nav>
+  )
+}
+
+// CORRECT: Programmatic navigation
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+function LogoutButton() {
+  const router = useRouter()
+
+  async function handleLogout() {
+    await logout()
+    router.push('/login')
+    router.refresh() // Refresh server components
+  }
+
+  return <button onClick={handleLogout}>Logout</button>
+}
+```
+
+
+## 6. Performance Optimization
+
+Optimize for Core Web Vitals: LCP, CLS, INP.
+
+### 6.0 Turbopack (Stable in Next.js 16)
+
+Turbopack is now stable and the default bundler:
+
+- 5-10x faster Fast Refresh during development
+- 2-5x faster production builds
+- Enabled by default for `next dev` and `next build`
+
+No configuration needed - it's automatic in Next.js 16.
+
+### 6.1 Image Optimization
+
+```typescript
+import Image from 'next/image'
+
+// CORRECT: Optimized image with dimensions
+function Avatar({ user }: { user: User }) {
+  return (
+    <Image
+      src={user.avatarUrl}
+      alt={`${user.name}'s avatar`}
+      width={48}
+      height={48}
+      className="rounded-full"
+    />
+  )
+}
+
+// CORRECT: Responsive hero image
+function HeroImage() {
+  return (
+    <Image
+      src="/hero.jpg"
+      alt="Hero"
+      fill
+      priority // Load immediately for LCP
+      sizes="(max-width: 768px) 100vw, 50vw"
+      className="object-cover"
+    />
+  )
+}
+```
+
+### 6.2 Font Optimization
+
+```typescript
+// app/layout.tsx
+import { Inter } from 'next/font/google'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+})
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className={inter.variable}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+### 6.3 Dynamic Imports
+
+```typescript
+import dynamic from 'next/dynamic'
+
+// Lazy load heavy components
+const Chart = dynamic(() => import('@/components/chart'), {
+  loading: () => <ChartSkeleton />,
+  ssr: false, // Client-only component
+})
+
+// Lazy load below-the-fold content
+const Comments = dynamic(() => import('@/components/comments'))
+```
+
+### 6.4 Suspense Boundaries
+
+```typescript
+import { Suspense } from 'react'
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+
+  return (
+    <main>
+      <Suspense fallback={<ProductSkeleton />}>
+        <ProductDetails id={id} />
+      </Suspense>
+      <Suspense fallback={<ReviewsSkeleton />}>
+        <ProductReviews id={id} />
+      </Suspense>
+    </main>
+  )
+}
+```
+
+
+## 7. UI and Styling
+
+Use Tailwind CSS with Shadcn UI and Radix primitives.
+
+### 7.1 Tailwind Best Practices
+
+```typescript
+// CORRECT: Utility-first with cn() for conditional classes
+import { cn } from '@/lib/utils'
+
+interface ButtonProps {
+  variant?: 'primary' | 'secondary'
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+  children: React.ReactNode
+}
+
+export function Button({
+  variant = 'primary',
+  size = 'md',
+  className,
+  children,
+  ...props
+}: ButtonProps) {
+  return (
+    <button
+      className={cn(
+        // Base styles
+        'inline-flex items-center justify-center rounded-md font-medium transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+        'disabled:pointer-events-none disabled:opacity-50',
+        // Variants
+        {
+          'bg-primary text-primary-foreground hover:bg-primary/90': variant === 'primary',
+          'bg-secondary text-secondary-foreground hover:bg-secondary/80': variant === 'secondary',
+        },
+        // Sizes
+        {
+          'h-8 px-3 text-sm': size === 'sm',
+          'h-10 px-4': size === 'md',
+          'h-12 px-6 text-lg': size === 'lg',
+        },
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </button>
+  )
+}
+```
+
+### 7.2 CSS Variables for Theming
+
+```css
+/* globals.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+  }
+}
+```
+
+### 7.3 Mobile-First Responsive Design
+
+```tsx
+// CORRECT: Mobile-first breakpoints
+<div
+  className="
+    flex flex-col gap-4
+    sm:flex-row sm:gap-6
+    md:gap-8
+    lg:max-w-4xl lg:mx-auto
+  "
+>
+  {children}
+</div>
+```
+
+
+## 8. Code Quality
+
+Write clean, maintainable code with consistent patterns.
+
+### 8.1 Function Guidelines
+
+- Keep functions focused and under 30 lines
+- Use early returns for error conditions
+- Comment intent, not obvious logic
+
+```typescript
+// CORRECT: Early returns and focused function
+async function getUserOrders(userId: string): Promise<Order[]> {
+  if (!userId) {
+    return []
+  }
+
+  const user = await getUser(userId)
+  if (!user) {
+    return []
+  }
+
+  // Only fetch orders from the last 90 days for performance
+  const orders = await db.order.findMany({
+    where: {
+      userId,
+      createdAt: { gte: subDays(new Date(), 90) },
+    },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  return orders
+}
+```
+
+### 8.2 Naming Conventions
+
+| Context | Convention | Examples |
+|---------|------------|----------|
+| Boolean variables | Prefix with is/has/can/should | `isLoading`, `hasError`, `canSubmit` |
+| Event handlers | Prefix with handle | `handleClick`, `handleSubmit` |
+| Custom hooks | Prefix with use | `useAuth`, `useDebounce` |
+| Constants | SCREAMING_SNAKE_CASE | `MAX_RETRIES`, `API_BASE_URL` |
+
+### 8.3 Exports
+
+```typescript
+// CORRECT: Named exports for components
+export function UserCard({ user }: UserCardProps) {
+  return (...)
+}
+
+// CORRECT: Named export for utilities
+export function formatDate(date: Date): string {
+  return (...)
+}
+
+// AVOID: Default exports (except for pages)
+export default function UserCard() {} // Only for Next.js pages
+```
+
+
+## 9. Forms and Validation
+
+Use React Hook Form with Zod for type-safe forms.
+
+### 9.1 Form Pattern
+
+```typescript
+'use client'
+
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+
+const ContactSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  message: z.string().min(10, 'Message must be at least 10 characters'),
+})
+
+type ContactFormData = z.infer<typeof ContactSchema>
+
+export function ContactForm() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ContactFormData>({
+    resolver: zodResolver(ContactSchema),
+  })
+
+  async function onSubmit(data: ContactFormData) {
+    const result = await submitContact(data)
+    if (result.error) {
+      // Handle error
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <div>
+        <label htmlFor="name">Name</label>
+        <input id="name" {...register('name')} />
+        {errors.name && <span role="alert">{errors.name.message}</span>}
+      </div>
+      {/* ... other fields */}
+      <button type="submit" disabled={isSubmitting}>
+        {isSubmitting ? 'Sending...' : 'Send'}
+      </button>
+    </form>
+  )
+}
+```
+
+
+## 10. Error Handling
+
+Handle errors gracefully with proper boundaries and feedback.
+
+### 10.1 Error Boundaries
+
+```typescript
+// app/error.tsx
+'use client'
+
+import { useEffect } from 'react'
+
+interface ErrorProps {
+  error: Error & { digest?: string }
+  reset: () => void
+}
+
+export default function Error({ error, reset }: ErrorProps) {
+  useEffect(() => {
+    // Log to error reporting service
+    console.error(error)
+  }, [error])
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[400px]">
+      <h2 className="text-xl font-semibold">Something went wrong</h2>
+      <button
+        onClick={reset}
+        className="mt-4 px-4 py-2 bg-primary text-white rounded"
+      >
+        Try again
+      </button>
+    </div>
+  )
+}
+```
+
+```typescript
+// app/global-error.tsx - For root layout errors
+'use client'
+
+export default function GlobalError({
+  error,
+  reset,
+}: {
+  error: Error & { digest?: string }
+  reset: () => void
+}) {
+  return (
+    <html>
+      <body>
+        <h2>Something went wrong!</h2>
+        <button onClick={reset}>Try again</button>
+      </body>
+    </html>
+  )
+}
+```
+
+### 10.2 API Error Handling
+
+```typescript
+// lib/api.ts
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string
+  ) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+export async function fetchApi<T>(
+  endpoint: string,
+  options?: RequestInit
+): Promise<T> {
+  const res = await fetch(`${process.env.API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options?.headers,
+    },
+  })
+
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new ApiError(
+      error.message || 'An error occurred',
+      res.status,
+      error.code
+    )
+  }
+
+  return res.json()
+}
+```
+
+
+## 11. Accessibility
+
+Build accessible applications following WCAG guidelines.
+
+### 11.1 Core Requirements
+
+- Use semantic HTML (`<main>`, `<nav>`, `<article>`, `<aside>`)
+- Provide alt text for images
+- Ensure keyboard navigation works
+- Maintain focus management
+- Use ARIA attributes when semantic HTML is insufficient
+- Ensure color contrast meets WCAG AA (4.5:1 for text)
+
+### 11.2 Accessible Patterns
+
+```typescript
+// CORRECT: Accessible button with loading state
+function SubmitButton({ isLoading }: { isLoading: boolean }) {
+  return (
+    <button
+      type="submit"
+      disabled={isLoading}
+      aria-busy={isLoading}
+      aria-disabled={isLoading}
+    >
+      {isLoading ? (
+        <>
+          <span className="sr-only">Submitting...</span>
+          <Spinner aria-hidden="true" />
+        </>
+      ) : (
+        'Submit'
+      )}
+    </button>
+  )
+}
+
+// CORRECT: Accessible form field
+function FormField({ label, error, ...props }: FormFieldProps) {
+  const id = useId()
+  const errorId = `${id}-error`
+
+  return (
+    <div>
+      <label htmlFor={id}>{label}</label>
+      <input
+        id={id}
+        aria-invalid={!!error}
+        aria-describedby={error ? errorId : undefined}
+        {...props}
+      />
+      {error && (
+        <span id={errorId} role="alert">
+          {error}
+        </span>
+      )}
+    </div>
+  )
+}
+```
+
+
+## 12. Metadata and SEO
+
+Optimize for search engines and social sharing.
+
+### 12.1 Static Metadata
+
+```typescript
+// app/layout.tsx
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: {
+    default: 'My App',
+    template: '%s | My App',
+  },
+  description: 'A modern Next.js application',
+  metadataBase: new URL('https://myapp.com'),
+  openGraph: {
+    type: 'website',
+    locale: 'en_US',
+    siteName: 'My App',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    creator: '@myapp',
+  },
+}
+```
+
+### 12.2 Dynamic Metadata
+
+```typescript
+// app/posts/[slug]/page.tsx
+import type { Metadata } from 'next'
+
+interface PageProps {
+  params: Promise<{ slug: string }> // Now a Promise in Next.js 16
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params // Must await
+  const post = await getPost(slug)
+
+  if (!post) {
+    return { title: 'Post Not Found' }
+  }
+
+  return {
+    title: post.title,
+    description: post.excerpt,
+    openGraph: {
+      title: post.title,
+      description: post.excerpt,
+      images: [{ url: post.coverImage }],
+    },
+  }
+}
+
+export default async function PostPage({ params }: PageProps) {
+  const { slug } = await params // Must await
+  const post = await getPost(slug)
+
+  return <article>{/* render post */}</article>
+}
+```
+
+
+## 13. Testing
+
+Write comprehensive tests for reliability.
+
+### 13.1 Component Testing
+
+```typescript
+// __tests__/user-card.test.tsx
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { UserCard } from '@/components/user-card'
+
+describe('UserCard', () => {
+  const mockUser = {
+    id: '1',
+    name: 'John Doe',
+    email: 'john@example.com',
+  }
+
+  it('displays user information', () => {
+    render(<UserCard user={mockUser} />)
+
+    expect(screen.getByText('John Doe')).toBeInTheDocument()
+    expect(screen.getByText('john@example.com')).toBeInTheDocument()
+  })
+
+  it('calls onEdit when edit button is clicked', async () => {
+    const onEdit = vi.fn()
+    render(<UserCard user={mockUser} onEdit={onEdit} />)
+
+    await userEvent.click(screen.getByRole('button', { name: /edit/i }))
+
+    expect(onEdit).toHaveBeenCalledWith(mockUser.id)
+  })
+})
+```
+
+### 13.2 Server Component Testing
+
+```typescript
+// __tests__/users-page.test.tsx
+import { render, screen } from '@testing-library/react'
+import UsersPage from '@/app/users/page'
+
+// Mock the data fetching
+vi.mock('@/lib/data', () => ({
+  getUsers: vi.fn().mockResolvedValue([
+    { id: '1', name: 'Alice' },
+    { id: '2', name: 'Bob' },
+  ]),
+}))
+
+describe('UsersPage', () => {
+  it('renders user list', async () => {
+    render(await UsersPage())
+
+    expect(screen.getByText('Alice')).toBeInTheDocument()
+    expect(screen.getByText('Bob')).toBeInTheDocument()
+  })
+})
+```
+
+
+## 14. Internationalization (i18n)
+
+Support multiple languages and locales.
+
+### 14.1 Next.js i18n with next-intl
+
+```typescript
+// middleware.ts
+import createMiddleware from 'next-intl/middleware'
+
+export default createMiddleware({
+  locales: ['en', 'es', 'fr'],
+  defaultLocale: 'en',
+})
+
+export const config = {
+  matcher: ['/', '/(de|en)/:path*'],
+}
+```
+
+### 14.2 Translation Pattern
+
+```typescript
+// Using next-intl
+import { useTranslations } from 'next-intl'
+
+export function WelcomeMessage() {
+  const t = useTranslations('Home')
+
+  return (
+    <div>
+      <h1>{t('title')}</h1>
+      <p>{t('description')}</p>
+    </div>
+  )
+}
+```
+
+
+## 15. Security Considerations
+
+Follow web security best practices. See `security-web.mdc` for comprehensive security rules.
+
+### 15.1 Key Points for Next.js
+
+- Use environment variables for secrets (`process.env`)
+- Implement CSRF protection for Server Actions
+- Validate all user input with Zod
+- Use `next/headers` for secure cookie handling (remember to await!)
+- Configure security headers in `next.config.js`
+
+```typescript
+// next.config.ts
+const securityHeaders = [
+  { key: 'X-Frame-Options', value: 'DENY' },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+]
+
+const nextConfig = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: securityHeaders,
+      },
+    ]
+  },
+}
+
+export default nextConfig
+```
+
+
+## 16. Documentation
+
+Document code for maintainability.
+
+### 16.1 JSDoc for Functions
+
+```typescript
+/**
+ * Fetches paginated users from the database.
+ *
+ * @param options - Pagination and filter options
+ * @returns Paginated user list with metadata
+ *
+ * @example
+ * const { users, total } = await getUsers({ page: 1, limit: 10 })
+ */
+export async function getUsers(options: GetUsersOptions): Promise<PaginatedUsers> {
+  // Implementation
+}
+```
+
+### 16.2 Component Documentation
+
+```typescript
+/**
+ * Displays a user's profile card with avatar and actions.
+ *
+ * @example
+ * <UserCard user={user} onEdit={handleEdit} />
+ */
+export function UserCard({ user, onEdit }: UserCardProps) {
+  // Implementation
+}
+```
