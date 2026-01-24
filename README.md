@@ -292,6 +292,7 @@ core-ai-template/
     │   ├── gitmoji.md           # Gitmoji emoji prefixes
     │   ├── nextjs.md            # Next.js development patterns
     │   ├── security-core.md      # Core security (always applies)
+    │   ├── security-mobile.md    # Mobile security (React Native)
     │   ├── security.md           # Security standards
     │   ├── quality-checks.md     # Quality check requirements
     │   └── task-management.md   # Task tracking workflow
@@ -302,7 +303,8 @@ core-ai-template/
     └── rules/                   # Cursor IDE workspace rules
         ├── gitmoji.mdc          # Gitmoji rule (.mdc format)
         ├── nextjs.mdc           # Next.js development rule (.mdc format)
-        └── security-core.mdc    # Core security rule (.mdc format, always applies)
+        ├── security-core.mdc    # Core security rule (.mdc format, always applies)
+        └── security-mobile.mdc  # Mobile security rule (.mdc format, always applies)
 ```
 
 ## Plugin Marketplace

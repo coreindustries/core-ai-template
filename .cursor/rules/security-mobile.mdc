@@ -1,0 +1,624 @@
+---
+description: Mobile application security practices (React Native)
+alwaysApply: true
+---
+# Mobile Security Rules
+
+These rules apply to **mobile applications** built with React Native. Mobile apps have unique security considerations around local storage, network communication, and platform-specific security features.
+
+## 1. Secure Storage
+
+Store sensitive data securely using platform-native secure storage.
+
+### 1.1 Core Rules
+
+- **NEVER** store secrets, tokens, or credentials in AsyncStorage
+- **USE** react-native-keychain or expo-secure-store for sensitive data
+- **ENCRYPT** any locally stored sensitive data
+- **CLEAR** secure storage on logout
+
+### 1.2 Storage Security Levels
+
+| Storage               | Security | Use For                                      |
+|-----------------------|----------|----------------------------------------------|
+| react-native-keychain | High     | Auth tokens, credentials, API keys           |
+| expo-secure-store     | High     | Auth tokens, credentials, API keys           |
+| MMKV (encrypted)      | Medium   | User preferences with sensitive data         |
+| AsyncStorage          | Low      | Non-sensitive data only (preferences, cache) |
+
+### 1.3 Secure Storage Patterns
+
+```typescript
+// CORRECT: Using react-native-keychain
+import * as Keychain from 'react-native-keychain';
+
+async function storeCredentials(username: string, password: string) {
+  await Keychain.setGenericPassword(username, password, {
+    accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+    securityLevel: Keychain.SECURITY_LEVEL.SECURE_HARDWARE
+  });
+}
+
+async function getCredentials() {
+  const credentials = await Keychain.getGenericPassword();
+  if (credentials) {
+    return {
+      username: credentials.username,
+      password: credentials.password
+    };
+  }
+  return null;
+}
+
+async function clearCredentials() {
+  await Keychain.resetGenericPassword();
+}
+```
+
+```typescript
+// CORRECT: Using expo-secure-store
+import * as SecureStore from 'expo-secure-store';
+
+async function storeToken(key: string, value: string) {
+  await SecureStore.setItemAsync(key, value, {
+    keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+  });
+}
+
+async function getToken(key: string): Promise<string | null> {
+  return SecureStore.getItemAsync(key);
+}
+
+async function deleteToken(key: string) {
+  await SecureStore.deleteItemAsync(key);
+}
+```
+
+```typescript
+// WRONG: Storing tokens in AsyncStorage
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// NEVER do this for sensitive data
+await AsyncStorage.setItem('authToken', token);
+await AsyncStorage.setItem('refreshToken', refreshToken);
+```
+
+### 1.4 Logout Security
+
+```typescript
+async function secureLogout() {
+  // Clear all secure storage
+  await Keychain.resetGenericPassword();
+  await SecureStore.deleteItemAsync('accessToken');
+  await SecureStore.deleteItemAsync('refreshToken');
+  
+  // Clear non-sensitive cache
+  await AsyncStorage.clear();
+  
+  // Reset app state
+  resetAppState();
+}
+```
+
+
+## 2. Certificate Pinning
+
+Protect against man-in-the-middle attacks by pinning SSL certificates.
+
+### 2.1 Core Rules
+
+- **IMPLEMENT** certificate pinning for all API connections
+- **PIN** to the public key, not the certificate (for easier rotation)
+- **INCLUDE** backup pins for certificate rotation
+- **HANDLE** pinning failures gracefully
+
+### 2.2 Implementation with react-native-ssl-pinning
+
+```typescript
+import { fetch as sslFetch } from 'react-native-ssl-pinning';
+
+async function secureApiCall(endpoint: string, options: RequestInit) {
+  try {
+    const response = await sslFetch(endpoint, {
+      ...options,
+      sslPinning: {
+        certs: ['cert1', 'cert2'], // Certificate names in assets
+      },
+      timeoutInterval: 10000
+    });
+    
+    return response;
+  } catch (error) {
+    if (error.message.includes('SSL')) {
+      // Certificate pinning failed - possible MITM attack
+      reportSecurityIncident('ssl_pinning_failure', { endpoint });
+      throw new SecurityError('Secure connection could not be established');
+    }
+    throw error;
+  }
+}
+```
+
+### 2.3 Implementation with TrustKit (iOS)
+
+```typescript
+// ios/YourApp/AppDelegate.m configuration
+#import <TrustKit/TrustKit.h>
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+  NSDictionary *trustKitConfig = @{
+    kTSKSwizzleNetworkDelegates: @YES,
+    kTSKPinnedDomains: @{
+      @"api.example.com": @{
+        kTSKEnforcePinning: @YES,
+        kTSKIncludeSubdomains: @YES,
+        kTSKPublicKeyHashes: @[
+          @"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+          @"BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB="
+        ]
+      }
+    }
+  };
+  [TrustKit initSharedInstanceWithConfiguration:trustKitConfig];
+  return YES;
+}
+```
+
+
+## 3. Deep Link Validation
+
+Secure handling of deep links and universal links.
+
+### 3.1 Core Rules
+
+- **VALIDATE** all deep link parameters before use
+- **SANITIZE** URL parameters to prevent injection
+- **VERIFY** deep link origins when possible
+- **NEVER** auto-execute actions from deep links without validation
+
+### 3.2 Safe Deep Link Handling
+
+```typescript
+import { Linking } from 'react-native';
+
+// Define allowed deep link patterns
+const ALLOWED_PATHS = [
+  /^\/product\/[a-zA-Z0-9-]+$/,
+  /^\/user\/profile$/,
+  /^\/settings$/
+] as const;
+
+function validateDeepLink(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    
+    // Verify scheme
+    if (!['myapp', 'https'].includes(parsed.protocol.replace(':', ''))) {
+      return false;
+    }
+    
+    // Verify host for universal links
+    if (parsed.protocol === 'https:' && parsed.host !== 'app.example.com') {
+      return false;
+    }
+    
+    // Validate path pattern
+    const isValidPath = ALLOWED_PATHS.some(pattern => 
+      pattern.test(parsed.pathname)
+    );
+    
+    return isValidPath;
+  } catch {
+    return false;
+  }
+}
+
+function handleDeepLink(url: string) {
+  if (!validateDeepLink(url)) {
+    console.warn('Invalid deep link rejected:', url);
+    return;
+  }
+  
+  // Safe to process
+  processDeepLink(url);
+}
+
+// Set up listener
+Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
+```
+
+### 3.3 Parameter Sanitization
+
+```typescript
+function sanitizeDeepLinkParams(params: Record<string, string>): Record<string, string> {
+  const sanitized: Record<string, string> = {};
+  
+  for (const [key, value] of Object.entries(params)) {
+    // Remove potentially dangerous characters
+    const cleanValue = value
+      .replace(/[<>'"]/g, '')
+      .substring(0, 1000); // Limit length
+    
+    sanitized[key] = cleanValue;
+  }
+  
+  return sanitized;
+}
+```
+
+
+## 4. Biometric Authentication
+
+Implement biometric authentication securely.
+
+### 4.1 Core Rules
+
+- **PROVIDE** fallback to PIN/password
+- **STORE** biometric-protected keys in secure hardware
+- **HANDLE** biometric enrollment changes
+- **REQUIRE** re-authentication for sensitive operations
+
+### 4.2 Implementation
+
+```typescript
+import * as LocalAuthentication from 'expo-local-authentication';
+import * as Keychain from 'react-native-keychain';
+
+async function checkBiometricSupport(): Promise<{
+  isAvailable: boolean;
+  biometryType: string | null;
+}> {
+  const hasHardware = await LocalAuthentication.hasHardwareAsync();
+  const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+  const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
+  
+  return {
+    isAvailable: hasHardware && isEnrolled,
+    biometryType: supportedTypes.length > 0 
+      ? LocalAuthentication.AuthenticationType[supportedTypes[0]] 
+      : null
+  };
+}
+
+async function authenticateWithBiometrics(): Promise<boolean> {
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage: 'Authenticate to continue',
+    fallbackLabel: 'Use passcode',
+    cancelLabel: 'Cancel',
+    disableDeviceFallback: false // Allow PIN fallback
+  });
+  
+  return result.success;
+}
+
+// Store credentials with biometric protection
+async function storeWithBiometrics(username: string, token: string) {
+  await Keychain.setGenericPassword(username, token, {
+    accessControl: Keychain.ACCESS_CONTROL.BIOMETRY_CURRENT_SET_OR_DEVICE_PASSCODE,
+    accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+  });
+}
+
+// Retrieve with biometric prompt
+async function getWithBiometrics(): Promise<Keychain.UserCredentials | false> {
+  return Keychain.getGenericPassword({
+    authenticationPrompt: {
+      title: 'Authentication Required',
+      subtitle: 'Please authenticate to access your account',
+      cancel: 'Cancel'
+    }
+  });
+}
+```
+
+
+## 5. App Transport Security (iOS) & Network Security Config (Android)
+
+Configure platform-level network security.
+
+### 5.1 iOS - App Transport Security (ATS)
+
+Configure in `ios/YourApp/Info.plist`:
+
+```xml
+<!-- CORRECT: Enforce ATS (default, most secure) -->
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key>
+  <false/>
+</dict>
+
+<!-- If exceptions needed, be specific -->
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key>
+  <false/>
+  <key>NSExceptionDomains</key>
+  <dict>
+    <key>legacy-api.example.com</key>
+    <dict>
+      <key>NSExceptionMinimumTLSVersion</key>
+      <string>TLSv1.2</string>
+      <key>NSExceptionAllowsInsecureHTTPLoads</key>
+      <false/>
+    </dict>
+  </dict>
+</dict>
+```
+
+```xml
+<!-- WRONG: Disabling ATS entirely -->
+<key>NSAppTransportSecurity</key>
+<dict>
+  <key>NSAllowsArbitraryLoads</key>
+  <true/>
+</dict>
+```
+
+### 5.2 Android - Network Security Config
+
+Create `android/app/src/main/res/xml/network_security_config.xml`:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+  <!-- Production: Only trust system CAs -->
+  <base-config cleartextTrafficPermitted="false">
+    <trust-anchors>
+      <certificates src="system"/>
+    </trust-anchors>
+  </base-config>
+  
+  <!-- Certificate pinning -->
+  <domain-config>
+    <domain includeSubdomains="true">api.example.com</domain>
+    <pin-set expiration="2025-01-01">
+      <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+      <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
+    </pin-set>
+  </domain-config>
+  
+  <!-- Debug builds only -->
+  <debug-overrides>
+    <trust-anchors>
+      <certificates src="user"/>
+    </trust-anchors>
+  </debug-overrides>
+</network-security-config>
+```
+
+Reference in `AndroidManifest.xml`:
+
+```xml
+<application
+  android:networkSecurityConfig="@xml/network_security_config"
+  ...>
+```
+
+
+## 6. Code Obfuscation & Release Security
+
+Protect release builds from reverse engineering.
+
+### 6.1 Core Rules
+
+- **ENABLE** ProGuard/R8 for Android release builds
+- **DISABLE** all debug logging in production
+- **REMOVE** development tools and screens
+- **OBFUSCATE** sensitive business logic
+
+### 6.2 Android ProGuard Configuration
+
+In `android/app/build.gradle`:
+
+```groovy
+android {
+  buildTypes {
+    release {
+      minifyEnabled true
+      shrinkResources true
+      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+    }
+  }
+}
+```
+
+### 6.3 Debug Logging Prevention
+
+```typescript
+// Create production-safe logger
+const isProduction = !__DEV__;
+
+const logger = {
+  log: (...args: unknown[]) => {
+    if (!isProduction) {
+      console.log(...args);
+    }
+  },
+  warn: (...args: unknown[]) => {
+    if (!isProduction) {
+      console.warn(...args);
+    }
+  },
+  error: (...args: unknown[]) => {
+    // Always log errors, but sanitize in production
+    if (isProduction) {
+      // Send to crash reporting service
+      reportError(args);
+    } else {
+      console.error(...args);
+    }
+  }
+};
+
+export { logger };
+```
+
+### 6.4 Conditional Dev Features
+
+```typescript
+// Remove dev-only features from production
+function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeScreen} />
+        
+        {/* Dev-only screens */}
+        {__DEV__ && (
+          <>
+            <Stack.Screen name="DevMenu" component={DevMenuScreen} />
+            <Stack.Screen name="NetworkInspector" component={NetworkInspector} />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+```
+
+
+## 7. Jailbreak/Root Detection
+
+Detect compromised devices for sensitive applications.
+
+### 7.1 When to Implement
+
+| App Type         | Recommendation |
+|------------------|----------------|
+| Banking/Finance  | Required       |
+| Healthcare/HIPAA | Required       |
+| Enterprise/MDM   | Recommended    |
+| General Consumer | Optional       |
+
+### 7.2 Implementation
+
+```typescript
+import JailMonkey from 'jail-monkey';
+
+function checkDeviceSecurity(): {
+  isCompromised: boolean;
+  risks: string[];
+} {
+  const risks: string[] = [];
+  
+  if (JailMonkey.isJailBroken()) {
+    risks.push('Device is jailbroken/rooted');
+  }
+  
+  if (JailMonkey.hookDetected()) {
+    risks.push('Hooking framework detected');
+  }
+  
+  if (JailMonkey.isDebuggedMode()) {
+    risks.push('App is being debugged');
+  }
+  
+  return {
+    isCompromised: risks.length > 0,
+    risks
+  };
+}
+
+// Graceful handling
+function handleCompromisedDevice(risks: string[]) {
+  // Option 1: Warn user but allow continue
+  showSecurityWarning(
+    'Security Risk Detected',
+    'Your device may be compromised. Some features may be disabled.'
+  );
+  
+  // Option 2: Restrict sensitive features
+  disableSensitiveFeatures();
+  
+  // Option 3: Block app entirely (banking apps)
+  // blockAppAccess();
+  
+  // Always log for security monitoring
+  reportSecurityEvent('device_compromised', { risks });
+}
+```
+
+
+## 8. Secure Clipboard Handling
+
+Protect sensitive data from clipboard exposure.
+
+### 8.1 Rules
+
+- **CLEAR** clipboard after pasting sensitive data
+- **WARN** users when copying sensitive information
+- **PREVENT** copying of highly sensitive data (CVV, full card numbers)
+
+### 8.2 Implementation
+
+```typescript
+import Clipboard from '@react-native-clipboard/clipboard';
+
+async function copyWithTimeout(text: string, label: string) {
+  Clipboard.setString(text);
+  
+  // Clear clipboard after 30 seconds
+  setTimeout(() => {
+    Clipboard.setString('');
+  }, 30000);
+  
+  showToast(`${label} copied. Will be cleared in 30 seconds.`);
+}
+
+// Prevent copying sensitive fields
+function SensitiveField({ value }: { value: string }) {
+  return (
+    <TextInput
+      value={value}
+      editable={false}
+      selectTextOnFocus={false}
+      contextMenuHidden={true}
+    />
+  );
+}
+```
+
+
+## 9. Screenshot Prevention
+
+Prevent screenshots of sensitive screens.
+
+### 9.1 Implementation
+
+```typescript
+import { useEffect } from 'react';
+import { Platform } from 'react-native';
+
+// iOS: Uses UITextField secure entry trick or FLAG_SECURE
+// Android: Uses FLAG_SECURE
+
+function usePreventScreenshot(shouldPrevent: boolean) {
+  useEffect(() => {
+    if (shouldPrevent) {
+      if (Platform.OS === 'android') {
+        // Requires native module
+        NativeModules.ScreenshotPrevention?.enable();
+      }
+      // iOS requires native implementation
+    }
+    
+    return () => {
+      if (Platform.OS === 'android') {
+        NativeModules.ScreenshotPrevention?.disable();
+      }
+    };
+  }, [shouldPrevent]);
+}
+
+// Usage in sensitive screen
+function PaymentScreen() {
+  usePreventScreenshot(true);
+  
+  return (
+    <View>
+      <CreditCardForm />
+    </View>
+  );
+}
+```
