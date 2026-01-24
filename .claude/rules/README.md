@@ -15,6 +15,7 @@ All `.md` files in `.claude/rules/` are automatically loaded into Claude Code's 
 | `ai-agent-patterns.md` | AI agent development principles | PRD 01 Sections 4 & 6 |
 | `error-handling.md` | Error handling patterns and requirements | PRD 01 Section 5 |
 | `git-workflow.md` | Git workflow and commit standards | PRD 01 Section 9 |
+| `gitmoji.md` | Gitmoji emoji prefixes for commits | Gitmoji standard |
 | `security.md` | Security standards and OWASP Top 10 | PRD 03 |
 | `quality-checks.md` | Quality check requirements and CI/CD | PRD 01 Section 8 |
 | `task-management.md` | Task tracking and PRD workflow | PRD 01 Section 10 |
@@ -86,7 +87,8 @@ Claude Code may support path-specific rules in the future, allowing rules to act
 
 - `CLAUDE.md` - Main project instructions
 - `AGENTS.md` - Agent quick reference
-- `.cursorrules` - Cursor IDE rules
+- `.cursorrules` - Cursor IDE rules (root)
+- `.cursor/rules/` - Cursor IDE workspace rules (.mdc files)
 - `prd/01_Technical_standards.md` - Full technical standards
 - `prd/03_Security.md` - Full security standards
 

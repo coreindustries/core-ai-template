@@ -38,6 +38,18 @@ git clean -fd            # Removes untracked files
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
+**Optional Gitmoji Format:**
+If Gitmoji is enabled (see `.claude/rules/gitmoji.md`):
+```
+<emoji> <type>: <description>
+
+<body (optional)>
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+**Example with Gitmoji:** `✨ feat(auth): add OAuth2 login support`
+
 **Types:**
 - `feat`: New feature
 - `fix`: Bug fix

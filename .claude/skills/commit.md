@@ -59,17 +59,24 @@ When this skill is invoked:
    [optional footer]
    ```
 
+   **Optional:** If Gitmoji is enabled (see `.claude/rules/gitmoji.md`), prefix with emoji:
+   ```
+   <emoji> <type>(<scope>): <description>
+   ```
+
    **Types:**
-   - `feat`: New feature
-   - `fix`: Bug fix
-   - `docs`: Documentation only
-   - `style`: Formatting, no code change
-   - `refactor`: Code change that neither fixes nor adds
-   - `perf`: Performance improvement
-   - `test`: Adding or updating tests
-   - `chore`: Maintenance tasks
-   - `ci`: CI/CD changes
-   - `build`: Build system changes
+   - `feat`: New feature (✨ with Gitmoji)
+   - `fix`: Bug fix (🐛 with Gitmoji)
+   - `docs`: Documentation only (📝 with Gitmoji)
+   - `style`: Formatting, no code change (🎨 with Gitmoji)
+   - `refactor`: Code change that neither fixes nor adds (♻️ with Gitmoji)
+   - `perf`: Performance improvement (⚡️ with Gitmoji)
+   - `test`: Adding or updating tests (✅ with Gitmoji)
+   - `chore`: Maintenance tasks (🔧 with Gitmoji)
+   - `ci`: CI/CD changes (👷 with Gitmoji)
+   - `build`: Build system changes (📦️ with Gitmoji)
+   
+   **Breaking changes:** Use 💥 emoji regardless of type when using Gitmoji
 
 5. **Security check**:
    - Scan for potential secrets in staged files

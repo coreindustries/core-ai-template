@@ -289,12 +289,16 @@ core-ai-template/
     │   ├── ai-agent-patterns.md # AI agent principles
     │   ├── error-handling.md    # Error handling patterns
     │   ├── git-workflow.md      # Git workflow standards
+    │   ├── gitmoji.md           # Gitmoji emoji prefixes
     │   ├── security.md           # Security standards
     │   ├── quality-checks.md     # Quality check requirements
     │   └── task-management.md   # Task tracking workflow
     ├── agents/                  # Specialized agents
     │   └── codex-style-agent.md
     └── skills/                  # Slash commands (16 skills)
+└── .cursor/
+    └── rules/                   # Cursor IDE workspace rules
+        └── gitmoji.mdc          # Gitmoji rule (.mdc format)
 ```
 
 ## Plugin Marketplace
@@ -354,7 +358,13 @@ When you run `git commit` (without `-m`), the template will appear in your edito
 - Commit types (feat, fix, docs, etc.)
 - Scope usage
 - Body and footer formatting
+- Gitmoji emoji prefixes (optional)
 - Examples
+
+**Gitmoji Support:**
+- See `.claude/rules/gitmoji.md` for Gitmoji reference
+- See `.cursor/rules/gitmoji.mdc` for Cursor IDE workspace rule
+- Gitmoji provides visual commit identification with emoji prefixes
 
 You can also use the `/commit` skill for AI-assisted commit message generation.
 

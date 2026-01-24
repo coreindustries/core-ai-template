@@ -1,0 +1,235 @@
+---
+description: Add Gitmoji emoji prefixes to commit messages
+alwaysApply: false
+---
+# Gitmoji Reference
+
+This rule extends [Conventional Commits](./conventional-commits.mdc) with **[Gitmoji](https://gitmoji.dev)** emoji prefixes.
+
+## What is Gitmoji?
+
+[Gitmoji](https://gitmoji.dev) is an initiative to standardize the use of emojis in commit messages. Using emojis provides an **easy way to identify the purpose or intention of a commit** at a glance.
+
+## Format
+
+When Gitmoji is enabled, commit messages follow this structure:
+
+```
+<emoji> <type>(<scope>)?[!]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Example:** `✨ feat(auth): add OAuth2 login support`
+
+## Rules
+
+- **Always** prefix the commit message with the appropriate Gitmoji
+- **Use the actual emoji character** (✨), not the `:shortcode:` format (`:sparkles:`)
+- The emoji comes **before the type**, separated by a space
+- For breaking changes, **always use 💥** regardless of the commit type
+
+
+## Type and Emoji Mapping
+
+Each conventional commit type has a primary Gitmoji:
+
+| Type       | Primary Emoji | Description                                              |
+|------------|---------------|----------------------------------------------------------|
+| `feat`     | ✨            | A new feature                                            |
+| `fix`      | 🐛            | A bug fix                                                |
+| `docs`     | 📝            | Documentation-only changes                               |
+| `style`    | 🎨            | Formatting, whitespace, etc. (no code behavior changes)  |
+| `refactor` | ♻️            | Code change that neither fixes a bug nor adds a feature  |
+| `perf`     | ⚡️            | Performance-related change                               |
+| `test`     | ✅            | Adding or updating tests                                 |
+| `build`    | 📦️            | Build system or external dependencies (webpack, npm)     |
+| `ci`       | 👷            | CI configuration and scripts                             |
+| `chore`    | 🔧            | Routine tasks, maintenance, or non-code changes          |
+| `revert`   | ⏪️            | A commit that reverts previous commits                   |
+
+
+## Extended Gitmoji Reference
+
+For more specific intents, use these additional gitmojis with the appropriate type:
+
+### Features & Enhancements
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| 🎉    | `:tada:`                      | `feat`      | Begin a project / initial commit                 |
+| 🚀    | `:rocket:`                    | `feat`      | Deploy stuff                                     |
+| 💄    | `:lipstick:`                  | `feat`      | Add or update UI and style files                 |
+| 🌐    | `:globe_with_meridians:`      | `feat`      | Internationalization and localization            |
+| ♿️    | `:wheelchair:`                | `feat`      | Improve accessibility                            |
+| 📱    | `:iphone:`                    | `feat`      | Work on responsive design                        |
+| 🗃️    | `:card_file_box:`             | `feat`      | Perform database related changes                 |
+| 🔊    | `:loud_sound:`                | `feat`      | Add or update logs                               |
+| 🌱    | `:seedling:`                  | `feat`      | Add or update seed files                         |
+| 🚩    | `:triangular_flag_on_post:`   | `feat`      | Add, update, or remove feature flags             |
+| 👔    | `:necktie:`                   | `feat`      | Add or update business logic                     |
+| 🛂    | `:passport_control:`          | `feat`      | Work on authorization, roles, permissions        |
+| 🩺    | `:stethoscope:`               | `feat`      | Add or update healthcheck                        |
+| 🦺    | `:safety_vest:`               | `feat`      | Add or update validation code                    |
+| 📈    | `:chart_with_upwards_trend:`  | `feat`      | Add or update analytics or tracking              |
+
+### Bug Fixes
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| 🔒️    | `:lock:`                      | `fix`       | Fix security or privacy issues                   |
+| 🚑️    | `:ambulance:`                 | `fix`       | Critical hotfix                                  |
+| 🩹    | `:adhesive_bandage:`          | `fix`       | Simple fix for a non-critical issue              |
+| 🚨    | `:rotating_light:`            | `fix`       | Fix compiler / linter warnings                   |
+| 💚    | `:green_heart:`               | `fix`       | Fix CI build                                     |
+| ✏️    | `:pencil2:`                   | `fix`       | Fix typos                                        |
+
+### Refactoring
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| 🔥    | `:fire:`                      | `refactor`  | Remove code or files                             |
+| 🚚    | `:truck:`                     | `refactor`  | Move or rename resources (files, paths, routes)  |
+| ⚰️    | `:coffin:`                    | `refactor`  | Remove dead code                                 |
+| 🏗️    | `:building_construction:`     | `refactor`  | Make architectural changes                       |
+| 🔇    | `:mute:`                      | `refactor`  | Remove logs                                      |
+| 🏷️    | `:label:`                     | `refactor`  | Add or update types                              |
+
+### Tests
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| 🧪    | `:test_tube:`                 | `test`      | Add a failing test                               |
+
+### Build & Dependencies
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| ⬆️    | `:arrow_up:`                  | `build`     | Upgrade dependencies                             |
+| ⬇️    | `:arrow_down:`                | `build`     | Downgrade dependencies                           |
+| ➕    | `:heavy_plus_sign:`           | `build`     | Add a dependency                                 |
+| ➖    | `:heavy_minus_sign:`          | `build`     | Remove a dependency                              |
+| 📌    | `:pushpin:`                   | `build`     | Pin dependencies to specific versions            |
+| 🧱    | `:bricks:`                    | `build`     | Infrastructure related changes                   |
+
+### Chores & Maintenance
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| 🔧    | `:wrench:`                    | `chore`     | Add or update configuration files                |
+| 🔨    | `:hammer:`                    | `chore`     | Add or update development scripts                |
+| 🙈    | `:see_no_evil:`               | `chore`     | Add or update .gitignore file                    |
+| 📄    | `:page_facing_up:`            | `chore`     | Add or update license                            |
+| 🔖    | `:bookmark:`                  | `chore`     | Release / version tags                           |
+| 🧑‍💻    | `:technologist:`              | `chore`     | Improve developer experience                     |
+
+### Documentation
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| 💡    | `:bulb:`                      | `docs`      | Add or update comments in source code            |
+
+### Special
+
+| Emoji | Shortcode                     | Use With    | Description                                      |
+|-------|-------------------------------|-------------|--------------------------------------------------|
+| 💥    | `:boom:`                      | (any)`!`    | Introduce breaking changes                       |
+| 🚧    | `:construction:`              | (any)       | Work in progress                                 |
+
+
+## Choosing the Right Emoji
+
+1. Start with the **primary emoji** for your commit type
+2. If a more specific emoji better describes the intent, use that instead
+3. When in doubt, use the primary emoji for the type
+4. For breaking changes, **always use 💥** regardless of the underlying type
+
+
+## Examples
+
+### With Gitmoji (this rule enabled)
+
+```
+✨ feat(auth): add OAuth2 login support
+```
+
+```
+🐛 fix: resolve memory leak in image processing
+```
+
+```
+💥 feat!: change user id format from int to uuid
+
+BREAKING CHANGE: user ids are now UUIDs instead of integers.
+```
+
+```
+⬆️ build(deps): upgrade React to v19
+```
+
+```
+🚑️ fix: critical auth bypass vulnerability
+```
+
+```
+🎉 feat: initial project setup
+```
+
+### Without Gitmoji (this rule disabled)
+
+```
+feat(auth): add OAuth2 login support
+```
+
+```
+fix: resolve memory leak in image processing
+```
+
+
+## Quick Reference Card
+
+Common commit patterns for quick copy-paste:
+
+| Intent                  | Commit Format                                    |
+|-------------------------|--------------------------------------------------|
+| New feature             | `✨ feat: add [feature]`                         |
+| Bug fix                 | `🐛 fix: resolve [issue]`                        |
+| Critical hotfix         | `🚑️ fix: [critical fix]`                         |
+| Security fix            | `🔒️ fix: [security issue]`                       |
+| Documentation           | `📝 docs: update [doc]`                          |
+| Refactor                | `♻️ refactor: [refactor description]`            |
+| Performance             | `⚡️ perf: improve [area]`                        |
+| Tests                   | `✅ test: add tests for [feature]`               |
+| Dependencies            | `⬆️ build(deps): upgrade [package]`              |
+| CI/CD                   | `👷 ci: update [pipeline]`                       |
+| Config                  | `🔧 chore: update [config]`                      |
+| Breaking change         | `💥 feat!: [breaking change]`                    |
+| Initial commit          | `🎉 feat: initial project setup`                 |
+| WIP (use sparingly)     | `🚧 chore: work in progress on [feature]`        |
+
+
+## CLI Tools
+
+### gitmoji-cli
+
+To use gitmojis from your command line, install [gitmoji-cli](https://github.com/carloscuesta/gitmoji-cli):
+
+```bash
+npm i -g gitmoji-cli
+```
+
+This provides an interactive client for selecting emojis when committing:
+
+```bash
+gitmoji -c  # Interactive commit
+```
+
+### gitmojis npm package
+
+The gitmojis are also available as an [npm package](https://www.npmjs.com/package/gitmojis) for programmatic use:
+
+```bash
+npm i gitmojis
+```

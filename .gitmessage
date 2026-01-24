@@ -1,9 +1,10 @@
-# <type>(<scope>): <subject>
+# <emoji> <type>(<scope>): <subject>
 #
 # <body>
 #
 # <footer>
 #
+# Emoji (optional): See .claude/rules/gitmoji.md for Gitmoji reference
 # Type: feat|fix|docs|style|refactor|perf|test|chore|ci|build
 # Scope: (optional) component, module, or area affected
 # Subject: imperative mood, max 72 chars, no period
@@ -15,11 +16,16 @@
 # - BREAKING CHANGE: description
 # - Co-Authored-By: Name <email>
 #
-# Examples:
+# Examples (with Gitmoji):
+# ✨ feat(auth): add password reset endpoint
+# 🐛 fix(api): handle null response from external service
+# 📝 docs(readme): update installation instructions
+# ♻️ refactor(db): extract query builder to separate module
+# 💥 feat!: breaking change description
+#
+# Examples (without Gitmoji):
 # feat(auth): add password reset endpoint
 # fix(api): handle null response from external service
-# docs(readme): update installation instructions
-# refactor(db): extract query builder to separate module
 #
 # ---
 # Write your commit message above this line.
