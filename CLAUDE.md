@@ -1,59 +1,35 @@
 # CLAUDE.md
 
-Project guidance for Claude Code. **For detailed agent patterns, see `AGENTS.md`.**
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Overview
+## What This Is
 
-**Stack:** See `prd/02_Tech_stack.md` for technology decisions.
+This is a **project template** for AI agent-assisted development. There is no `src/` or `tests/` directory yet — those are created when the template is used for a specific project. The first step for any new project is filling in `prd/02_Tech_stack.md` with technology choices, then replacing `{placeholder}` commands throughout.
 
-## Commands Reference
+## Document Hierarchy
 
-All commands should use your project's package manager/runner. See `prd/02_Tech_stack.md` for specific commands.
+Understanding how the pieces fit together is critical:
 
-```bash
-# Common patterns (replace with your tech stack commands)
-{package_manager} install        # Install deps
-{package_manager} add {package}  # Add package
-{runner} {script}                # Run scripts
-{runner} test                    # Run tests
-{runner} {app_entry}             # Start app
+```
+CLAUDE.md (this file)          → Top-level guidance, commands, architecture
+├── AGENTS.md                  → AI agent behavior quick reference
+├── prd/
+│   ├── 00_PRD_index.md        → Feature tracking, implementation order
+│   ├── 01_Technical_standards → Full standards (source of truth for rules)
+│   ├── 02_Tech_stack.md       → TEMPLATE: technology choices + all commands
+│   ├── 03_Security.md         → OWASP Top 10, audit logging
+│   └── tasks/                 → Long-running feature progress tracking
+├── .claude/rules/             → Auto-loaded rules (extracted from PRDs)
+├── .claude/skills/            → 16 slash commands (invoke with /name)
+└── .claude/agents/            → Specialized agent definitions
 ```
 
-## Architecture
+**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They cover: code quality, testing, error handling, git workflow, security (core/web/mobile), AI agent patterns, quality checks, task management, Next.js patterns, and Gitmoji.
 
-**Entry Points:**
-Defined in `prd/02_Tech_stack.md`. Typically includes:
-- API server entry point
-- CLI entry point (if applicable)
+## Commands
 
-**Key Patterns:**
-- Database: Use singleton/context manager patterns (defined in tech stack)
-- Config: Use environment-based configuration (pydantic-settings, dotenv, etc.)
-- Logging: Use structured logging with separate audit logging for security
-- Metrics: Expose metrics endpoint for monitoring
+All commands come from `prd/02_Tech_stack.md`. Replace placeholders with your stack. Examples for Python, TypeScript, and Go are in that file's collapsed sections.
 
-**Directory Structure:**
-```
-project-root/
-├── src/{project_name}/          # Source code
-│   ├── api/                     # Routes (delegate to services)
-│   ├── services/                # Business logic
-│   ├── models/                  # Request/response schemas
-│   ├── db/                      # Database utilities
-│   └── logging/                 # Logging configuration
-├── tests/
-│   ├── unit/                    # Fast, no I/O
-│   └── integration/             # Real database
-├── prd/                         # Product requirements
-│   └── tasks/                   # Task tracking files
-└── {config_files}               # See tech stack for specifics
-```
-
-## Essential Commands
-
-See `prd/02_Tech_stack.md` for technology-specific commands.
-
-**Common patterns:**
 ```bash
 # Development
 {start_dev_server}               # Start API with hot reload
@@ -71,91 +47,64 @@ See `prd/02_Tech_stack.md` for technology-specific commands.
 # Testing
 {test_unit}                      # Unit tests only
 {test_integration}               # Integration tests only
+{test_specific} tests/unit/test_{module}  # Single test file
 {test_stop_first}                # Stop on first failure
 ```
 
-## Code Standards
+## Architecture
 
-1. **Type hints/annotations** on all functions/attributes/returns
-2. **Docstrings** on public functions/classes (Google-style, JSDoc, etc.)
-3. **Coverage minimum** defined in tech stack (typically 66-100%)
-4. **Modern syntax** for your language version
-5. **DRY:** Search for existing implementations first
-
-## Database Patterns
-
+**Directory structure** (after project setup):
 ```
-# See prd/02_Tech_stack.md for ORM/database access patterns
-# General principles:
-- Use singleton pattern for database client
-- Use context managers/transactions for database operations
-- Handle JSON fields according to ORM requirements
+src/{project_name}/              # Source code
+├── api/                         # Routes (thin — delegate to services)
+├── services/                    # Business logic
+├── models/                      # Request/response schemas
+├── db/                          # Database singleton + utilities
+└── logging/                     # Structured + audit logging
+tests/
+├── unit/                        # No I/O, mock externals
+└── integration/                 # Real database, use fixtures
 ```
 
-## Testing
+**Key patterns**: Database singleton, environment-based config, structured logging with separate audit logger, service-layer business logic.
 
-- **Unit** (`tests/unit/`): No I/O, mock externals, fast
-- **Integration** (`tests/integration/`): Real DB, use fixtures
-- **Markers**: Use test framework markers for categorization
+## Skills (Slash Commands)
 
-## Common Gotchas
+| Skill | Purpose |
+|-------|---------|
+| `/feature` | Full feature lifecycle: PRD → code → tests → PR (in worktree) |
+| `/commit` | Conventional commit with Gitmoji |
+| `/pr` | Create pull request |
+| `/test` | Run tests with coverage |
+| `/lint` | Lint, format, type check |
+| `/refactor` | Safe refactoring with TDD approach |
+| `/review` | Code review against project standards |
+| `/debug` | Systematic debugging workflow |
+| `/checkpoint` | Update task tracking file |
+| `/hotfix` | Quick production patch |
+| `/init` | Initialize new project from template |
+| `/deps` | Audit and manage dependencies |
+| `/scan` | Security scanning |
+| `/migrate` | Database migrations |
+| `/api` | Design REST/GraphQL endpoints |
+| `/docs` | Generate documentation |
 
-See `prd/02_Tech_stack.md` for technology-specific gotchas.
+## CI/CD
 
-**Universal gotchas:**
-1. **Generate clients** after schema changes (ORM-specific)
-2. **Database is singleton** - use provided helpers, not new instances
-3. **Logging configured first** - configure at app entry point
-4. **Test markers required** - mark integration tests appropriately
+The active pipeline (`.github/workflows/ci.yml`) runs on push/PR to main with 5 gates: **Lint → Type Check → Test (66% coverage min) → Security → Build**. A generic template exists at `ci.yml.example`. See `.github/README.md` for customization.
 
-## PRDs & Documentation
+## Context Recovery
 
-| Document | Purpose |
-|----------|---------|
-| `prd/01_Technical_standards.md` | Code quality, AI agent patterns |
-| `prd/02_Tech_stack.md` | Technology decisions and commands |
-| `prd/03_Security.md` | OWASP, secrets, audit logging |
-| `AGENTS.md` | Agent quick reference |
-| `.claude/rules/` | Modular rules (automatically loaded) |
-| `.claude/skills/` | Slash commands |
+When resuming after context compression:
+1. Read `prd/00_PRD_index.md` → find "In Progress" features
+2. Read `prd/tasks/{feature}_tasks.md` → load progress
+3. Start from "Next Session Priorities"
 
-## Rules Directory
-
-This project uses Claude Code's modular rules system (`.claude/rules/`). All rule files are automatically loaded.
-
-**Available Rules:**
-- `code-quality.md` - Code quality standards
-- `testing.md` - Testing requirements
-- `ai-agent-patterns.md` - AI agent development principles
-- `error-handling.md` - Error handling patterns
-- `git-workflow.md` - Git workflow standards
-- `security.md` - Security standards
-- `quality-checks.md` - Quality check requirements
-- `task-management.md` - Task tracking workflow
-
-See `.claude/rules/README.md` for details.
-
-## Audit Logging (Security Events)
-
-```
-# See prd/02_Tech_stack.md for implementation details
-# General pattern:
-audit_logger.log(action="AUTH_SUCCESS", user_id="123", ip_address="1.2.3.4")
-audit_logger.log(action="DATA_READ", user_id="123", resource_type="user")
-```
-
-## Environment
-
-Required environment variables (see `.env.example`):
-- `DATABASE_URL` - Database connection string
-- `LOG_LEVEL` - DEBUG, INFO, WARNING, ERROR, CRITICAL
-- `ENVIRONMENT` - development, staging, production
-
-Additional variables defined in `prd/02_Tech_stack.md`.
-
-## Renaming Template
+## Template Setup
 
 When using this template for a new project:
-1. Replace `{project_name}` in all files
-2. Update technology-specific config files
-3. Run package manager sync/install
+1. Fill in `prd/02_Tech_stack.md` with technology choices
+2. Replace `{placeholder}` values in this file and `AGENTS.md`
+3. Update `prd/00_PRD_index.md` tech stack summary
+4. Customize `.github/workflows/ci.yml` for your stack
+5. Run package manager install
