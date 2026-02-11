@@ -142,8 +142,6 @@ git checkout -b feat/my-feature
 
 **Total Setup Time:** ~15 minutes
 
-For detailed walkthrough, see [QUICKSTART.md](QUICKSTART.md).
-
 ## Tech Stack Examples
 
 Copy one of these configurations into `prd/02_Tech_stack.md` as a starting point.
@@ -263,10 +261,8 @@ volumes:
 ```
 core-ai-template/
 ├── README.md                    # This file - project overview
-├── QUICKSTART.md                # Detailed 15-minute setup guide
 ├── CLAUDE.md                    # AI agent project guidance
 ├── AGENTS.md                    # Agent quick reference
-├── TDD.md                       # Technical Design Document template
 ├── .gitmessage                  # Git commit message template
 ├── .cursorrules                 # Cursor IDE rules
 ├── marketplace.json             # Plugin marketplace manifest
@@ -399,7 +395,6 @@ See [`.github/workflows/README.md`](.github/workflows/README.md) for detailed se
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
 | `README.md` | Project overview and quick setup | Start here |
-| `QUICKSTART.md` | Detailed 15-minute setup walkthrough | First time setup |
 | `CLAUDE.md` | Project-level instructions for Claude Code | Customize for your project |
 | `AGENTS.md` | AI agent quick reference | Daily development |
 | `.claude/rules/` | Modular rules (auto-loaded) | Reference as needed |
