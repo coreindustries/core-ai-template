@@ -23,7 +23,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 18 slash commands (invoke with /name)
+├── .claude/skills/            → 24 slash commands (invoke with /name)
 ├── .claude/agents/            → 5 specialized agents (invoke on demand)
 └── .claude/mcp.json           → MCP server configuration template
 ```
@@ -94,6 +94,12 @@ tests/
 | `/docs` | Generate documentation |
 | `/onboard` | Guided walkthrough for new contributors |
 | `/resume` | Recover context after session break |
+| `/env` | Validate, generate, and sync environment variables |
+| `/release` | Tag version, generate changelog, create GitHub release |
+| `/perf` | Profile, benchmark, and optimize performance |
+| `/ci` | Generate or update CI/CD pipeline configuration |
+| `/scaffold` | Generate new module/component/screen with tests |
+| `/deploy` | Deploy to staging or production |
 
 ## CI/CD
 

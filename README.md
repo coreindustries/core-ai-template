@@ -22,7 +22,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `.claude/agents/` - 5 specialized agents (code review, architecture, testing, performance, security)
-- `.claude/skills/` - 18 slash commands for common workflows
+- `.claude/skills/` - 24 slash commands for common workflows
 - `.claude/mcp.json` - MCP server configuration template
 
 ### Documentation & Standards
@@ -68,9 +68,15 @@ This template establishes a foundation for projects where AI agents are primary 
 | Skill | Purpose |
 |-------|---------|
 | `/init` | Initialize new project with boilerplate |
+| `/scaffold` | Generate new module/component/screen with tests |
 | `/deps` | Audit and manage dependencies |
+| `/env` | Validate, generate, and sync environment variables |
 | `/scan` | Run security scans |
 | `/migrate` | Manage database migrations |
+| `/ci` | Generate or update CI/CD pipeline configuration |
+| `/release` | Tag version, generate changelog, create GitHub release |
+| `/deploy` | Deploy to staging or production |
+| `/perf` | Profile, benchmark, and optimize performance |
 | `/docs` | Generate documentation |
 | `/onboard` | Guided walkthrough for new contributors |
 | `/resume` | Recover context and resume work after session break |
@@ -347,7 +353,7 @@ core-ai-template/
     │   ├── test-writer.md       # Test generation
     │   ├── perf-auditor.md      # Performance auditing
     │   └── security-reviewer.md # Security review (STRIDE)
-    └── skills/                  # Slash commands (18 skills)
+    └── skills/                  # Slash commands (24 skills)
         ├── feature.md           # Full feature lifecycle
         ├── commit.md            # Conventional commits
         ├── pr.md                # Pull request creation
@@ -365,7 +371,13 @@ core-ai-template/
         ├── api.md               # API endpoint design
         ├── docs.md              # Documentation generation
         ├── onboard.md           # New contributor walkthrough
-        └── resume.md            # Session recovery
+        ├── resume.md            # Session recovery
+        ├── env.md               # Environment variable management
+        ├── release.md           # Version tagging and releases
+        ├── perf.md              # Performance profiling
+        ├── ci.md                # CI/CD pipeline generation
+        ├── scaffold.md          # Module/component scaffolding
+        └── deploy.md            # Deployment to staging/production
 ```
 
 ## Git Commit Template
