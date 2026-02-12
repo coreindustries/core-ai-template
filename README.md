@@ -447,33 +447,33 @@ core-ai-template/
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (26 skills)
-        ├── feature.md           # Full feature lifecycle
-        ├── commit.md            # Conventional commits
-        ├── pr.md                # Pull request creation
-        ├── test.md              # Test runner with coverage
-        ├── lint.md              # Linting & formatting
-        ├── refactor.md          # Safe refactoring
-        ├── review.md            # Code review
-        ├── debug.md             # Systematic debugging
-        ├── checkpoint.md        # Progress tracking
-        ├── hotfix.md            # Production patches
-        ├── init.md              # Project initialization
-        ├── deps.md              # Dependency management
-        ├── scan.md              # Security scanning
-        ├── migrate.md           # Database migrations
-        ├── api.md               # API endpoint design
-        ├── docs.md              # Documentation generation
-        ├── onboard.md           # New contributor walkthrough
-        ├── resume.md            # Session recovery
-        ├── env.md               # Environment variable management
-        ├── release.md           # Version tagging and releases
-        ├── perf.md              # Performance profiling
-        ├── ci.md                # CI/CD pipeline generation
-        ├── scaffold.md          # Module/component scaffolding
-        ├── deploy.md            # Deployment to staging/production
-        ├── compound.md          # Knowledge capture from solved problems
-        └── brainstorm.md        # Requirements exploration
+    └── skills/                  # Slash commands (26 skills, each <name>/SKILL.md)
+        ├── feature/             # Full feature lifecycle
+        ├── commit/              # Conventional commits
+        ├── pr/                  # Pull request creation
+        ├── test/                # Test runner with coverage
+        ├── lint/                # Linting & formatting
+        ├── refactor/            # Safe refactoring
+        ├── review/              # Code review
+        ├── debug/               # Systematic debugging
+        ├── checkpoint/          # Progress tracking
+        ├── hotfix/              # Production patches
+        ├── init/                # Project initialization
+        ├── deps/                # Dependency management
+        ├── scan/                # Security scanning
+        ├── migrate/             # Database migrations
+        ├── api/                 # API endpoint design
+        ├── docs/                # Documentation generation
+        ├── onboard/             # New contributor walkthrough
+        ├── resume/              # Session recovery
+        ├── env/                 # Environment variable management
+        ├── release/             # Version tagging and releases
+        ├── perf/                # Performance profiling
+        ├── ci/                  # CI/CD pipeline generation
+        ├── scaffold/            # Module/component scaffolding
+        ├── deploy/              # Deployment to staging/production
+        ├── compound/            # Knowledge capture from solved problems
+        └── brainstorm/          # Requirements exploration
 ```
 
 ## Git Commit Template
