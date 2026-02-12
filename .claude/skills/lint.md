@@ -20,11 +20,11 @@ When this skill is invoked:
 
 ### Full Lint Pipeline
 
-1. **Read `prd/02_Tech_stack.md`** to find the correct commands
+1. **Read `prd/00_technology.md`** to find the correct commands
 
 2. **Run all checks in sequence**:
    ```bash
-   # Linting (see prd/02_Tech_stack.md for specific command)
+   # Linting (see prd/00_technology.md for specific command)
    {lint_check_command} src/ tests/
 
    # Formatting check
@@ -84,7 +84,7 @@ Formatting:
 
 ### Specific Checks
 
-Run individual checks (commands from `prd/02_Tech_stack.md`):
+Run individual checks (commands from `prd/00_technology.md`):
 
 ```bash
 # Linting only

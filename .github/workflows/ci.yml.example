@@ -1,7 +1,7 @@
 # CI Pipeline Template
 #
 # Copy this file to .github/workflows/ci.yml and customize for your tech stack.
-# Replace {placeholders} with your actual commands from prd/02_Tech_stack.md
+# Replace {placeholders} with your actual commands from prd/00_technology.md
 #
 # Quality Gates:
 # 1. Lint - Code quality and formatting

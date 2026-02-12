@@ -28,7 +28,7 @@ git diff --stat
 
 ### 2. Find Active Work
 
-Read `prd/00_PRD_index.md` to find "In Progress" features.
+Read `prd/00_index.md` to find "In Progress" features.
 
 If `feature_name` was provided:
 - Read `prd/tasks/{feature_name}_tasks.md`
@@ -104,4 +104,4 @@ If no task file exists:
 2. Look at modified files on the current branch vs main
 3. Summarize what appears to have been done
 4. Ask the user for context on what to do next
-5. Suggest creating a task file: `cp prd/tasks/TASK_TEMPLATE.md prd/tasks/{feature}_tasks.md`
+5. Suggest creating a task file: `cp prd/_task_template.md prd/tasks/{feature}_tasks.md`

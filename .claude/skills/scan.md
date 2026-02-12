@@ -34,12 +34,12 @@ When this skill is invoked:
 
 ### Scan Process
 
-1. **Read `prd/02_Tech_stack.md`** for security tools
+1. **Read `prd/00_technology.md`** for security tools
 2. **Review `.claude/rules/security*.md`** for security standards
 
 3. **Run dependency scan**:
    ```bash
-   # Tool depends on your stack (see prd/02_Tech_stack.md)
+   # Tool depends on your stack (see prd/00_technology.md)
    {dependency_scan_command}
    ```
 

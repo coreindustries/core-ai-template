@@ -14,7 +14,7 @@ Identifies performance bottlenecks, inefficient patterns, and optimization oppor
 ### 1. Context Gathering
 
 Read in parallel:
-- `prd/02_Tech_stack.md` (database, ORM, caching setup)
+- `prd/00_technology.md` (database, ORM, caching setup)
 - Source files under review
 - Database schema/migrations
 

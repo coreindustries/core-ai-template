@@ -49,7 +49,7 @@ When this skill is invoked:
 - Use parallel operations where possible (reading files, running checks)
 
 **Context Awareness:**
-- Read `prd/02_Tech_stack.md` for technology-specific commands and patterns
+- Read `prd/00_technology.md` for technology-specific commands and patterns
 - Study existing PRDs in `prd/` to understand project scope
 - Review existing implementations to follow established patterns
 - Keep PRD concise and DRY - don't duplicate existing documentation
@@ -88,7 +88,7 @@ fi
 
 cd "$WORKTREE_PATH"
 
-# Initialize the worktree (see prd/02_Tech_stack.md for commands)
+# Initialize the worktree (see prd/00_technology.md for commands)
 {package_manager} install
 {db_generate}  # If applicable
 ```
@@ -104,9 +104,9 @@ cd "$WORKTREE_PATH"
 ### Step 2.1: Research Existing Context
 
 Before writing the PRD, understand the project context. Read these files in parallel:
-- `prd/00_PRD_index.md` - Project overview
-- `prd/PRD_TEMPLATE.md` - Template structure
-- `prd/02_Tech_stack.md` - Technology patterns
+- `prd/00_index.md` - Project overview
+- `prd/_prd_template.md` - Template structure
+- `prd/00_technology.md` - Technology patterns
 - Related PRDs (search for similar features)
 - `CLAUDE.md` - Code standards
 
@@ -323,7 +323,7 @@ Create `tests/integration/test_{feature}` for:
 ### Step 6.1: Run Test Suite
 
 ```bash
-# Run all tests (see prd/02_Tech_stack.md for exact commands)
+# Run all tests (see prd/00_technology.md for exact commands)
 {test_command} tests/ -v
 
 # If failures, run specific failing tests

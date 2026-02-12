@@ -1,7 +1,7 @@
 # =============================================================================
 # Project Makefile
 # =============================================================================
-# Replace {placeholders} with your stack's commands from prd/02_Tech_stack.md
+# Replace {placeholders} with your stack's commands from prd/00_technology.md
 #
 # Usage:
 #   make setup     # First-time project setup

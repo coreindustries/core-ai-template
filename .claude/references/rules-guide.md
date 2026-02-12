@@ -94,4 +94,4 @@ Lookup tables and documentation loaded on-demand by skills:
 
 - `CLAUDE.md` - Main project instructions
 - `.cursorrules` - Cursor IDE rules
-- `prd/02_Tech_stack.md` - Technology stack and commands
+- `prd/00_technology.md` - Technology stack and commands

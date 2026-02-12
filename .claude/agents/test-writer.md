@@ -14,7 +14,7 @@ Generates comprehensive test suites for new and existing code. Follows the proje
 ### 1. Context Gathering
 
 Read in parallel:
-- `prd/02_Tech_stack.md` (test framework, commands, coverage requirements)
+- `prd/00_technology.md` (test framework, commands, coverage requirements)
 - `.claude/rules/testing.md` (testing standards)
 - Existing test files in `tests/` for patterns and conventions
 

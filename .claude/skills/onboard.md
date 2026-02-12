@@ -20,8 +20,8 @@ When this skill is invoked:
 
 Read these files in parallel:
 - `CLAUDE.md` (project overview, commands, architecture)
-- `prd/02_Tech_stack.md` (technology choices)
-- `prd/00_PRD_index.md` (current features and status)
+- `prd/00_technology.md` (technology choices)
+- `prd/00_index.md` (current features and status)
 - `CONTRIBUTING.md` (contribution workflow)
 
 ### 2. Explain Project Structure
@@ -64,7 +64,7 @@ git log --oneline -5
 ### 5. Show Active Work
 
 Check for in-progress features:
-- Read `prd/00_PRD_index.md` for "In Progress" items
+- Read `prd/00_index.md` for "In Progress" items
 - List any task files in `prd/tasks/`
 - Identify what needs attention
 

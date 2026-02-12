@@ -4,7 +4,7 @@
 
 ## Unit Test Coverage
 
-**REQUIRED:** Minimum test coverage as defined in `prd/02_Tech_stack.md` (typically 66-100%).
+**REQUIRED:** Minimum test coverage as defined in `prd/00_technology.md` (typically 66-100%).
 
 - All new code MUST have corresponding unit tests
 - Use project's designated test framework

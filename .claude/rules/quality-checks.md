@@ -29,7 +29,7 @@
 
 **REQUIRED:** All code MUST pass linting before commits.
 
-**Typical tools (see `prd/02_Tech_stack.md` for specifics):**
+**Typical tools (see `prd/00_technology.md` for specifics):**
 - Linting tool
 - Formatting tool
 - Static type checker

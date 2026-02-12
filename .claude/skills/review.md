@@ -28,7 +28,7 @@ When this skill is invoked:
 **Thoroughness:**
 - Check against all standards in `.claude/rules/` (auto-loaded)
 - Check security practices from `.claude/rules/security*.md`
-- Check technology-specific patterns from `prd/02_Tech_stack.md`
+- Check technology-specific patterns from `prd/00_technology.md`
 
 ### Review Process
 

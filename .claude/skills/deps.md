@@ -37,10 +37,10 @@ When this skill is invoked:
 
 Check for security vulnerabilities and issues:
 
-1. **Read `prd/02_Tech_stack.md`** for audit commands
+1. **Read `prd/00_technology.md`** for audit commands
 2. **Run security audit**:
    ```bash
-   # Commands vary by stack (see prd/02_Tech_stack.md)
+   # Commands vary by stack (see prd/00_technology.md)
    {dependency_audit_command}
    ```
 3. **Categorize findings** by severity

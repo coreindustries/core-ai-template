@@ -37,7 +37,7 @@ When this skill is invoked:
 /migrate create --name add_user_profile
 ```
 
-1. **Read `prd/02_Tech_stack.md`** for migration command
+1. **Read `prd/00_technology.md`** for migration command
 2. **Generate migration**:
    ```bash
    {migration_create_command} --name {name}

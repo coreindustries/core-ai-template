@@ -5,16 +5,16 @@ Thank you for contributing! This guide covers the workflow, standards, and tools
 ## Prerequisites
 
 - Read `CLAUDE.md` for project overview and commands
-- Read `prd/02_Tech_stack.md` for technology choices
+- Read `prd/00_technology.md` for technology choices
 - Run `make setup` to configure your environment
 
 ## Development Workflow
 
 ### 1. Pick a Task
 
-- Check `prd/00_PRD_index.md` for "In Progress" features
+- Check `prd/00_index.md` for "In Progress" features
 - Look at open issues for unassigned work
-- Create a task file: `cp prd/tasks/TASK_TEMPLATE.md prd/tasks/{feature}_tasks.md`
+- Create a task file: `cp prd/_task_template.md prd/tasks/{feature}_tasks.md`
 
 ### 2. Create a Branch
 
@@ -122,5 +122,5 @@ tests/
 
 - Run `make help` for available commands
 - Read `.claude/rules/` for specific standards
-- Check `prd/02_Tech_stack.md` for technology-specific guidance
+- Check `prd/00_technology.md` for technology-specific guidance
 - Use the `/debug` skill for systematic problem solving

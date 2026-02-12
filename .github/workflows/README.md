@@ -13,7 +13,7 @@ cp .github/workflows/ci.yml.example .github/workflows/ci.yml
 
 ### 2. Customize for Your Tech Stack
 
-Edit `.github/workflows/ci.yml` and replace all `{placeholders}` with your actual commands from `prd/02_Tech_stack.md`.
+Edit `.github/workflows/ci.yml` and replace all `{placeholders}` with your actual commands from `prd/00_technology.md`.
 
 **Key Sections to Customize:**
 
@@ -46,7 +46,7 @@ Replace `{package_manager} install` with:
 - Go: `go mod download`
 
 #### Quality Check Commands
-Replace placeholders with commands from `prd/02_Tech_stack.md`:
+Replace placeholders with commands from `prd/00_technology.md`:
 - `{lint_check_command}` → Your lint command
 - `{format_check_command}` → Your format check command
 - `{type_check_command}` → Your type check command
@@ -60,7 +60,7 @@ Replace placeholders with commands from `prd/02_Tech_stack.md`:
 
 ### 3. Configure Coverage Threshold
 
-Set your minimum coverage threshold (typically 66-100% as defined in `prd/02_Tech_stack.md`):
+Set your minimum coverage threshold (typically 66-100% as defined in `prd/00_technology.md`):
 
 ```yaml
 # Example for Python
@@ -359,6 +359,6 @@ deploy:
 ## References
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Tech Stack Configuration](../prd/02_Tech_stack.md)
+- [Tech Stack Configuration](../prd/00_technology.md)
 - Quality Standards: `../.claude/rules/` (auto-loaded)
 - Security Standards: `../.claude/rules/security*.md`

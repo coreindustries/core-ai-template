@@ -55,7 +55,7 @@ Create API specification without code:
 
 Generate code for API endpoints:
 
-1. **Read `prd/02_Tech_stack.md`** for framework patterns
+1. **Read `prd/00_technology.md`** for framework patterns
 2. **Create route handler**
 3. **Create request/response models**
 4. **Create service layer**

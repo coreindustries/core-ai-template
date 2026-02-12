@@ -30,7 +30,7 @@ When this skill is invoked:
 
 **Thoroughness:**
 - Run full quality suite, not just tests
-- Check `prd/02_Tech_stack.md` for project-specific commands:
+- Check `prd/00_technology.md` for project-specific commands:
   ```bash
   {lint_command}                    # Linting
   {type_check_command}              # Type checking
@@ -57,11 +57,11 @@ When this skill is invoked:
 
 ### Default Run (All Tests)
 
-1. **Read `prd/02_Tech_stack.md`** to find the correct test commands
+1. **Read `prd/00_technology.md`** to find the correct test commands
 
 2. **Run tests with coverage** (example patterns):
    ```bash
-   # See prd/02_Tech_stack.md for your specific command
+   # See prd/00_technology.md for your specific command
    {test_runner} tests/ --coverage
    ```
 
@@ -130,7 +130,7 @@ When running integration tests:
 
 ### Quality Gates
 
-The test skill enforces these quality gates (see `prd/02_Tech_stack.md` for specific values):
+The test skill enforces these quality gates (see `prd/00_technology.md` for specific values):
 
 | Gate | Requirement | Action on Failure |
 |------|-------------|-------------------|

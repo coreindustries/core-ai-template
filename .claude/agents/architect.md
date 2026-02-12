@@ -14,7 +14,7 @@ Evaluates architectural decisions, validates schema changes, and reviews system 
 ### 1. Context Gathering
 
 Read in parallel:
-- `prd/02_Tech_stack.md` (technology choices and patterns)
+- `prd/00_technology.md` (technology choices and patterns)
 - `.claude/rules/code-quality.md` (DRY, organization, naming)
 - `.claude/rules/error-handling.md` (error patterns)
 - `.claude/rules/security-core.md` (security fundamentals)

@@ -38,7 +38,7 @@ All project standards live in `.claude/rules/` — read these files for full det
 
 ## Quick Reference
 
-- **Tech Stack:** `prd/02_Tech_stack.md` (commands, tools, project structure)
+- **Tech Stack:** `prd/00_technology.md` (commands, tools, project structure)
 - **Project Guidance:** `CLAUDE.md` (top-level overview)
 
 ## Code Standards

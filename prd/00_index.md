@@ -2,7 +2,7 @@
 
 ## Tech Stack
 
-- [ ] 02_Tech_stack.md - Technology stack (TEMPLATE - fill in for your project)
+- [ ] 00_technology.md - Technology stack (TEMPLATE - fill in for your project)
 
 > **Fill in when implementing for a specific project**
 
@@ -31,7 +31,7 @@
 
 For long-running features that span multiple sessions, create task files to track progress and preserve context across context compression events.
 
-**Template:** `prd/tasks/TASK_TEMPLATE.md`
+**Template:** `prd/_task_template.md`
 
 **How to Use:**
 1. Create task file when feature will span >1 session: `prd/tasks/{feature}_tasks.md`

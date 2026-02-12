@@ -27,12 +27,12 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### Documentation & Standards
 - `.claude/rules/` + `.claude/rules-available/` - Source of truth for all standards
-- `prd/02_Tech_stack.md` - Technology stack template (customize per project)
+- `prd/00_technology.md` - Technology stack template (customize per project)
 - `CONTRIBUTING.md` - Contributor guide with workflow, standards, and AI skill usage
 
 ### Task Management
 - `prd/tasks/` - Directory for feature task tracking
-- `TASK_TEMPLATE.md` - Template for progress tracking and context recovery
+- `_task_template.md` - Template for progress tracking and context recovery
 - `/resume` skill - Automated session recovery after context compression
 
 ### Developer Experience
@@ -97,7 +97,7 @@ git commit -m "chore: initial project setup"
 
 ### Step 2: Configure Tech Stack (3 minutes)
 
-Edit `prd/02_Tech_stack.md` with your technology choices. See examples below (Python, TypeScript, Go).
+Edit `prd/00_technology.md` with your technology choices. See examples below (Python, TypeScript, Go).
 
 **Minimum Required Sections:**
 - Language & Runtime (Section 1)
@@ -151,7 +151,7 @@ See [`.github/workflows/README.md`](.github/workflows/README.md) for detailed se
 
 ```bash
 # Create task file for your first feature
-cp prd/tasks/TASK_TEMPLATE.md prd/tasks/my-feature_tasks.md
+cp prd/_task_template.md prd/tasks/my-feature_tasks.md
 
 # Create feature branch
 git checkout -b feat/my-feature
@@ -171,7 +171,7 @@ git checkout -b feat/my-feature
 
 ## Tech Stack Examples
 
-Copy one of these configurations into `prd/02_Tech_stack.md` as a starting point.
+Copy one of these configurations into `prd/00_technology.md` as a starting point.
 
 ### Python
 
@@ -313,10 +313,11 @@ core-ai-template/
 │   ├── devcontainer.json        # Dev container config (Codespaces)
 │   └── docker-compose.yml       # Dev container services
 ├── prd/
-│   ├── 00_PRD_index.md          # Feature tracking index
-│   ├── 02_Tech_stack.md         # Tech stack template (customize)
-│   └── tasks/
-│       └── TASK_TEMPLATE.md     # Task tracking template
+│   ├── 00_index.md              # Feature tracking index
+│   ├── 00_technology.md         # Tech stack template (customize)
+│   ├── _prd_template.md         # PRD template
+│   ├── _task_template.md        # Task tracking template
+│   └── tasks/                   # Long-running feature task files
 └── .claude/
     ├── mcp.json                 # MCP server configuration template
     ├── rules/                   # Auto-loaded rules (~6K tokens)
@@ -500,7 +501,7 @@ See `.claude/references/rules-guide.md` for the full guide.
 | `.claude/rules/` | Universal standards (auto-loaded) | Source of truth |
 | `.claude/rules-available/` | Platform rules (opt-in) | Enable for your stack |
 | `.claude/references/rules-guide.md` | How the rules system works | Understanding context management |
-| `prd/02_Tech_stack.md` | Tech stack template | Configure your stack |
+| `prd/00_technology.md` | Tech stack template | Configure your stack |
 | `Makefile` | Available make targets | Running commands |
 | `.github/workflows/README.md` | CI/CD setup guide | Setting up pipelines |
 

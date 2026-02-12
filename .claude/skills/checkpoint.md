@@ -19,7 +19,7 @@ When this skill is invoked:
 ### Agent Behavior (Codex-Max Pattern)
 
 **Autonomy:**
-- Automatically detect the current task file from `prd/00_PRD_index.md`
+- Automatically detect the current task file from `prd/00_index.md`
 - Update all relevant sections without prompting
 - Create task file if one doesn't exist for a long-running feature
 
@@ -32,7 +32,7 @@ When this skill is invoked:
 ### Steps
 
 1. **Find active task file**:
-   - Check `prd/00_PRD_index.md` for "In Progress" features
+   - Check `prd/00_index.md` for "In Progress" features
    - Locate corresponding `prd/tasks/{feature}_tasks.md`
 
 2. **Update task file sections**:

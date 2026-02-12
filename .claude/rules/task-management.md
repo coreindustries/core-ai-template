@@ -43,7 +43,7 @@ Long-running features that span multiple sessions require persistent task tracki
 
 **Location:** `prd/tasks/{feature_name}_tasks.md`
 
-**Template:** Use `prd/tasks/TASK_TEMPLATE.md` as starting point
+**Template:** Use `prd/_task_template.md` as starting point
 
 **Key Sections:**
 1. **Context** - High-level overview and key decisions (critical for recovery)
@@ -57,7 +57,7 @@ Long-running features that span multiple sessions require persistent task tracki
 - Use `/checkpoint` skill to update automatically
 
 **Context Compression Recovery:**
-1. Read `prd/00_PRD_index.md` to find "In Progress" features
+1. Read `prd/00_index.md` to find "In Progress" features
 2. Read corresponding task file
 3. Start from "Next Session Priorities"
 

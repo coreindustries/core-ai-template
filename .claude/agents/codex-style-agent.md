@@ -122,7 +122,7 @@ When invoked, this agent should:
 1. **Read all relevant files in parallel**:
    - Source files being reviewed
    - Related test files
-   - Tech stack (`prd/02_Tech_stack.md`)
+   - Tech stack (`prd/00_technology.md`)
    - Git history if reviewing a PR
 
 2. **Analyze against criteria**:

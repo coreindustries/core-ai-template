@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-This is a **project template** for AI agent-assisted development. There is no `src/` or `tests/` directory yet — those are created when the template is used for a specific project. The first step for any new project is filling in `prd/02_Tech_stack.md` with technology choices, then replacing `{placeholder}` commands throughout.
+This is a **project template** for AI agent-assisted development. There is no `src/` or `tests/` directory yet — those are created when the template is used for a specific project. The first step for any new project is filling in `prd/00_technology.md` with technology choices, then replacing `{placeholder}` commands throughout.
 
 ## Document Hierarchy
 
@@ -15,8 +15,10 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── CONTRIBUTING.md            → Contributor workflow and standards
 ├── Makefile                   → One-command setup, dev, test, quality
 ├── prd/
-│   ├── 00_PRD_index.md        → Feature tracking, tech stack summary
-│   ├── 02_Tech_stack.md       → TEMPLATE: technology choices + all commands
+│   ├── 00_index.md            → Feature tracking, tech stack summary
+│   ├── 00_technology.md       → TEMPLATE: technology choices + all commands
+│   ├── _prd_template.md       → PRD template for new features
+│   ├── _task_template.md      → Task tracking template
 │   └── tasks/                 → Long-running feature progress tracking
 ├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
@@ -30,7 +32,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 
 ## Commands
 
-All commands come from `prd/02_Tech_stack.md`. Replace placeholders with your stack. Examples for Python, TypeScript, and Go are in that file's collapsed sections.
+All commands come from `prd/00_technology.md`. Replace placeholders with your stack.
 
 ```bash
 # Development
@@ -100,16 +102,16 @@ The active pipeline (`.github/workflows/ci.yml`) runs on push/PR to main with 5 
 ## Context Recovery
 
 When resuming after context compression, use `/resume` or follow manually:
-1. Read `prd/00_PRD_index.md` → find "In Progress" features
+1. Read `prd/00_index.md` → find "In Progress" features
 2. Read `prd/tasks/{feature}_tasks.md` → load progress
 3. Start from "Next Session Priorities"
 
 ## Template Setup
 
 When using this template for a new project:
-1. Fill in `prd/02_Tech_stack.md` with technology choices
+1. Fill in `prd/00_technology.md` with technology choices
 2. Replace `{placeholder}` values in this file and `Makefile`
-3. Update `prd/00_PRD_index.md` tech stack summary
+3. Update `prd/00_index.md` tech stack summary
 4. Customize `.github/workflows/ci.yml` for your stack
 5. Uncomment your stack in `.github/dependabot.yml`
 6. Run `make setup` (installs deps, copies .env, configures git)
