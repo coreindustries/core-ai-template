@@ -15,7 +15,7 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### Context-Optimized Rules System
 - `.claude/rules/` - 8 universal rules, auto-loaded (~6K tokens)
-- `.claude/rules-available/` - 4 platform rules, opt-in via `make enable-*`
+- `.claude/rules-available/` - 5 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
 - Only loads what your project needs — **65-70% less context waste** vs loading everything
 
@@ -118,10 +118,11 @@ Edit `CLAUDE.md` and replace placeholders:
 ### Step 4: Enable Platform Rules (1 minute)
 
 ```bash
-# Pick one based on your project type:
+# Pick one (or combine) based on your project type:
 make enable-web      # Next.js / React web app
 make enable-api      # Backend API (any stack)
 make enable-mobile   # React Native mobile app
+make enable-docker   # Dockerized / containerized project
 ```
 
 This symlinks platform-specific rules into `.claude/rules/` so they auto-load. See `.claude/references/rules-guide.md` for details.
@@ -325,6 +326,7 @@ core-ai-template/
     │   ├── task-management.md   # Task tracking workflow
     │   └── security-core.md     # Core security (always applies)
     ├── rules-available/         # Opt-in rules (symlink into rules/)
+    │   ├── docker.md            # Docker & container best practices
     │   ├── nextjs.md            # Next.js development patterns
     │   ├── security-web.md      # Web security (React, Next.js)
     │   ├── security-mobile.md   # Mobile security (React Native)
@@ -433,6 +435,9 @@ make enable-api      # → security-owasp
 
 # Mobile app (React Native)
 make enable-mobile   # → security-mobile, security-web, security-owasp
+
+# Containerized project
+make enable-docker   # → docker, security-owasp
 
 # See all available rules
 make enable-rules

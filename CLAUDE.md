@@ -19,14 +19,14 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 │   ├── 02_Tech_stack.md       → TEMPLATE: technology choices + all commands
 │   └── tasks/                 → Long-running feature progress tracking
 ├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
-├── .claude/rules-available/   → 4 opt-in rules (symlink to enable)
+├── .claude/rules-available/   → 5 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
 ├── .claude/skills/            → 18 slash commands (invoke with /name)
 ├── .claude/agents/            → 5 specialized agents (invoke on demand)
 └── .claude/mcp.json           → MCP server configuration template
 ```
 
-**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, AI agent patterns, quality checks, task management). Platform-specific rules (Next.js, web security, mobile security, OWASP) live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-api`, or `make enable-mobile`.
+**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, AI agent patterns, quality checks, task management). Platform-specific rules (Next.js, web security, mobile security, OWASP, Docker) live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-api`, `make enable-mobile`, or `make enable-docker`.
 
 ## Commands
 

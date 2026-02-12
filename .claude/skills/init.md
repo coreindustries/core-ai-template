@@ -200,6 +200,12 @@ ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ```
 
+**Dockerized project:**
+```bash
+ln -s ../rules-available/docker.md .claude/rules/docker.md
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
+
 **Mobile (React Native):**
 ```bash
 ln -s ../rules-available/security-mobile.md .claude/rules/security-mobile.md

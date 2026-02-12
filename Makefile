@@ -160,6 +160,7 @@ enable-rules: ## Symlink platform-specific rules (interactive)
 	@echo "  make enable-web       # Next.js / React web app"
 	@echo "  make enable-api       # Backend API (any stack)"
 	@echo "  make enable-mobile    # React Native mobile app"
+	@echo "  make enable-docker    # Dockerized / containerized project"
 
 enable-web: ## Enable rules for Next.js / React web projects
 	@ln -sf ../rules-available/nextjs.md .claude/rules/nextjs.md
@@ -176,3 +177,8 @@ enable-mobile: ## Enable rules for React Native mobile projects
 	@ln -sf ../rules-available/security-web.md .claude/rules/security-web.md
 	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 	@echo "Enabled: security-mobile, security-web, security-owasp"
+
+enable-docker: ## Enable rules for Dockerized projects
+	@ln -sf ../rules-available/docker.md .claude/rules/docker.md
+	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+	@echo "Enabled: docker, security-owasp"
