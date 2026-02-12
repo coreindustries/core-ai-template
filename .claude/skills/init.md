@@ -195,7 +195,13 @@ ln -s ../rules-available/security-web.md .claude/rules/security-web.md
 ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ```
 
-**API (any stack):**
+**Python (uv / FastAPI):**
+```bash
+ln -s ../rules-available/python.md .claude/rules/python.md
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
+
+**API (any stack, minimal):**
 ```bash
 ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ```

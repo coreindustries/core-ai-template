@@ -15,7 +15,7 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### Context-Optimized Rules System
 - `.claude/rules/` - 8 universal rules, auto-loaded (~6K tokens)
-- `.claude/rules-available/` - 7 platform rules, opt-in via `make enable-*`
+- `.claude/rules-available/` - 8 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
 - Only loads what your project needs — **65-70% less context waste** vs loading everything
 
@@ -120,10 +120,11 @@ Edit `CLAUDE.md` and replace placeholders:
 ```bash
 # Pick one (or combine) based on your project type:
 make enable-web      # Next.js / React web app
-make enable-api      # Backend API (any stack)
-make enable-mobile   # React Native mobile app
+make enable-python   # Python (uv, ruff, FastAPI)
+make enable-api      # Backend API (any stack, minimal)
 make enable-ios      # Native iOS (Swift / SwiftUI)
 make enable-android  # Native Android (Kotlin / Compose)
+make enable-mobile   # React Native mobile app
 make enable-docker   # Dockerized / containerized project
 ```
 
@@ -332,6 +333,7 @@ core-ai-template/
     │   ├── docker.md            # Docker & container best practices
     │   ├── ios.md               # iOS (Swift / SwiftUI)
     │   ├── nextjs.md            # Next.js development patterns
+    │   ├── python.md            # Python (uv, ruff, FastAPI)
     │   ├── security-web.md      # Web security (React, Next.js)
     │   ├── security-mobile.md   # Mobile security (React Native)
     │   └── security-owasp.md    # OWASP Top 10 standards
@@ -434,17 +436,20 @@ AI agents have limited context windows. This template is designed to minimize wa
 # Web app (Next.js / React)
 make enable-web      # → nextjs, security-web, security-owasp
 
-# Backend API (Python, Node, Go)
-make enable-api      # → security-owasp
+# Python backend
+make enable-python   # → python, security-owasp
 
-# Mobile app (React Native)
-make enable-mobile   # → security-mobile, security-web, security-owasp
+# Backend API (any stack, minimal)
+make enable-api      # → security-owasp
 
 # Native iOS (Swift / SwiftUI)
 make enable-ios      # → ios, security-owasp
 
 # Native Android (Kotlin / Compose)
 make enable-android  # → android, security-owasp
+
+# Mobile app (React Native)
+make enable-mobile   # → security-mobile, security-web, security-owasp
 
 # Containerized project
 make enable-docker   # → docker, security-owasp

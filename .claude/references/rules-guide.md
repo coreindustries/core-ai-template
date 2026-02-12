@@ -35,6 +35,7 @@ Platform-specific rules that only apply to certain project types. Enable by syml
 make enable-web      # Next.js / React
 make enable-api      # Backend API
 make enable-mobile   # React Native
+make enable-python   # Python (uv, ruff, FastAPI)
 make enable-ios      # Native iOS
 make enable-android  # Native Android
 make enable-docker   # Dockerized projects
@@ -49,6 +50,7 @@ make enable-docker   # Dockerized projects
 | `android.md` | Native Android (Kotlin / Compose) | ~3,800 |
 | `docker.md` | Dockerized / containerized projects | ~3,500 |
 | `ios.md` | Native iOS (Swift / SwiftUI) | ~3,200 |
+| `python.md` | Python (uv, ruff, FastAPI) | ~4,200 |
 
 ### References (`references/`)
 

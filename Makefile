@@ -161,6 +161,7 @@ enable-rules: ## Symlink platform-specific rules (interactive)
 	@echo "  make enable-api       # Backend API (any stack)"
 	@echo "  make enable-mobile    # React Native mobile app"
 	@echo "  make enable-docker    # Dockerized / containerized project"
+	@echo "  make enable-python    # Python (uv, ruff, FastAPI)"
 	@echo "  make enable-ios       # Native iOS (Swift / SwiftUI)"
 	@echo "  make enable-android   # Native Android (Kotlin / Compose)"
 
@@ -179,6 +180,11 @@ enable-mobile: ## Enable rules for React Native mobile projects
 	@ln -sf ../rules-available/security-web.md .claude/rules/security-web.md
 	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 	@echo "Enabled: security-mobile, security-web, security-owasp"
+
+enable-python: ## Enable rules for Python (uv/ruff/FastAPI) projects
+	@ln -sf ../rules-available/python.md .claude/rules/python.md
+	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+	@echo "Enabled: python, security-owasp"
 
 enable-docker: ## Enable rules for Dockerized projects
 	@ln -sf ../rules-available/docker.md .claude/rules/docker.md
