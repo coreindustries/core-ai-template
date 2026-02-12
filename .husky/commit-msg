@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+# Commit message hook: Validate conventional commit format
+# Requires: npm install -D @commitlint/cli @commitlint/config-conventional
+#
+# For Python projects, replace with:
+#   uv run cz check --commit-msg-file "$1"
+
+npx --no -- commitlint --edit "$1"

@@ -346,6 +346,12 @@ project-root/
 
 ## 12. Common Gotchas
 
+**Universal (all stacks):**
+- Always use the project's package manager (never install to host OS)
+- Regenerate ORM clients after schema changes
+- Use singleton database patterns
+- Mark integration tests with appropriate markers
+
 > **Fill in:** Technology-specific gotchas for your stack.
 
 ### 12.1 Package Management

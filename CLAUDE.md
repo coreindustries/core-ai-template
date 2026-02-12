@@ -12,19 +12,21 @@ Understanding how the pieces fit together is critical:
 
 ```
 CLAUDE.md (this file)          → Top-level guidance, commands, architecture
-├── AGENTS.md                  → AI agent behavior quick reference
+├── CONTRIBUTING.md            → Contributor workflow and standards
+├── Makefile                   → One-command setup, dev, test, quality
 ├── prd/
-│   ├── 00_PRD_index.md        → Feature tracking, implementation order
-│   ├── 01_Technical_standards → Full standards (source of truth for rules)
+│   ├── 00_PRD_index.md        → Feature tracking, tech stack summary
 │   ├── 02_Tech_stack.md       → TEMPLATE: technology choices + all commands
-│   ├── 03_Security.md         → OWASP Top 10, audit logging
 │   └── tasks/                 → Long-running feature progress tracking
-├── .claude/rules/             → Auto-loaded rules (extracted from PRDs)
-├── .claude/skills/            → 16 slash commands (invoke with /name)
-└── .claude/agents/            → Specialized agent definitions
+├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
+├── .claude/rules-available/   → 4 opt-in rules (symlink to enable)
+├── .claude/references/        → On-demand references (loaded by skills)
+├── .claude/skills/            → 18 slash commands (invoke with /name)
+├── .claude/agents/            → 5 specialized agents (invoke on demand)
+└── .claude/mcp.json           → MCP server configuration template
 ```
 
-**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They cover: code quality, testing, error handling, git workflow, security (core/web/mobile), AI agent patterns, quality checks, task management, Next.js patterns, and Gitmoji.
+**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, AI agent patterns, quality checks, task management). Platform-specific rules (Next.js, web security, mobile security, OWASP) live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-api`, or `make enable-mobile`.
 
 ## Commands
 
@@ -88,6 +90,8 @@ tests/
 | `/migrate` | Database migrations |
 | `/api` | Design REST/GraphQL endpoints |
 | `/docs` | Generate documentation |
+| `/onboard` | Guided walkthrough for new contributors |
+| `/resume` | Recover context after session break |
 
 ## CI/CD
 
@@ -95,7 +99,7 @@ The active pipeline (`.github/workflows/ci.yml`) runs on push/PR to main with 5 
 
 ## Context Recovery
 
-When resuming after context compression:
+When resuming after context compression, use `/resume` or follow manually:
 1. Read `prd/00_PRD_index.md` → find "In Progress" features
 2. Read `prd/tasks/{feature}_tasks.md` → load progress
 3. Start from "Next Session Priorities"
@@ -104,7 +108,8 @@ When resuming after context compression:
 
 When using this template for a new project:
 1. Fill in `prd/02_Tech_stack.md` with technology choices
-2. Replace `{placeholder}` values in this file and `AGENTS.md`
+2. Replace `{placeholder}` values in this file and `Makefile`
 3. Update `prd/00_PRD_index.md` tech stack summary
 4. Customize `.github/workflows/ci.yml` for your stack
-5. Run package manager install
+5. Uncomment your stack in `.github/dependabot.yml`
+6. Run `make setup` (installs deps, copies .env, configures git)

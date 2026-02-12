@@ -1,6 +1,6 @@
 # Task Management Rules
 
-**Source:** PRD 01 - Technical Standards, Section 10
+**Scope:** Task tracking, plan discipline, PRD implementation workflow
 
 ## When to Create Plans
 
@@ -68,8 +68,7 @@ Long-running features that span multiple sessions require persistent task tracki
 **Read PRDs thoroughly:**
 1. Review the PRD document for the feature you're implementing
 2. Understand dependencies on other PRDs
-3. Check PRD 01 (Technical Standards) for coding requirements
-4. Check PRD 03 (Security) for security requirements
+3. Review `.claude/rules/` for coding and security requirements
 
 **Setup development environment:**
 ```bash

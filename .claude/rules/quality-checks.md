@@ -1,6 +1,6 @@
 # Quality Checks Rules
 
-**Source:** PRD 01 - Technical Standards, Section 8
+**Scope:** Quality check requirements (frequent checks, pre-commit, CI/CD)
 
 ## Frequent Check Pattern
 

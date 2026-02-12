@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+# Pre-commit hook: Run lint-staged on staged files
+# Setup: npx husky init (or see Makefile)
+#
+# For Python projects, replace with:
+#   uv run pre-commit run --staged
+#
+# For Go projects, replace with:
+#   golangci-lint run --new-from-rev=HEAD
+
+npx lint-staged

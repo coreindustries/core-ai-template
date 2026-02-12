@@ -4,7 +4,7 @@
 #
 # <footer>
 #
-# Emoji (optional): See .claude/rules/gitmoji.md for Gitmoji reference
+# Emoji (optional): See .claude/references/gitmoji.md for Gitmoji reference
 # Type: feat|fix|docs|style|refactor|perf|test|chore|ci|build
 # Scope: (optional) component, module, or area affected
 # Subject: imperative mood, max 72 chars, no period

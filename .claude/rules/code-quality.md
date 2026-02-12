@@ -1,6 +1,6 @@
 # Code Quality Rules
 
-**Source:** PRD 01 - Technical Standards, Section 3
+**Scope:** Code quality standards (DRY, typing, naming, docs, project organization)
 
 ## DRY Principle (Don't Repeat Yourself)
 
@@ -75,7 +75,7 @@
 
 **Allowed in root:**
 - Configuration files (package manager, linter, type checker)
-- Documentation: `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CLAUDE.md`, `AGENTS.md`
+- Documentation: `README.md`, `LICENSE`, `CONTRIBUTING.md`, `CLAUDE.md`
 - CI/CD: `.github/workflows/`
 - Environment: `.env.example`
 

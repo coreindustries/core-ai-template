@@ -217,6 +217,8 @@ When generating code with AI assistance:
 
 ## See Also
 
-- `.claude/rules/security.md` - Platform-specific security rules (OWASP Top 10, web security, etc.)
-- `.cursor/rules/security-core.mdc` - Full rule with comprehensive examples
-- `prd/03_Security.md` - Full security standards document
+- `.claude/rules-available/security-owasp.md` - OWASP Top 10 and audit logging
+- `.claude/rules-available/security-web.md` - Web-specific security (XSS, CSRF, etc.)
+- `.claude/rules-available/security-mobile.md` - Mobile-specific security (React Native)
+
+**Note:** Platform-specific security rules are in `rules-available/` and must be symlinked into `rules/` during project setup to be auto-loaded.

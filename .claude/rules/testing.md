@@ -1,6 +1,6 @@
 # Testing Rules
 
-**Source:** PRD 01 - Technical Standards, Section 7
+**Scope:** Testing standards (unit, integration, TDD, coverage)
 
 ## Unit Test Coverage
 

@@ -59,7 +59,7 @@ When this skill is invoked:
    [optional footer]
    ```
 
-   **Optional:** If Gitmoji is enabled (see `.claude/rules/gitmoji.md`), prefix with emoji:
+   **Optional:** If Gitmoji is enabled, read `.claude/references/gitmoji.md` for the full reference, then prefix with emoji:
    ```
    <emoji> <type>(<scope>): <description>
    ```

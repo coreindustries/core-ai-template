@@ -1,0 +1,6 @@
+{
+  "*.{ts,tsx,js,jsx}": ["eslint --fix", "prettier --write"],
+  "*.{json,md,yml,yaml}": ["prettier --write"],
+  "*.py": ["ruff check --fix", "ruff format"],
+  "*.go": ["gofmt -w", "go vet"]
+}

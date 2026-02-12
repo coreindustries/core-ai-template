@@ -1,10 +1,17 @@
----
-description: Web application security practices
-alwaysApply: true
----
 # Web Security Rules
 
-These rules apply to **web applications** including React, Next.js, and any browser-based applications. Follow these practices to protect against common web vulnerabilities.
+**These rules apply to web applications** including React, Next.js, and any browser-based applications. Follow these practices to protect against common web vulnerabilities.
+
+## Quick Reference
+
+- **XSS Prevention**: Never use `dangerouslySetInnerHTML` with unsanitized input, use CSP headers
+- **CSRF Protection**: Implement CSRF tokens, use SameSite cookies, validate Origin/Referer
+- **SQL Injection**: Always use parameterized queries or ORMs, never string interpolation
+- **HTTPS**: Enforce HTTPS, implement HSTS, use secure cookies only
+- **Rate Limiting**: Apply to auth endpoints (5 attempts/15min), API endpoints (100/min authenticated)
+- **Authentication**: Store tokens in httpOnly cookies, never localStorage, use bcrypt/argon2
+- **Security Headers**: HSTS, X-Frame-Options, CSP, X-Content-Type-Options, Referrer-Policy
+- **CORS**: Never use `origin: '*'` in production, whitelist specific origins
 
 ## 1. XSS (Cross-Site Scripting) Prevention
 
@@ -68,11 +75,11 @@ const securityHeaders = [
 // CORRECT: Validate URLs before use
 function SafeLink({ url }: { url: string }) {
   const isValidUrl = url.startsWith('https://') || url.startsWith('/');
-  
+
   if (!isValidUrl) {
     return null;
   }
-  
+
   return <a href={url}>Link</a>;
 }
 
@@ -81,7 +88,6 @@ function UnsafeLink({ url }: { url: string }) {
   return <a href={url}>Link</a>; // Could be javascript:alert('xss')
 }
 ```
-
 
 ## 2. CSRF (Cross-Site Request Forgery) Protection
 
@@ -137,7 +143,6 @@ async function submitForm(data: FormData, csrfToken: string) {
 }
 ```
 
-
 ## 3. SQL Injection Prevention
 
 Prevent malicious SQL execution through user input.
@@ -183,7 +188,6 @@ const result = await db.query(
   `SELECT * FROM users WHERE id = ${userId}`
 );
 ```
-
 
 ## 4. HTTPS and Transport Security
 
@@ -248,7 +252,6 @@ function httpsRedirect(req: Request, res: Response, next: NextFunction) {
 }
 ```
 
-
 ## 5. Rate Limiting
 
 Protect against brute force and denial of service attacks.
@@ -308,7 +311,6 @@ function calculateBackoff(attempts: number): number {
   return delay;
 }
 ```
-
 
 ## 6. Authentication Security
 
@@ -375,15 +377,14 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 async function logout(req: Request, res: Response) {
   // Invalidate session server-side
   await invalidateSession(req.sessionId);
-  
+
   // Clear all auth cookies
   res.clearCookie('refreshToken', { path: '/api/auth' });
   res.clearCookie('session');
-  
+
   return res.json({ success: true });
 }
 ```
-
 
 ## 7. Security Headers Summary
 
@@ -397,7 +398,6 @@ Apply these headers to all responses:
 | `Referrer-Policy`           | `strict-origin-when-cross-origin`     | Control referrer info     |
 | `Content-Security-Policy`   | (see section 1.3)                     | Prevent XSS               |
 | `Permissions-Policy`        | `camera=(), microphone=()`            | Restrict browser features |
-
 
 ## 8. CORS Configuration
 
@@ -432,3 +432,8 @@ app.use(cors(corsOptions));
 app.use(cors({ origin: '*' }));
 app.use(cors()); // Defaults to allow all
 ```
+
+## See Also
+
+- `.claude/rules/security-core.md` - Core security practices (always auto-loaded)
+- `.claude/rules-available/security-owasp.md` - OWASP Top 10 and security standards

@@ -1,0 +1,18 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
+    ],
+    "subject-case": [0],
+    "header-max-length": [2, "always", 100]
+  },
+  "parserPreset": {
+    "parserOpts": {
+      "headerPattern": "^(?:[\\u{1F300}-\\u{1FAD6}\\u{2600}-\\u{27BF}\\u{FE00}-\\u{FE0F}\\u{200D}\\u{20E3}\\u{E0020}-\\u{E007F}]+ )?(?<type>\\w+)(?:\\((?<scope>[^)]+)\\))?!?: (?<subject>.+)$",
+      "headerCorrespondence": ["type", "scope", "subject"]
+    }
+  }
+}

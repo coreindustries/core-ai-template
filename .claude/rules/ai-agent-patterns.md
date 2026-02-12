@@ -1,6 +1,6 @@
 # AI Agent Development Patterns
 
-**Source:** PRD 01 - Technical Standards, Sections 4 & 6
+**Scope:** AI agent development principles (autonomy, persistence, exploration)
 
 ## Autonomy and Persistence
 

@@ -1,14 +1,8 @@
----
-description: Add Gitmoji emoji prefixes to commit messages
-alwaysApply: false
----
 # Gitmoji Reference
 
-This rule extends [Conventional Commits](./conventional-commits.mdc) with **[Gitmoji](https://gitmoji.dev)** emoji prefixes.
+**Scope:** Gitmoji standard (https://gitmoji.dev)
 
-## What is Gitmoji?
-
-[Gitmoji](https://gitmoji.dev) is an initiative to standardize the use of emojis in commit messages. Using emojis provides an **easy way to identify the purpose or intention of a commit** at a glance.
+This rule extends Conventional Commits with Gitmoji emoji prefixes for visual commit identification.
 
 ## Format
 
@@ -31,7 +25,6 @@ When Gitmoji is enabled, commit messages follow this structure:
 - The emoji comes **before the type**, separated by a space
 - For breaking changes, **always use 💥** regardless of the commit type
 
-
 ## Type and Emoji Mapping
 
 Each conventional commit type has a primary Gitmoji:
@@ -49,7 +42,6 @@ Each conventional commit type has a primary Gitmoji:
 | `ci`       | 👷            | CI configuration and scripts                             |
 | `chore`    | 🔧            | Routine tasks, maintenance, or non-code changes          |
 | `revert`   | ⏪️            | A commit that reverts previous commits                   |
-
 
 ## Extended Gitmoji Reference
 
@@ -136,8 +128,7 @@ For more specific intents, use these additional gitmojis with the appropriate ty
 | Emoji | Shortcode                     | Use With    | Description                                      |
 |-------|-------------------------------|-------------|--------------------------------------------------|
 | 💥    | `:boom:`                      | (any)`!`    | Introduce breaking changes                       |
-| 🚧    | `:construction:`              | (any)       | Work in progress                                 |
-
+| 🚧    | `:construction:`              | (any)       | Work in progress (use sparingly)                 |
 
 ## Choosing the Right Emoji
 
@@ -145,7 +136,6 @@ For more specific intents, use these additional gitmojis with the appropriate ty
 2. If a more specific emoji better describes the intent, use that instead
 3. When in doubt, use the primary emoji for the type
 4. For breaking changes, **always use 💥** regardless of the underlying type
-
 
 ## Examples
 
@@ -187,7 +177,6 @@ feat(auth): add OAuth2 login support
 fix: resolve memory leak in image processing
 ```
 
-
 ## Quick Reference Card
 
 Common commit patterns for quick copy-paste:
@@ -208,7 +197,6 @@ Common commit patterns for quick copy-paste:
 | Breaking change         | `💥 feat!: [breaking change]`                    |
 | Initial commit          | `🎉 feat: initial project setup`                 |
 | WIP (use sparingly)     | `🚧 chore: work in progress on [feature]`        |
-
 
 ## CLI Tools
 

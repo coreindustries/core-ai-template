@@ -1,0 +1,83 @@
+# Dependabot - Automated Dependency Updates
+# https://docs.github.com/en/code-security/dependabot
+#
+# Uncomment the ecosystem(s) that match your project's tech stack.
+# Dependabot will open PRs for security patches and version updates.
+
+version: 2
+
+updates:
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+
+  # --- Uncomment your stack ---
+
+  # # npm / yarn / pnpm / bun
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   labels:
+  #     - "dependencies"
+  #   commit-message:
+  #     prefix: "build"
+  #     include: "scope"
+  #   # Group minor/patch updates into fewer PRs
+  #   groups:
+  #     production-dependencies:
+  #       dependency-type: "production"
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+  #     development-dependencies:
+  #       dependency-type: "development"
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+
+  # # pip / uv / poetry
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   labels:
+  #     - "dependencies"
+  #   commit-message:
+  #     prefix: "build"
+  #     include: "scope"
+
+  # # Go modules
+  # - package-ecosystem: "gomod"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   labels:
+  #     - "dependencies"
+  #   commit-message:
+  #     prefix: "build"
+  #     include: "scope"
+
+  # # Docker
+  # - package-ecosystem: "docker"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   labels:
+  #     - "dependencies"
+  #     - "docker"
+  #   commit-message:
+  #     prefix: "build"
+  #     include: "scope"

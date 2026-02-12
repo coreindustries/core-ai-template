@@ -1,6 +1,6 @@
 # Error Handling Rules
 
-**Source:** PRD 01 - Technical Standards, Section 5
+**Scope:** Error handling patterns (specific exceptions, tight handling)
 
 ## Specific Exception Types
 

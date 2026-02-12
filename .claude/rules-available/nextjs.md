@@ -1,8 +1,6 @@
----
-description: Next.js development best practices, patterns, and conventions
-alwaysApply: false
----
 # Next.js Development Rules
+
+**Scope:** Next.js 16+ patterns, React Server Components, and performance optimization
 
 Use this rule when developing Next.js applications. These guidelines prioritize modern Next.js 16+ patterns, React Server Components, and performance optimization.
 
@@ -570,7 +568,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Authentication check
   const token = request.cookies.get('session')
 
   if (!token && request.nextUrl.pathname.startsWith('/dashboard')) {
@@ -1000,7 +997,6 @@ interface ErrorProps {
 
 export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
-    // Log to error reporting service
     console.error(error)
   }, [error])
 
@@ -1312,9 +1308,9 @@ export function WelcomeMessage() {
 ```
 
 
-## 15. Security Considerations
+## 15. Security
 
-Follow web security best practices. See `security-web.mdc` for comprehensive security rules.
+Follow web security best practices. See `.claude/rules-available/security-web.md` for comprehensive security rules (symlink into `rules/` to auto-load).
 
 ### 15.1 Key Points for Next.js
 

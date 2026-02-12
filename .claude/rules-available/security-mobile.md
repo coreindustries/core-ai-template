@@ -1,10 +1,18 @@
----
-description: Mobile application security practices (React Native)
-alwaysApply: true
----
 # Mobile Security Rules
 
-These rules apply to **mobile applications** built with React Native. Mobile apps have unique security considerations around local storage, network communication, and platform-specific security features.
+**These rules apply to mobile applications built with React Native.** Mobile apps have unique security considerations around local storage, network communication, and platform-specific security features.
+
+## Quick Reference
+
+- **Secure Storage**: Never use AsyncStorage for secrets, use react-native-keychain or expo-secure-store
+- **Certificate Pinning**: Implement SSL pinning for all API connections
+- **Deep Links**: Validate and sanitize all deep link parameters
+- **Biometrics**: Provide fallback to PIN/password, store keys in secure hardware
+- **Platform Security**: Configure ATS (iOS) and Network Security Config (Android)
+- **Release Security**: Enable ProGuard/R8, disable debug logging, remove dev tools
+- **Device Security**: Detect jailbreak/root for sensitive apps
+- **Clipboard**: Clear clipboard after sensitive data, prevent copying CVV/full card numbers
+- **Screenshots**: Prevent screenshots on sensitive screens
 
 ## 1. Secure Storage
 
@@ -91,15 +99,14 @@ async function secureLogout() {
   await Keychain.resetGenericPassword();
   await SecureStore.deleteItemAsync('accessToken');
   await SecureStore.deleteItemAsync('refreshToken');
-  
+
   // Clear non-sensitive cache
   await AsyncStorage.clear();
-  
+
   // Reset app state
   resetAppState();
 }
 ```
-
 
 ## 2. Certificate Pinning
 
@@ -126,7 +133,7 @@ async function secureApiCall(endpoint: string, options: RequestInit) {
       },
       timeoutInterval: 10000
     });
-    
+
     return response;
   } catch (error) {
     if (error.message.includes('SSL')) {
@@ -164,7 +171,6 @@ async function secureApiCall(endpoint: string, options: RequestInit) {
 }
 ```
 
-
 ## 3. Deep Link Validation
 
 Secure handling of deep links and universal links.
@@ -191,22 +197,22 @@ const ALLOWED_PATHS = [
 function validateDeepLink(url: string): boolean {
   try {
     const parsed = new URL(url);
-    
+
     // Verify scheme
     if (!['myapp', 'https'].includes(parsed.protocol.replace(':', ''))) {
       return false;
     }
-    
+
     // Verify host for universal links
     if (parsed.protocol === 'https:' && parsed.host !== 'app.example.com') {
       return false;
     }
-    
+
     // Validate path pattern
-    const isValidPath = ALLOWED_PATHS.some(pattern => 
+    const isValidPath = ALLOWED_PATHS.some(pattern =>
       pattern.test(parsed.pathname)
     );
-    
+
     return isValidPath;
   } catch {
     return false;
@@ -218,7 +224,7 @@ function handleDeepLink(url: string) {
     console.warn('Invalid deep link rejected:', url);
     return;
   }
-  
+
   // Safe to process
   processDeepLink(url);
 }
@@ -232,20 +238,19 @@ Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
 ```typescript
 function sanitizeDeepLinkParams(params: Record<string, string>): Record<string, string> {
   const sanitized: Record<string, string> = {};
-  
+
   for (const [key, value] of Object.entries(params)) {
     // Remove potentially dangerous characters
     const cleanValue = value
       .replace(/[<>'"]/g, '')
       .substring(0, 1000); // Limit length
-    
+
     sanitized[key] = cleanValue;
   }
-  
+
   return sanitized;
 }
 ```
-
 
 ## 4. Biometric Authentication
 
@@ -271,11 +276,11 @@ async function checkBiometricSupport(): Promise<{
   const hasHardware = await LocalAuthentication.hasHardwareAsync();
   const isEnrolled = await LocalAuthentication.isEnrolledAsync();
   const supportedTypes = await LocalAuthentication.supportedAuthenticationTypesAsync();
-  
+
   return {
     isAvailable: hasHardware && isEnrolled,
-    biometryType: supportedTypes.length > 0 
-      ? LocalAuthentication.AuthenticationType[supportedTypes[0]] 
+    biometryType: supportedTypes.length > 0
+      ? LocalAuthentication.AuthenticationType[supportedTypes[0]]
       : null
   };
 }
@@ -287,7 +292,7 @@ async function authenticateWithBiometrics(): Promise<boolean> {
     cancelLabel: 'Cancel',
     disableDeviceFallback: false // Allow PIN fallback
   });
-  
+
   return result.success;
 }
 
@@ -310,7 +315,6 @@ async function getWithBiometrics(): Promise<Keychain.UserCredentials | false> {
   });
 }
 ```
-
 
 ## 5. App Transport Security (iOS) & Network Security Config (Android)
 
@@ -368,7 +372,7 @@ Create `android/app/src/main/res/xml/network_security_config.xml`:
       <certificates src="system"/>
     </trust-anchors>
   </base-config>
-  
+
   <!-- Certificate pinning -->
   <domain-config>
     <domain includeSubdomains="true">api.example.com</domain>
@@ -377,7 +381,7 @@ Create `android/app/src/main/res/xml/network_security_config.xml`:
       <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
     </pin-set>
   </domain-config>
-  
+
   <!-- Debug builds only -->
   <debug-overrides>
     <trust-anchors>
@@ -394,7 +398,6 @@ Reference in `AndroidManifest.xml`:
   android:networkSecurityConfig="@xml/network_security_config"
   ...>
 ```
-
 
 ## 6. Code Obfuscation & Release Security
 
@@ -463,7 +466,7 @@ function App() {
     <NavigationContainer>
       <Stack.Navigator>
         <Stack.Screen name="Home" component={HomeScreen} />
-        
+
         {/* Dev-only screens */}
         {__DEV__ && (
           <>
@@ -476,7 +479,6 @@ function App() {
   );
 }
 ```
-
 
 ## 7. Jailbreak/Root Detection
 
@@ -501,19 +503,19 @@ function checkDeviceSecurity(): {
   risks: string[];
 } {
   const risks: string[] = [];
-  
+
   if (JailMonkey.isJailBroken()) {
     risks.push('Device is jailbroken/rooted');
   }
-  
+
   if (JailMonkey.hookDetected()) {
     risks.push('Hooking framework detected');
   }
-  
+
   if (JailMonkey.isDebuggedMode()) {
     risks.push('App is being debugged');
   }
-  
+
   return {
     isCompromised: risks.length > 0,
     risks
@@ -527,18 +529,17 @@ function handleCompromisedDevice(risks: string[]) {
     'Security Risk Detected',
     'Your device may be compromised. Some features may be disabled.'
   );
-  
+
   // Option 2: Restrict sensitive features
   disableSensitiveFeatures();
-  
+
   // Option 3: Block app entirely (banking apps)
   // blockAppAccess();
-  
+
   // Always log for security monitoring
   reportSecurityEvent('device_compromised', { risks });
 }
 ```
-
 
 ## 8. Secure Clipboard Handling
 
@@ -557,12 +558,12 @@ import Clipboard from '@react-native-clipboard/clipboard';
 
 async function copyWithTimeout(text: string, label: string) {
   Clipboard.setString(text);
-  
+
   // Clear clipboard after 30 seconds
   setTimeout(() => {
     Clipboard.setString('');
   }, 30000);
-  
+
   showToast(`${label} copied. Will be cleared in 30 seconds.`);
 }
 
@@ -578,7 +579,6 @@ function SensitiveField({ value }: { value: string }) {
   );
 }
 ```
-
 
 ## 9. Screenshot Prevention
 
@@ -602,7 +602,7 @@ function usePreventScreenshot(shouldPrevent: boolean) {
       }
       // iOS requires native implementation
     }
-    
+
     return () => {
       if (Platform.OS === 'android') {
         NativeModules.ScreenshotPrevention?.disable();
@@ -614,7 +614,7 @@ function usePreventScreenshot(shouldPrevent: boolean) {
 // Usage in sensitive screen
 function PaymentScreen() {
   usePreventScreenshot(true);
-  
+
   return (
     <View>
       <CreditCardForm />
@@ -622,3 +622,8 @@ function PaymentScreen() {
   );
 }
 ```
+
+## See Also
+
+- `.claude/rules/security-core.md` - Core security practices (always auto-loaded)
+- `.claude/rules-available/security-owasp.md` - OWASP Top 10 and security standards

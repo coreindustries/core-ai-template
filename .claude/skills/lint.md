@@ -109,7 +109,7 @@ For CI pipelines, use strict mode:
 
 ## Quality Standards
 
-From `prd/01_Technical_standards.md`:
+From `.claude/rules/code-quality.md`:
 
 - ✅ All functions must have type annotations
 - ✅ All classes must have docstrings

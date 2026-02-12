@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/mcp.json",
+  "mcpServers": {
+    // --- Uncomment and configure servers for your project ---
+
+    // GitHub - Access issues, PRs, code search
+    // "github": {
+    //   "command": "npx",
+    //   "args": ["-y", "@modelcontextprotocol/server-github"],
+    //   "env": {
+    //     "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+    //   }
+    // },
+
+    // PostgreSQL - Direct database inspection
+    // "postgres": {
+    //   "command": "npx",
+    //   "args": ["-y", "@modelcontextprotocol/server-postgres"],
+    //   "env": {
+    //     "POSTGRES_URL": "${DATABASE_URL}"
+    //   }
+    // },
+
+    // Filesystem - Access to project files
+    // "filesystem": {
+    //   "command": "npx",
+    //   "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    // },
+
+    // Memory - Persistent knowledge graph
+    // "memory": {
+    //   "command": "npx",
+    //   "args": ["-y", "@modelcontextprotocol/server-memory"]
+    // },
+
+    // Sentry - Error tracking
+    // "sentry": {
+    //   "command": "npx",
+    //   "args": ["-y", "@sentry/mcp-server"],
+    //   "env": {
+    //     "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}",
+    //     "SENTRY_ORG": "${SENTRY_ORG}"
+    //   }
+    // }
+  }
+}

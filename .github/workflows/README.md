@@ -359,6 +359,6 @@ deploy:
 ## References
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Quality Standards](../prd/01_Technical_standards.md)
 - [Tech Stack Configuration](../prd/02_Tech_stack.md)
-- [Security Standards](../prd/03_Security.md)
+- Quality Standards: `../.claude/rules/` (auto-loaded)
+- Security Standards: `../.claude/rules/security*.md`

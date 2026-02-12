@@ -2,18 +2,46 @@
 
 This project uses AI agent-assisted development with Claude Code and Cursor IDE.
 
+## Standards (Source of Truth)
+
+All project standards live in `.claude/rules/` — read these files for full details:
+
+| Rule File | Covers |
+|-----------|--------|
+| `.claude/rules/code-quality.md` | DRY, typing, naming, docs, project organization |
+| `.claude/rules/testing.md` | Unit/integration tests, TDD, coverage requirements |
+| `.claude/rules/error-handling.md` | Specific exceptions, tight error handling |
+| `.claude/rules/ai-agent-patterns.md` | Autonomy, persistence, exploration patterns |
+| `.claude/rules/git-workflow.md` | Dirty worktrees, commit standards, hygiene |
+| `.claude/rules/quality-checks.md` | Frequent checks, pre-commit, CI/CD |
+| `.claude/rules/task-management.md` | Task tracking, plan discipline |
+| `.claude/rules/security-core.md` | Secrets, database safety, dependencies |
+
+**Opt-in rules** (symlink from `rules-available/` into `rules/` for your project):
+
+| Rule File | Covers |
+|-----------|--------|
+| `.claude/rules-available/nextjs.md` | Next.js 16+ patterns, server components |
+| `.claude/rules-available/security-web.md` | XSS, CSRF, SQL injection, CORS, headers |
+| `.claude/rules-available/security-mobile.md` | Secure storage, cert pinning, deep links |
+| `.claude/rules-available/security-owasp.md` | OWASP Top 10, audit logging |
+
+**References** (loaded on-demand by skills, not auto-loaded):
+
+| File | Used By |
+|------|---------|
+| `.claude/references/gitmoji.md` | `/commit` skill |
+
 ## Quick Reference
 
-- **Main Instructions:** See `CLAUDE.md` for project guidance
-- **Agent Patterns:** See `AGENTS.md` for AI agent quick reference
-- **Rules:** See `.claude/rules/` for modular rules (Claude Code)
-- **Tech Stack:** See `prd/02_Tech_stack.md` for technology decisions
+- **Tech Stack:** `prd/02_Tech_stack.md` (commands, tools, project structure)
+- **Project Guidance:** `CLAUDE.md` (top-level overview)
 
 ## Code Standards
 
 - **Type annotations** on all functions, attributes, and returns
 - **Docstrings** on all public functions and classes
-- **DRY principle** - search for existing implementations first
+- **DRY principle** — search for existing implementations first
 - **Modern syntax** for your language version
 - **Test coverage** minimum as defined in tech stack (typically 66-100%)
 
@@ -23,14 +51,6 @@ This project uses AI agent-assisted development with Claude Code and Cursor IDE.
 - **Persistence:** Continue until working code is delivered
 - **Correctness:** Prioritize correctness over speed
 - **Comprehensiveness:** Update all relevant surfaces
-
-## Quality Checks
-
-Run quality checks every 15-30 minutes during development:
-- Lint and format
-- Type check
-- Run tests
-- Security scan (before commits)
 
 ## Git Workflow
 
@@ -45,13 +65,3 @@ Run quality checks every 15-30 minutes during development:
 - Validate all user inputs
 - Use parameterized queries
 - Implement audit logging for security events
-- See `.claude/rules/security.md` for full security standards
-
-## For More Details
-
-- **Code Quality:** `.claude/rules/code-quality.md`
-- **Testing:** `.claude/rules/testing.md`
-- **Error Handling:** `.claude/rules/error-handling.md`
-- **Git Workflow:** `.claude/rules/git-workflow.md`
-- **Security:** `.claude/rules/security.md`
-- **AI Patterns:** `.claude/rules/ai-agent-patterns.md`

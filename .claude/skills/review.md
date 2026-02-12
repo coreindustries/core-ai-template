@@ -26,8 +26,8 @@ When this skill is invoked:
 - Include file:line references for all issues
 
 **Thoroughness:**
-- Check against all standards in `prd/01_Technical_standards.md`
-- Check security practices from `prd/03_Security.md`
+- Check against all standards in `.claude/rules/` (auto-loaded)
+- Check security practices from `.claude/rules/security*.md`
 - Check technology-specific patterns from `prd/02_Tech_stack.md`
 
 ### Review Process
@@ -44,7 +44,7 @@ When this skill is invoked:
 
 3. **Check each criterion**:
 
-   **Code Quality (PRD 01):**
+   **Code Quality:**
    - [ ] Type annotations on all functions
    - [ ] Docstrings on public functions/classes
    - [ ] DRY principle followed
@@ -52,20 +52,20 @@ When this skill is invoked:
    - [ ] No broad exception catches
    - [ ] No silent failures
 
-   **AI Agent Patterns (PRD 01):**
+   **AI Agent Patterns:**
    - [ ] Complete implementation (no TODOs)
    - [ ] End-to-end functionality
    - [ ] All relevant surfaces updated
    - [ ] Tests exist for new code
 
-   **Security (PRD 03):**
+   **Security:**
    - [ ] No hardcoded secrets
    - [ ] Input validation present
    - [ ] Parameterized queries
    - [ ] Proper error handling
    - [ ] Audit logging for sensitive operations
 
-   **Project Patterns (PRD 02):**
+   **Project Patterns:**
    - [ ] Uses project's database pattern
    - [ ] Uses project's logging pattern
    - [ ] Follows project's structure

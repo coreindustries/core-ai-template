@@ -1,6 +1,6 @@
 # Git Workflow Rules
 
-**Source:** PRD 01 - Technical Standards, Section 9
+**Scope:** Git workflow (dirty worktrees, commit standards, hygiene)
 
 ## Working with Dirty Worktrees
 
@@ -39,7 +39,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 **Optional Gitmoji Format:**
-If Gitmoji is enabled (see `.claude/rules/gitmoji.md`):
+If Gitmoji is enabled (see `.claude/references/gitmoji.md`):
 ```
 <emoji> <type>: <description>
 

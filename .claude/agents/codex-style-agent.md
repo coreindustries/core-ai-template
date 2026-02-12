@@ -6,7 +6,7 @@ A specialized code review agent that evaluates implementations against codex-max
 
 This agent reviews code to ensure it follows:
 - Codex-max prompting patterns (autonomy, persistence, correctness)
-- PRD 01 (Technical Standards, including AI Agent Development Standards)
+- `.claude/rules/` standards (code quality, AI agent patterns, testing, etc.)
 - Project-specific best practices
 
 ## When to Use
@@ -122,7 +122,7 @@ When invoked, this agent should:
 1. **Read all relevant files in parallel**:
    - Source files being reviewed
    - Related test files
-   - Relevant PRDs (01, 02, 03)
+   - Tech stack (`prd/02_Tech_stack.md`)
    - Git history if reviewing a PR
 
 2. **Analyze against criteria**:

@@ -30,12 +30,12 @@ When this skill is invoked:
 **Thoroughness:**
 - Run all applicable security tools
 - Check against OWASP Top 10
-- Follow `prd/03_Security.md` guidelines
+- Follow `.claude/rules/security*.md` guidelines
 
 ### Scan Process
 
 1. **Read `prd/02_Tech_stack.md`** for security tools
-2. **Read `prd/03_Security.md`** for security standards
+2. **Review `.claude/rules/security*.md`** for security standards
 
 3. **Run dependency scan**:
    ```bash
@@ -129,7 +129,7 @@ When this skill is invoked:
 
 ### OWASP Top 10 Checks
 
-From `prd/03_Security.md`:
+From `.claude/rules-available/security-owasp.md`:
 
 | Category | Check |
 |----------|-------|

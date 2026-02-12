@@ -179,12 +179,38 @@ Type Checking: tsc
 
 **AI Agent support:**
 - `CLAUDE.md` (from template)
-- `AGENTS.md` (from template)
+- `.claude/rules/` (universal rules, from template)
+- `.claude/rules-available/` (platform rules, from template)
+- `.claude/references/` (on-demand references, from template)
 - `.claude/skills/` (from template)
+
+### Enable Platform Rules
+
+Based on the chosen template and stack, symlink relevant rules from `rules-available/` into `rules/`:
+
+**Web / Fullstack (Next.js, React):**
+```bash
+ln -s ../rules-available/nextjs.md .claude/rules/nextjs.md
+ln -s ../rules-available/security-web.md .claude/rules/security-web.md
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
+
+**API (any stack):**
+```bash
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
+
+**Mobile (React Native):**
+```bash
+ln -s ../rules-available/security-mobile.md .claude/rules/security-mobile.md
+ln -s ../rules-available/security-web.md .claude/rules/security-web.md
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
 
 ### Post-Init Checklist
 
 - [ ] Project structure created
+- [ ] Platform-specific rules symlinked
 - [ ] Dependencies installed
 - [ ] Git initialized
 - [ ] Tests pass
@@ -216,7 +242,6 @@ Creating configuration files...
   ✅ .env.example
   ✅ README.md
   ✅ CLAUDE.md
-  ✅ AGENTS.md
 
 Installing dependencies...
   ✅ uv sync

@@ -6,27 +6,42 @@ A template for starting agentic-based software projects. Provides structure, doc
 
 This template establishes a foundation for projects where AI agents are primary contributors to the codebase. It includes:
 
-- **Structured guidance** for AI agents via `CLAUDE.md` and `AGENTS.md`
+- **Structured guidance** for AI agents via `CLAUDE.md`
 - **Product requirements documentation** (PRD) for maintaining project context
 - **Task tracking** for long-running features and session recovery
 - **Reusable skills** (slash commands) for common development workflows
 
 ## Features
 
+### Context-Optimized Rules System
+- `.claude/rules/` - 8 universal rules, auto-loaded (~6K tokens)
+- `.claude/rules-available/` - 4 platform rules, opt-in via `make enable-*`
+- `.claude/references/` - On-demand lookups, loaded by skills when needed
+- Only loads what your project needs — **65-70% less context waste** vs loading everything
+
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
-- `AGENTS.md` - Quick reference for agent behavior patterns
-- `.claude/rules/` - Modular rules (automatically loaded by Claude Code)
-- `.claude/agents/` - Specialized agent configurations
+- `.claude/agents/` - 5 specialized agents (code review, architecture, testing, performance, security)
+- `.claude/skills/` - 18 slash commands for common workflows
+- `.claude/mcp.json` - MCP server configuration template
 
-### Documentation Structure
-- `prd/01_Technical_standards.md` - Code quality and agent development principles
+### Documentation & Standards
+- `.claude/rules/` + `.claude/rules-available/` - Source of truth for all standards
 - `prd/02_Tech_stack.md` - Technology stack template (customize per project)
-- `prd/03_Security.md` - Security standards and OWASP guidelines
+- `CONTRIBUTING.md` - Contributor guide with workflow, standards, and AI skill usage
 
 ### Task Management
 - `prd/tasks/` - Directory for feature task tracking
 - `TASK_TEMPLATE.md` - Template for progress tracking and context recovery
+- `/resume` skill - Automated session recovery after context compression
+
+### Developer Experience
+- `Makefile` - One-command setup, dev, test, quality checks
+- `.editorconfig` - Cross-IDE formatting consistency
+- `.vscode/` - VS Code settings, extensions, debug configurations
+- `.devcontainer/` - Reproducible dev environments (Codespaces-ready)
+- `.husky/` - Pre-commit hooks (lint-staged + commitlint)
+- `.github/dependabot.yml` - Automated dependency updates
 
 ### Skills (Slash Commands)
 
@@ -57,6 +72,8 @@ This template establishes a foundation for projects where AI agents are primary 
 | `/scan` | Run security scans |
 | `/migrate` | Manage database migrations |
 | `/docs` | Generate documentation |
+| `/onboard` | Guided walkthrough for new contributors |
+| `/resume` | Recover context and resume work after session break |
 
 ## Workflow
 
@@ -98,29 +115,35 @@ Edit `CLAUDE.md` and replace placeholders:
 - `{runner}` → `uv run` / `bun` / `pnpm exec` / etc.
 - `{start_dev_server}` → your dev server command
 
-### Step 4: Set Up Environment (1 minute)
+### Step 4: Enable Platform Rules (1 minute)
 
 ```bash
-# Copy environment template (if .env.example exists)
-cp .env.example .env
-
-# Configure git commit template
-git config commit.template .gitmessage
-
-# Install dependencies
-{package_manager} install
+# Pick one based on your project type:
+make enable-web      # Next.js / React web app
+make enable-api      # Backend API (any stack)
+make enable-mobile   # React Native mobile app
 ```
 
-### Step 5: Set Up CI/CD (2 minutes)
+This symlinks platform-specific rules into `.claude/rules/` so they auto-load. See `.claude/references/rules-guide.md` for details.
+
+### Step 5: Run Setup (1 minute)
+
+```bash
+make setup
+# This copies .env, installs dependencies, generates DB client, configures git
+```
+
+### Step 6: Set Up CI/CD (2 minutes)
 
 ```bash
 cp .github/workflows/ci.yml.example .github/workflows/ci.yml
 # Edit ci.yml and replace {placeholders} with your commands
+# Uncomment your stack in .github/dependabot.yml
 ```
 
 See [`.github/workflows/README.md`](.github/workflows/README.md) for detailed setup.
 
-### Step 6: Start Building (5 minutes)
+### Step 7: Start Building (5 minutes)
 
 ```bash
 # Create task file for your first feature
@@ -262,87 +285,79 @@ volumes:
 core-ai-template/
 ├── README.md                    # This file - project overview
 ├── CLAUDE.md                    # AI agent project guidance
-├── AGENTS.md                    # Agent quick reference
+├── CONTRIBUTING.md              # Contributor guide and workflow
+├── Makefile                     # One-command setup, dev, test, quality
+├── .editorconfig                # Cross-IDE formatting consistency
+├── .env.example                 # Environment variable template
 ├── .gitmessage                  # Git commit message template
 ├── .cursorrules                 # Cursor IDE rules
-├── marketplace.json             # Plugin marketplace manifest
+├── .commitlintrc.json           # Commit message linting config
+├── .lintstagedrc.json           # Pre-commit lint-staged config
 ├── .github/
+│   ├── dependabot.yml           # Automated dependency updates
 │   └── workflows/
 │       ├── ci.yml.example       # CI/CD pipeline template
 │       └── README.md            # CI/CD setup instructions
+├── .husky/
+│   ├── pre-commit               # Lint-staged pre-commit hook
+│   └── commit-msg               # Commitlint message hook
+├── .vscode/
+│   ├── settings.json            # Workspace settings
+│   ├── extensions.json          # Recommended extensions
+│   └── launch.json              # Debug configurations
+├── .devcontainer/
+│   ├── devcontainer.json        # Dev container config (Codespaces)
+│   └── docker-compose.yml       # Dev container services
 ├── prd/
-│   ├── 00_PRD_index.md          # PRD index
-│   ├── 01_Technical_standards.md # Code quality standards
+│   ├── 00_PRD_index.md          # Feature tracking index
 │   ├── 02_Tech_stack.md         # Tech stack template (customize)
-│   ├── 03_Security.md           # Security standards
 │   └── tasks/
 │       └── TASK_TEMPLATE.md     # Task tracking template
 └── .claude/
-    ├── rules/                   # Modular rules (auto-loaded)
-    │   ├── README.md            # Rules directory documentation
+    ├── mcp.json                 # MCP server configuration template
+    ├── rules/                   # Auto-loaded rules (~6K tokens)
     │   ├── code-quality.md      # Code quality standards
     │   ├── testing.md           # Testing requirements
     │   ├── ai-agent-patterns.md # AI agent principles
     │   ├── error-handling.md    # Error handling patterns
     │   ├── git-workflow.md      # Git workflow standards
-    │   ├── gitmoji.md           # Gitmoji emoji prefixes
+    │   ├── quality-checks.md    # Quality check requirements
+    │   ├── task-management.md   # Task tracking workflow
+    │   └── security-core.md     # Core security (always applies)
+    ├── rules-available/         # Opt-in rules (symlink into rules/)
     │   ├── nextjs.md            # Next.js development patterns
-    │   ├── security-core.md      # Core security (always applies)
-    │   ├── security-mobile.md    # Mobile security (React Native)
-    │   ├── security-web.md       # Web security (React, Next.js)
-    │   ├── security.md           # Security standards
-    │   ├── quality-checks.md     # Quality check requirements
-    │   └── task-management.md   # Task tracking workflow
-    ├── agents/                  # Specialized agents
-    │   └── codex-style-agent.md
-    └── skills/                  # Slash commands (16 skills)
-└── .cursor/
-    └── rules/                   # Cursor IDE workspace rules
-        ├── gitmoji.mdc          # Gitmoji rule (.mdc format)
-        ├── nextjs.mdc           # Next.js development rule (.mdc format)
-        ├── security-core.mdc    # Core security rule (.mdc format, always applies)
-        ├── security-mobile.mdc  # Mobile security rule (.mdc format, always applies)
-        └── security-web.mdc     # Web security rule (.mdc format, always applies)
+    │   ├── security-web.md      # Web security (React, Next.js)
+    │   ├── security-mobile.md   # Mobile security (React Native)
+    │   └── security-owasp.md    # OWASP Top 10 standards
+    ├── references/              # On-demand (loaded by skills)
+    │   ├── gitmoji.md           # Gitmoji reference (/commit)
+    │   └── rules-guide.md       # How the rules system works
+    ├── agents/                  # Specialized agents (5)
+    │   ├── codex-style-agent.md # Autonomous code generation
+    │   ├── architect.md         # Architecture & design review
+    │   ├── test-writer.md       # Test generation
+    │   ├── perf-auditor.md      # Performance auditing
+    │   └── security-reviewer.md # Security review (STRIDE)
+    └── skills/                  # Slash commands (18 skills)
+        ├── feature.md           # Full feature lifecycle
+        ├── commit.md            # Conventional commits
+        ├── pr.md                # Pull request creation
+        ├── test.md              # Test runner with coverage
+        ├── lint.md              # Linting & formatting
+        ├── refactor.md          # Safe refactoring
+        ├── review.md            # Code review
+        ├── debug.md             # Systematic debugging
+        ├── checkpoint.md        # Progress tracking
+        ├── hotfix.md            # Production patches
+        ├── init.md              # Project initialization
+        ├── deps.md              # Dependency management
+        ├── scan.md              # Security scanning
+        ├── migrate.md           # Database migrations
+        ├── api.md               # API endpoint design
+        ├── docs.md              # Documentation generation
+        ├── onboard.md           # New contributor walkthrough
+        └── resume.md            # Session recovery
 ```
-
-## Plugin Marketplace
-
-This template includes a `marketplace.json` manifest for the [Anthropic Agent Skills](https://github.com/anthropics/skills) ecosystem.
-
-### Installing Skills
-
-Users can install skills from this template using Claude Code:
-
-```bash
-# Add the marketplace
-claude plugin add https://github.com/your-org/your-project
-
-# Install individual skills
-claude plugin install feature
-claude plugin install test
-claude plugin install scan
-```
-
-### Available Skills
-
-| Skill | Category | Description |
-|-------|----------|-------------|
-| `feature` | development | Full feature lifecycle (PRD → code → PR) |
-| `test` | development | Run tests with coverage |
-| `lint` | development | Linting, formatting, type checking |
-| `refactor` | development | Safe code refactoring |
-| `review` | development | Code review against standards |
-| `debug` | development | Systematic debugging workflow |
-| `api` | design | Design REST/GraphQL endpoints |
-| `commit` | git | Create conventional commits |
-| `pr` | git | Create pull requests |
-| `hotfix` | git | Quick patch for production |
-| `checkpoint` | productivity | Task tracking and context preservation |
-| `init` | project | Initialize new project |
-| `deps` | dependencies | Audit and manage dependencies |
-| `docs` | documentation | Generate documentation |
-| `scan` | security | Security scans (deps, code, secrets) |
-| `migrate` | database | Database schema migrations |
 
 ## Git Commit Template
 
@@ -366,8 +381,7 @@ When you run `git commit` (without `-m`), the template will appear in your edito
 - Examples
 
 **Gitmoji Support:**
-- See `.claude/rules/gitmoji.md` for Gitmoji reference
-- See `.cursor/rules/gitmoji.mdc` for Cursor IDE workspace rule
+- See `.claude/references/gitmoji.md` for Gitmoji reference
 - Gitmoji provides visual commit identification with emoji prefixes
 
 You can also use the `/commit` skill for AI-assisted commit message generation.
@@ -390,17 +404,84 @@ cp .github/workflows/ci.yml.example .github/workflows/ci.yml
 
 See [`.github/workflows/README.md`](.github/workflows/README.md) for detailed setup instructions.
 
+## Context Management
+
+AI agents have limited context windows. This template is designed to minimize wasted tokens by only loading rules relevant to your project.
+
+### Three-Tier Rule System
+
+```
+.claude/rules/              Always loaded — universal standards (~6K tokens)
+.claude/rules-available/    Opt-in — symlink to enable per project
+.claude/references/         On-demand — loaded by skills when needed
+```
+
+| Tier | When Loaded | Contains |
+|------|-------------|----------|
+| **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, AI patterns, task management |
+| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, web security, mobile security, OWASP Top 10 |
+| **`references/`** | Only when a skill reads it | Gitmoji lookup table, rules system documentation |
+
+### Enabling Platform Rules
+
+```bash
+# Web app (Next.js / React)
+make enable-web      # → nextjs, security-web, security-owasp
+
+# Backend API (Python, Node, Go)
+make enable-api      # → security-owasp
+
+# Mobile app (React Native)
+make enable-mobile   # → security-mobile, security-web, security-owasp
+
+# See all available rules
+make enable-rules
+```
+
+Each command creates symlinks from `rules-available/` into `rules/`. You can also enable individual rules manually:
+
+```bash
+ln -s ../rules-available/nextjs.md .claude/rules/nextjs.md
+```
+
+### Context Budget by Project Type
+
+| Project Type | Auto-Loaded | % of 200K Context |
+|--------------|-------------|-------------------|
+| Python / Go API | ~8K tokens | ~4% |
+| Node.js API | ~8K tokens | ~4% |
+| Next.js Web App | ~19K tokens | ~10% |
+| React Native | ~15K tokens | ~8% |
+
+### Adding Custom Rules
+
+**Universal rule** (every project needs this):
+```bash
+# Create in rules/ — it auto-loads every session
+echo "# My Rule" > .claude/rules/my-rule.md
+```
+
+**Platform rule** (only some projects need this):
+```bash
+# Create in rules-available/ — explicitly opt in
+echo "# My Platform Rule" > .claude/rules-available/my-platform-rule.md
+ln -s ../rules-available/my-platform-rule.md .claude/rules/my-platform-rule.md
+```
+
+See `.claude/references/rules-guide.md` for the full guide.
+
 ## Documentation Reference
 
 | Document | Purpose | When to Read |
 |----------|---------|--------------|
-| `README.md` | Project overview and quick setup | Start here |
-| `CLAUDE.md` | Project-level instructions for Claude Code | Customize for your project |
-| `AGENTS.md` | AI agent quick reference | Daily development |
-| `.claude/rules/` | Modular rules (auto-loaded) | Reference as needed |
-| `prd/01_Technical_standards.md` | Full technical standards | Deep dive into standards |
+| `README.md` | Project overview and setup | Start here |
+| `CLAUDE.md` | AI agent project guidance | Customize for your project |
+| `CONTRIBUTING.md` | Contributor workflow and standards | Before contributing |
+| `.claude/rules/` | Universal standards (auto-loaded) | Source of truth |
+| `.claude/rules-available/` | Platform rules (opt-in) | Enable for your stack |
+| `.claude/references/rules-guide.md` | How the rules system works | Understanding context management |
 | `prd/02_Tech_stack.md` | Tech stack template | Configure your stack |
-| `prd/03_Security.md` | Security standards | Security implementation |
+| `Makefile` | Available make targets | Running commands |
 | `.github/workflows/README.md` | CI/CD setup guide | Setting up pipelines |
 
 ## License

@@ -1,6 +1,6 @@
 # Security Rules
 
-**Source:** PRD 03 - Security Standards
+**Scope:** Security standards (OWASP Top 10, best practices, audit logging)
 
 ## OWASP Top 10 Requirements
 
