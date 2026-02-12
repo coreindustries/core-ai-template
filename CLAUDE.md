@@ -77,34 +77,7 @@ docs/
 
 ## Skills (Slash Commands)
 
-| Skill | Purpose |
-|-------|---------|
-| `/feature` | Full feature lifecycle: PRD → code → tests → PR (in worktree) |
-| `/commit` | Conventional commit with Gitmoji |
-| `/pr` | Create pull request |
-| `/test` | Run tests with coverage |
-| `/lint` | Lint, format, type check |
-| `/refactor` | Safe refactoring with TDD approach |
-| `/review` | Code review against project standards |
-| `/debug` | Systematic debugging workflow |
-| `/checkpoint` | Update task tracking file |
-| `/hotfix` | Quick production patch |
-| `/init` | Initialize new project from template |
-| `/deps` | Audit and manage dependencies |
-| `/scan` | Security scanning |
-| `/migrate` | Database migrations |
-| `/api` | Design REST/GraphQL endpoints |
-| `/docs` | Generate documentation |
-| `/onboard` | Guided walkthrough for new contributors |
-| `/resume` | Recover context after session break |
-| `/env` | Validate, generate, and sync environment variables |
-| `/release` | Tag version, generate changelog, create GitHub release |
-| `/perf` | Profile, benchmark, and optimize performance |
-| `/ci` | Generate or update CI/CD pipeline configuration |
-| `/scaffold` | Generate new module/component/screen with tests |
-| `/deploy` | Deploy to staging or production |
-| `/compound` | Capture knowledge from solved problems to docs/solutions/ |
-| `/brainstorm` | Explore requirements (WHAT) before implementation (HOW) |
+26 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 
