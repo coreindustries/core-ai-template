@@ -35,6 +35,8 @@ Platform-specific rules that only apply to certain project types. Enable by syml
 make enable-web      # Next.js / React
 make enable-api      # Backend API
 make enable-mobile   # React Native
+make enable-ios      # Native iOS
+make enable-android  # Native Android
 make enable-docker   # Dockerized projects
 ```
 
@@ -44,7 +46,9 @@ make enable-docker   # Dockerized projects
 | `security-web.md` | React / Next.js web apps | 2,935 |
 | `security-mobile.md` | React Native mobile apps | 4,028 |
 | `security-owasp.md` | OWASP Top 10 (any web/API) | 1,389 |
+| `android.md` | Native Android (Kotlin / Compose) | ~3,800 |
 | `docker.md` | Dockerized / containerized projects | ~3,500 |
+| `ios.md` | Native iOS (Swift / SwiftUI) | ~3,200 |
 
 ### References (`references/`)
 

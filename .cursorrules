@@ -21,7 +21,9 @@ All project standards live in `.claude/rules/` — read these files for full det
 
 | Rule File | Covers |
 |-----------|--------|
+| `.claude/rules-available/android.md` | Kotlin, Jetpack Compose, Hilt, Room |
 | `.claude/rules-available/docker.md` | Dockerfile, Compose, container security |
+| `.claude/rules-available/ios.md` | Swift, SwiftUI, concurrency, SwiftData |
 | `.claude/rules-available/nextjs.md` | Next.js 16+ patterns, server components |
 | `.claude/rules-available/security-web.md` | XSS, CSRF, SQL injection, CORS, headers |
 | `.claude/rules-available/security-mobile.md` | Secure storage, cert pinning, deep links |

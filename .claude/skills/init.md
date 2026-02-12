@@ -200,6 +200,18 @@ ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ```
 
+**iOS (Swift / SwiftUI):**
+```bash
+ln -s ../rules-available/ios.md .claude/rules/ios.md
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
+
+**Android (Kotlin / Compose):**
+```bash
+ln -s ../rules-available/android.md .claude/rules/android.md
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
+
 **Dockerized project:**
 ```bash
 ln -s ../rules-available/docker.md .claude/rules/docker.md

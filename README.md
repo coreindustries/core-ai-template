@@ -15,7 +15,7 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### Context-Optimized Rules System
 - `.claude/rules/` - 8 universal rules, auto-loaded (~6K tokens)
-- `.claude/rules-available/` - 5 platform rules, opt-in via `make enable-*`
+- `.claude/rules-available/` - 7 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
 - Only loads what your project needs — **65-70% less context waste** vs loading everything
 
@@ -122,6 +122,8 @@ Edit `CLAUDE.md` and replace placeholders:
 make enable-web      # Next.js / React web app
 make enable-api      # Backend API (any stack)
 make enable-mobile   # React Native mobile app
+make enable-ios      # Native iOS (Swift / SwiftUI)
+make enable-android  # Native Android (Kotlin / Compose)
 make enable-docker   # Dockerized / containerized project
 ```
 
@@ -326,7 +328,9 @@ core-ai-template/
     │   ├── task-management.md   # Task tracking workflow
     │   └── security-core.md     # Core security (always applies)
     ├── rules-available/         # Opt-in rules (symlink into rules/)
+    │   ├── android.md           # Android (Kotlin / Compose)
     │   ├── docker.md            # Docker & container best practices
+    │   ├── ios.md               # iOS (Swift / SwiftUI)
     │   ├── nextjs.md            # Next.js development patterns
     │   ├── security-web.md      # Web security (React, Next.js)
     │   ├── security-mobile.md   # Mobile security (React Native)
@@ -421,7 +425,7 @@ AI agents have limited context windows. This template is designed to minimize wa
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
 | **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, AI patterns, task management |
-| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, web security, mobile security, OWASP Top 10 |
+| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, iOS, Android, Docker, web/mobile security, OWASP |
 | **`references/`** | Only when a skill reads it | Gitmoji lookup table, rules system documentation |
 
 ### Enabling Platform Rules
@@ -435,6 +439,12 @@ make enable-api      # → security-owasp
 
 # Mobile app (React Native)
 make enable-mobile   # → security-mobile, security-web, security-owasp
+
+# Native iOS (Swift / SwiftUI)
+make enable-ios      # → ios, security-owasp
+
+# Native Android (Kotlin / Compose)
+make enable-android  # → android, security-owasp
 
 # Containerized project
 make enable-docker   # → docker, security-owasp
