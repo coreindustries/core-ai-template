@@ -21,11 +21,14 @@ Full-cycle feature development: PRD creation, implementation, testing, and PR cr
 | `--scaffold` | Generate CRUD scaffolding (routes, models, services) |
 | `--with-db` | Include database model (requires `--scaffold`) |
 | `--link-prd <number>` | Link to existing PRD branch instead of creating new |
+| `--brainstorm` | Run `/brainstorm` before PRD creation to explore requirements |
+| `--compound` | Run `/compound` after PR creation to capture learnings |
 
 ## Overview
 
 This skill orchestrates the complete feature development lifecycle:
 
+0. **(Optional)** Brainstorm requirements — if `--brainstorm` flag is set
 1. Create isolated worktree
 2. Build PRD from template (or link to existing)
 3. Confirm PRD with user
@@ -35,6 +38,7 @@ This skill orchestrates the complete feature development lifecycle:
 7. Run linting and security scans
 8. Create PR
 9. Debug CI/CD issues
+10. **(Optional)** Capture learnings — if `--compound` flag is set
 
 ## Instructions
 
@@ -58,6 +62,20 @@ When this skill is invoked:
 - Generate tests alongside code (not as an afterthought)
 - Ensure high coverage for new code (target defined in tech stack)
 - Run full quality pipeline before PR
+
+---
+
+## Phase 0: Brainstorm Requirements (Optional)
+
+*Only runs if `--brainstorm` flag is set.*
+
+Invoke the `/brainstorm` skill with the feature name to explore requirements before creating the PRD. This separates WHAT from HOW and ensures the right problem is being solved.
+
+```
+/brainstorm {feature_name}
+```
+
+Once requirements are confirmed, continue to Phase 1 with the brainstorm output as input for PRD creation.
 
 ---
 
@@ -473,6 +491,23 @@ For each CI failure:
    ```
 
 **Iterate until CI passes.**
+
+---
+
+## Phase 10: Capture Learnings (Optional)
+
+*Only runs if `--compound` flag is set.*
+
+After the PR is created and CI passes, invoke `/compound` to capture any non-trivial knowledge gained during implementation. This is especially valuable when:
+
+- The feature required debugging a non-obvious issue
+- You discovered a workaround or undocumented behavior
+- The implementation required reading external documentation
+- A pattern was established that future features should follow
+
+```
+/compound
+```
 
 ---
 

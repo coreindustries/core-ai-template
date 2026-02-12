@@ -30,6 +30,8 @@ git diff --stat
 
 Read `prd/00_index.md` to find "In Progress" features.
 
+Also check `docs/solutions/` for previously solved problems related to the current feature area — these may contain solutions to issues you'll encounter again.
+
 If `feature_name` was provided:
 - Read `prd/tasks/{feature_name}_tasks.md`
 

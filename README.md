@@ -10,6 +10,7 @@ This template establishes a foundation for projects where AI agents are primary 
 - **Product requirements documentation** (PRD) for maintaining project context
 - **Task tracking** for long-running features and session recovery
 - **Reusable skills** (slash commands) for common development workflows
+- **Compound engineering** practices adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) — knowledge capture, requirements discovery, and multi-perspective code review
 
 ## Features
 
@@ -21,8 +22,8 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
-- `.claude/agents/` - 5 specialized agents (code review, architecture, testing, performance, security)
-- `.claude/skills/` - 24 slash commands for common workflows
+- `.claude/agents/` - 8 specialized agents (code review, architecture, testing, performance, security, simplicity, data integrity, codebase research)
+- `.claude/skills/` - 26 slash commands for common workflows
 - `.claude/mcp.json` - MCP server configuration template
 
 ### Documentation & Standards
@@ -80,6 +81,95 @@ This template establishes a foundation for projects where AI agents are primary 
 | `/docs` | Generate documentation |
 | `/onboard` | Guided walkthrough for new contributors |
 | `/resume` | Recover context and resume work after session break |
+
+**Knowledge & Discovery**
+| Skill | Purpose |
+|-------|---------|
+| `/compound` | Capture knowledge from solved problems to docs/solutions/ |
+| `/brainstorm` | Explore requirements (WHAT) before implementation (HOW) |
+
+### Compound Engineering
+
+Adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin), this template implements key compound engineering practices that make AI agents more effective over time. The core idea: **knowledge should compound, not evaporate between sessions.**
+
+#### `/brainstorm` — Requirements Before Code
+
+Separates WHAT from HOW. Before writing any code, explore what the user actually needs.
+
+```bash
+# Explore requirements for a new feature
+/brainstorm user-notifications
+
+# Use with /feature for the full lifecycle
+/feature user-notifications --brainstorm
+```
+
+**How it works:**
+1. Asks up to 5 probing questions (one at a time) to understand the real need
+2. Explores: core requirements, UX expectations, edge cases, boundaries
+3. Produces a focused ~200-300 word requirements doc (Must Have / Should Have / Out of Scope / Success Criteria)
+4. Hands off cleanly to `/feature` when ready
+
+**When to use:** Before any feature where requirements are ambiguous. Skip it for straightforward CRUD or well-specified tasks.
+
+#### `/compound` — Knowledge Capture
+
+After solving a non-trivial problem, capture the knowledge so it's never lost. Creates searchable solution documents in `docs/solutions/`.
+
+```bash
+# Capture knowledge from the current debug session
+/compound
+
+# Specify category explicitly
+/compound --category database
+
+# Extract from a specific commit
+/compound --from-commit abc1234
+
+# Use with /feature to auto-capture after PR
+/feature payment-processing --compound
+```
+
+**How it works:**
+1. Gathers problem context from the current session (error, root cause, failed attempts, working solution)
+2. Checks `docs/solutions/` for duplicates before writing
+3. Creates a solution document with YAML frontmatter (title, category, date, tags, severity)
+4. Files are organized by category: `docs/solutions/{category}/{date}-{slug}.md`
+
+**Categories:** `build-errors`, `test-failures`, `runtime-errors`, `performance`, `database`, `security`, `integration`, `deployment`, `logic-errors`
+
+**When to use:** After any fix that took > 15 minutes, required a non-obvious workaround, or involved reading external docs. The `/debug` skill will suggest it automatically after non-trivial fixes.
+
+#### Multi-Perspective `/review`
+
+Code review now evaluates from 6 specialist perspectives with P1/P2/P3 severity classification:
+
+```bash
+/review --pr feat/user-auth
+```
+
+| Perspective | What It Checks | Agent |
+|-------------|---------------|-------|
+| Code Quality | Types, docs, DRY, error handling, completeness | Inline (rules) |
+| Security | Secrets, injection, auth, audit logging | `security-reviewer` |
+| Performance | N+1 queries, indexing, caching, pagination | `perf-auditor` |
+| Architecture | Project patterns, separation of concerns | Inline (rules) |
+| Simplicity | Over-engineering, unnecessary abstractions | `simplicity-reviewer` |
+| Data Integrity | Validation, DB constraints, migration safety | `data-integrity-reviewer` |
+
+Output includes a summary table showing findings per perspective and all issues classified as P1 (must fix), P2 (should fix), or P3 (suggestion).
+
+#### New Agents
+
+Three new specialized agents support compound engineering:
+
+| Agent | Purpose |
+|-------|---------|
+| `simplicity-reviewer` | Detects unnecessary abstractions, over-engineering, and right-sizing violations |
+| `data-integrity-reviewer` | Catches validation gaps, migration risks, and state transition bugs |
+| `codebase-researcher` | Deep codebase analysis before implementing — finds patterns, prior art, and reusable code |
+
+These agents are on-demand only (0 auto-loaded token cost). They're invoked by `/review` or can be used directly.
 
 ## Workflow
 
@@ -347,13 +437,16 @@ core-ai-template/
     ├── references/              # On-demand (loaded by skills)
     │   ├── gitmoji.md           # Gitmoji reference (/commit)
     │   └── rules-guide.md       # How the rules system works
-    ├── agents/                  # Specialized agents (5)
+    ├── agents/                  # Specialized agents (8)
     │   ├── codex-style-agent.md # Autonomous code generation
     │   ├── architect.md         # Architecture & design review
     │   ├── test-writer.md       # Test generation
     │   ├── perf-auditor.md      # Performance auditing
-    │   └── security-reviewer.md # Security review (STRIDE)
-    └── skills/                  # Slash commands (24 skills)
+    │   ├── security-reviewer.md # Security review (STRIDE)
+    │   ├── simplicity-reviewer.md # Over-engineering detection
+    │   ├── data-integrity-reviewer.md # Data consistency & validation
+    │   └── codebase-researcher.md # Deep codebase analysis
+    └── skills/                  # Slash commands (26 skills)
         ├── feature.md           # Full feature lifecycle
         ├── commit.md            # Conventional commits
         ├── pr.md                # Pull request creation
@@ -377,7 +470,9 @@ core-ai-template/
         ├── perf.md              # Performance profiling
         ├── ci.md                # CI/CD pipeline generation
         ├── scaffold.md          # Module/component scaffolding
-        └── deploy.md            # Deployment to staging/production
+        ├── deploy.md            # Deployment to staging/production
+        ├── compound.md          # Knowledge capture from solved problems
+        └── brainstorm.md        # Requirements exploration
 ```
 
 ## Git Commit Template

@@ -136,6 +136,10 @@ When this skill is invoked:
    Closes #issue_number
    ```
 
+### Capture Knowledge
+
+If this fix took more than 15 minutes to diagnose, or the root cause was non-obvious, run `/compound` to capture the solution. This prevents future re-discovery of the same problem and builds the project's knowledge base in `docs/solutions/`.
+
 ### Debug Checklist
 
 - [ ] Error message understood
@@ -146,6 +150,7 @@ When this skill is invoked:
 - [ ] All tests pass
 - [ ] Regression test added
 - [ ] Fix documented
+- [ ] Knowledge captured with `/compound` (if non-trivial fix)
 
 ### Common Debug Patterns
 

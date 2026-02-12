@@ -23,8 +23,8 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 24 slash commands (invoke with /name)
-├── .claude/agents/            → 5 specialized agents (invoke on demand)
+├── .claude/skills/            → 26 slash commands (invoke with /name)
+├── .claude/agents/            → 8 specialized agents (invoke on demand)
 └── .claude/mcp.json           → MCP server configuration template
 ```
 
@@ -68,6 +68,8 @@ src/{project_name}/              # Source code
 tests/
 ├── unit/                        # No I/O, mock externals
 └── integration/                 # Real database, use fixtures
+docs/
+└── solutions/                   # Knowledge capture from /compound skill
 ```
 
 **Key patterns**: Database singleton, environment-based config, structured logging with separate audit logger, service-layer business logic.
@@ -100,6 +102,8 @@ tests/
 | `/ci` | Generate or update CI/CD pipeline configuration |
 | `/scaffold` | Generate new module/component/screen with tests |
 | `/deploy` | Deploy to staging or production |
+| `/compound` | Capture knowledge from solved problems to docs/solutions/ |
+| `/brainstorm` | Explore requirements (WHAT) before implementation (HOW) |
 
 ## CI/CD
 

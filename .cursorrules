@@ -69,3 +69,7 @@ All project standards live in `.claude/rules/` — read these files for full det
 - Validate all user inputs
 - Use parameterized queries
 - Implement audit logging for security events
+
+## Agents
+
+This project has 8 specialized agents in `.claude/agents/` — invoke them on demand for code review, architecture, testing, performance, security, simplicity, data integrity, and codebase research.
