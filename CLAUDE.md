@@ -19,6 +19,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 │   ├── 00_technology.md       → TEMPLATE: technology choices + all commands
 │   ├── _prd_template.md       → PRD template for new features
 │   ├── _task_template.md      → Task tracking template
+│   ├── _changelog_template.md → Changelog with breaking change policy
 │   └── tasks/                 → Long-running feature progress tracking
 ├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)

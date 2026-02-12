@@ -25,6 +25,12 @@
 
 - (none)
 
+## Changelog
+
+**Template:** `prd/_changelog_template.md`
+
+Copy to project root as `CHANGELOG.md` during project setup. Defines your breaking change policy and tracks releases in [Keep a Changelog](https://keepachangelog.com/) format.
+
 ## Task Tracking
 
 **Task Files Directory:** `prd/tasks/`

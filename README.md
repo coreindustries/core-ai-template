@@ -413,6 +413,7 @@ core-ai-template/
 │   ├── 00_technology.md         # Tech stack template (customize)
 │   ├── _prd_template.md         # PRD template
 │   ├── _task_template.md        # Task tracking template
+│   ├── _changelog_template.md   # Changelog with breaking change policy
 │   └── tasks/                   # Long-running feature task files
 └── .claude/
     ├── mcp.json                 # MCP server configuration template

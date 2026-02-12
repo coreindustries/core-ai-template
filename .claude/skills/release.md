@@ -72,7 +72,20 @@ git log $(git describe --tags --abbrev=0 2>/dev/null || echo "")..HEAD --oneline
 
 #### Phase 3: Generate Changelog
 
-Categorize commits since last tag:
+1. **Check for `CHANGELOG.md`** in project root.
+   - If it exists, update it (see format below).
+   - If it doesn't exist, generate changelog for the GitHub release only.
+
+2. **Classify changes using the Breaking Change Policy** in `CHANGELOG.md`.
+   - If a commit touches a surface listed in the policy table, check whether it's breaking.
+   - If breaking changes are found and the bump type is not `major`, warn the user.
+
+3. **Update `CHANGELOG.md`** (if present):
+   - Move items from `[Unreleased]` into a new `[X.Y.Z] - YYYY-MM-DD` section.
+   - Add the comparison link at the bottom of the file.
+   - Categorize entries: Added, Changed, Deprecated, Removed, Fixed, Security.
+
+4. **Generate GitHub release notes** from commits since last tag:
 
 ```markdown
 ## What's Changed
