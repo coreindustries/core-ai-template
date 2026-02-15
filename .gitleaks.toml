@@ -1,0 +1,102 @@
+# =============================================================================
+# Gitleaks Configuration
+# =============================================================================
+# Extends the default gitleaks ruleset (150+ patterns for AWS, GCP, GitHub,
+# Stripe, Twilio, SendGrid, etc.) with custom PII detection rules.
+#
+# Usage:
+#   gitleaks detect --config .gitleaks.toml              # Full repo scan
+#   gitleaks protect --config .gitleaks.toml --staged     # Pre-commit (staged)
+#
+# Docs: https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true
+
+# =============================================================================
+# Custom Rules: PII Detection
+# =============================================================================
+
+[[rules]]
+id = "us-social-security-number"
+description = "US Social Security Number"
+regex = '''\b\d{3}-\d{2}-\d{4}\b'''
+keywords = ["ssn", "social security"]
+tags = ["pii"]
+
+[[rules]]
+id = "credit-card-visa"
+description = "Visa credit card number"
+regex = '''\b4\d{3}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'''
+tags = ["pii", "credit-card"]
+
+[[rules]]
+id = "credit-card-mastercard"
+description = "Mastercard credit card number"
+regex = '''\b5[1-5]\d{2}[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'''
+tags = ["pii", "credit-card"]
+
+[[rules]]
+id = "credit-card-amex"
+description = "American Express credit card number"
+regex = '''\b3[47]\d{2}[\s-]?\d{6}[\s-]?\d{5}\b'''
+tags = ["pii", "credit-card"]
+
+[[rules]]
+id = "credit-card-discover"
+description = "Discover credit card number"
+regex = '''\b6(?:011|5\d{2})[\s-]?\d{4}[\s-]?\d{4}[\s-]?\d{4}\b'''
+tags = ["pii", "credit-card"]
+
+[[rules]]
+id = "hardcoded-password-assignment"
+description = "Hardcoded password in variable assignment"
+regex = '''(?i)(?:password|passwd|pwd)\s*[:=]\s*["'][^"']{8,}["']'''
+keywords = ["password", "passwd", "pwd"]
+tags = ["secret"]
+
+# =============================================================================
+# Allowlist: Global
+# =============================================================================
+
+[allowlist]
+description = "Global allowlist"
+
+# Inline suppression: add `pragma: allowlist secret` to any line
+regexTarget = "line"
+regexes = ['''pragma:\s*allowlist\s*secret''']
+
+# Paths that never contain real secrets
+paths = [
+    '''\.env\.example$''',
+    '''\.env\.sample$''',
+    '''\.env\.template$''',
+    '''\.gitleaks\.toml$''',
+    '''tests?/''',
+    '''__tests__/''',
+    '''spec/''',
+    '''fixtures?/''',
+    '''mocks?/''',
+    '''\.claude/''',
+    '''\.cursor/''',
+    '''prd/''',
+    '''docs?/''',
+]
+
+# Words that indicate non-real values
+stopwords = [
+    "example",
+    "sample",
+    "test",
+    "placeholder",
+    "changeme",
+    "replace_me",
+    "your-api-key",
+    "your_api_key",
+    "xxx",
+    "TODO",
+    "FIXME",
+    "fake",
+    "mock",
+    "dummy",
+]

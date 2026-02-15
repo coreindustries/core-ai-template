@@ -151,6 +151,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for secret scanning
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v4
@@ -171,6 +173,12 @@ jobs:
       - name: Run pip-audit
         run: uv run pip-audit
         continue-on-error: true  # Don't fail on vulnerabilities, just report
+
+      - name: Run Gitleaks (secret and PII scanning)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
 
   # ===========================================================================
   # Build - Docker image build test

@@ -46,6 +46,7 @@ last_updated: "2026-01-15"
 | `{coverage_tool}` | Coverage | — |
 | `{security_scanner}` | Security analysis | — |
 | `{dep_scanner}` | Dependency audit | — |
+| `gitleaks` | Secret & PII scanning | `.gitleaks.toml` |
 
 ### Coverage Requirements
 
@@ -130,6 +131,7 @@ last_updated: "2026-01-15"
 {format_fix_command}                 # Format fix
 {type_check_command}                 # Type check
 {security_scan_command}              # Security scan
+scripts/scan-secrets.sh --all        # Secret & PII scan
 ```
 
 ### Full Quality Pipeline

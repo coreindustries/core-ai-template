@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test lint format typecheck security quality db-generate db-migrate db-push clean enable-rules
+.PHONY: help setup dev test lint format typecheck security scan-secrets quality db-generate db-migrate db-push clean enable-rules
 
 # Default target
 help: ## Show this help
@@ -32,6 +32,7 @@ setup: ## First-time project setup (run once)
 	{db_migrate}
 	@echo "  Configuring git..."
 	git config commit.template .gitmessage
+	@command -v gitleaks >/dev/null 2>&1 && echo "  gitleaks installed (secret scanning enabled)" || echo "  Note: Install gitleaks for secret scanning (brew install gitleaks)"
 	@echo ""
 	@echo "Setup complete! Run 'make dev' to start developing."
 
@@ -108,6 +109,9 @@ typecheck: ## Run type checker
 security: ## Run security scanner
 	{security_scan_command}
 
+scan-secrets: ## Scan for secrets and PII (gitleaks)
+	@scripts/scan-secrets.sh --all
+
 quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@echo "Running full quality check..."
 	@echo ""
@@ -119,6 +123,9 @@ quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@echo ""
 	@echo "=== Security ==="
 	{security_scan_command}
+	@echo ""
+	@echo "=== Secrets & PII ==="
+	@scripts/scan-secrets.sh --all
 	@echo ""
 	@echo "=== Tests ==="
 	{test_coverage_command}

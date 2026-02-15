@@ -53,9 +53,13 @@ When this skill is invoked:
    {security_scan_command} src/
    ```
 
-5. **Run secrets detection**:
+5. **Run secrets and PII detection** (gitleaks):
    ```bash
-   {secrets_scan_command}
+   # Full repo scan
+   scripts/scan-secrets.sh --all
+
+   # Or directly:
+   gitleaks detect --config .gitleaks.toml --verbose
    ```
 
 6. **Categorize findings** by severity:
@@ -125,6 +129,19 @@ When this skill is invoked:
 
 ---
 
+### PII Detected
+
+#### High Severity
+
+1. **US Social Security Number** (`src/{project}/utils:78`)
+   - Pattern: `ssn = "123-45-6789"`
+   - Fix: Remove hardcoded PII, use encrypted storage
+2. **Credit Card Number** (`src/{project}/payments:34`)
+   - Pattern: `card = "4111-1111-1111-1111"`
+   - Fix: Use tokenized payment processing
+
+---
+
 ### Recommendations
 
 1. **Immediate**: Upgrade {package} to fix CVE-XXXX
@@ -170,9 +187,9 @@ Found 1 issue:
   🟡 Medium: Potential SQL injection (src/db/queries:45)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🔑 Secrets Detection
+🔑 Secrets & PII Detection (gitleaks)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✅ No secrets detected
+✅ No secrets or PII detected
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 Security Score: 78/100

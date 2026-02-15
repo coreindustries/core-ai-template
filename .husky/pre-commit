@@ -9,4 +9,9 @@
 # For Go projects, replace with:
 #   golangci-lint run --new-from-rev=HEAD
 
+# Secret and PII scanning (non-blocking if gitleaks not installed)
+if [ -f "scripts/scan-secrets.sh" ]; then
+  scripts/scan-secrets.sh --staged
+fi
+
 npx lint-staged
