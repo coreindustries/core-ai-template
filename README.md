@@ -23,7 +23,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `.claude/agents/` - 8 specialized agents (code review, architecture, testing, performance, security, simplicity, data integrity, codebase research)
-- `.claude/skills/` - 26 slash commands for common workflows
+- `.claude/skills/` - 27 slash commands for common workflows
 - `.claude/mcp.json` - MCP server configuration template
 
 ### Documentation & Standards
@@ -87,6 +87,7 @@ This template establishes a foundation for projects where AI agents are primary 
 |-------|---------|
 | `/compound` | Capture knowledge from solved problems to docs/solutions/ |
 | `/brainstorm` | Explore requirements (WHAT) before implementation (HOW) |
+| `/context` | Audit auto-loaded context budget and recommend optimizations |
 
 ### Compound Engineering
 
@@ -398,8 +399,9 @@ core-ai-template/
 │   └── workflows/
 │       ├── ci.yml.example       # CI/CD pipeline template
 │       └── README.md            # CI/CD setup instructions
+├── .gitleaks.toml               # Secret & PII scanning config (gitleaks)
 ├── .husky/
-│   ├── pre-commit               # Lint-staged pre-commit hook
+│   ├── pre-commit               # Secret scan + lint-staged pre-commit hook
 │   └── commit-msg               # Commitlint message hook
 ├── .vscode/
 │   ├── settings.json            # Workspace settings
@@ -408,6 +410,8 @@ core-ai-template/
 ├── .devcontainer/
 │   ├── devcontainer.json        # Dev container config (Codespaces)
 │   └── docker-compose.yml       # Dev container services
+├── scripts/
+│   └── scan-secrets.sh          # Secret & PII scanner wrapper (gitleaks)
 ├── prd/
 │   ├── 00_index.md              # Feature tracking index
 │   ├── 00_technology.md         # Tech stack template (customize)
@@ -447,7 +451,7 @@ core-ai-template/
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (26 skills, each <name>/SKILL.md)
+    └── skills/                  # Slash commands (27 skills, each <name>/SKILL.md)
         ├── feature/             # Full feature lifecycle
         ├── commit/              # Conventional commits
         ├── pr/                  # Pull request creation
@@ -473,7 +477,8 @@ core-ai-template/
         ├── scaffold/            # Module/component scaffolding
         ├── deploy/              # Deployment to staging/production
         ├── compound/            # Knowledge capture from solved problems
-        └── brainstorm/          # Requirements exploration
+        ├── brainstorm/          # Requirements exploration
+        └── context/             # Context budget audit and optimization
 ```
 
 ## Git Commit Template

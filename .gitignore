@@ -73,6 +73,9 @@ secrets.json
 *.sqlite
 *.sqlite3
 
+# Claude plugin artifacts
+.claude/skills/CLAUDE.md
+
 # Generated files (uncomment as needed)
 # prisma/client/
 # generated/

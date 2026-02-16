@@ -14,6 +14,8 @@ Understanding how the pieces fit together is critical:
 CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── CONTRIBUTING.md            → Contributor workflow and standards
 ├── Makefile                   → One-command setup, dev, test, quality
+├── scripts/                   → Utility scripts (scan-secrets.sh)
+├── .gitleaks.toml             → Secret & PII scanning config (gitleaks)
 ├── prd/
 │   ├── 00_index.md            → Feature tracking, tech stack summary
 │   ├── 00_technology.md       → TEMPLATE: technology choices + all commands
@@ -24,7 +26,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 26 slash commands (invoke with /name)
+├── .claude/skills/            → 27 slash commands (invoke with /name)
 ├── .claude/agents/            → 8 specialized agents (invoke on demand)
 └── .claude/mcp.json           → MCP server configuration template
 ```
@@ -33,28 +35,17 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 
 ## Commands
 
-All commands come from `prd/00_technology.md`. Replace placeholders with your stack.
+All commands are defined in `prd/00_technology.md` and wrapped by `Makefile`. Run `make help` for the full list. Key targets:
 
 ```bash
-# Development
-{start_dev_server}               # Start API with hot reload
-{start_dependencies}             # Start database, cache, etc.
-
-# Database
-{db_generate}                    # Generate client after schema changes
-{db_migrate}                     # Create/run migrations
-
-# Quality (run before commits)
-{lint_fix}                       # Lint and format
-{type_check}                     # Type checking
-{test_with_coverage}             # Tests with coverage
-
-# Testing
-{test_unit}                      # Unit tests only
-{test_integration}               # Integration tests only
-{test_specific} tests/unit/test_{module}  # Single test file
-{test_stop_first}                # Stop on first failure
+make setup          # First-time project setup
+make dev            # Start development server
+make test           # Run all tests
+make quality        # Full pipeline: lint + typecheck + security + secrets + tests
+make scan-secrets   # Secret & PII scanning (gitleaks)
 ```
+
+For individual commands (`{lint_fix}`, `{test_unit}`, etc.), see `prd/00_technology.md`.
 
 ## Architecture
 
@@ -77,7 +68,7 @@ docs/
 
 ## Skills (Slash Commands)
 
-26 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+27 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 
@@ -92,10 +83,4 @@ When resuming after context compression, use `/resume` or follow manually:
 
 ## Template Setup
 
-When using this template for a new project:
-1. Fill in `prd/00_technology.md` with technology choices
-2. Replace `{placeholder}` values in this file and `Makefile`
-3. Update `prd/00_index.md` tech stack summary
-4. Customize `.github/workflows/ci.yml` for your stack
-5. Uncomment your stack in `.github/dependabot.yml`
-6. Run `make setup` (installs deps, copies .env, configures git)
+See README.md "Getting Started" for the full 7-step setup. Key steps: fill in `prd/00_technology.md`, replace `{placeholder}` values, enable platform rules (`make enable-*`), run `make setup`.
