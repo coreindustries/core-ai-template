@@ -171,6 +171,7 @@ enable-rules: ## Symlink platform-specific rules (interactive)
 	@echo "  make enable-python    # Python (uv, ruff, FastAPI)"
 	@echo "  make enable-ios       # Native iOS (Swift / SwiftUI)"
 	@echo "  make enable-android   # Native Android (Kotlin / Compose)"
+	@echo "  make enable-karpathy  # Karpathy behavioral principles (cautious mode)"
 
 enable-web: ## Enable rules for Next.js / React web projects
 	@ln -sf ../rules-available/nextjs.md .claude/rules/nextjs.md
@@ -207,3 +208,7 @@ enable-android: ## Enable rules for native Android (Kotlin/Compose) projects
 	@ln -sf ../rules-available/android.md .claude/rules/android.md
 	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 	@echo "Enabled: android, security-owasp"
+
+enable-karpathy: ## Enable Karpathy behavioral principles (cautious, assumption-surfacing)
+	@ln -sf ../rules-available/karpathy-principles.md .claude/rules/karpathy-principles.md
+	@echo "Enabled: karpathy-principles (Think Before Coding, Simplicity First, Surgical Changes, Goal-Driven Execution)"

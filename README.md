@@ -16,7 +16,7 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### Context-Optimized Rules System
 - `.claude/rules/` - 8 universal rules, auto-loaded (~6K tokens)
-- `.claude/rules-available/` - 8 platform rules, opt-in via `make enable-*`
+- `.claude/rules-available/` - 9 opt-in rules, enable via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
 - Only loads what your project needs — **65-70% less context waste** vs loading everything
 
@@ -434,6 +434,7 @@ core-ai-template/
     │   ├── android.md           # Android (Kotlin / Compose)
     │   ├── docker.md            # Docker & container best practices
     │   ├── ios.md               # iOS (Swift / SwiftUI)
+    │   ├── karpathy-principles.md # Karpathy behavioral principles (cautious mode)
     │   ├── nextjs.md            # Next.js development patterns
     │   ├── python.md            # Python (uv, ruff, FastAPI)
     │   ├── security-web.md      # Web security (React, Next.js)
@@ -441,6 +442,7 @@ core-ai-template/
     │   └── security-owasp.md    # OWASP Top 10 standards
     ├── references/              # On-demand (loaded by skills)
     │   ├── gitmoji.md           # Gitmoji reference (/commit)
+    │   ├── karpathy-examples.md # Karpathy before/after code examples
     │   └── rules-guide.md       # How the rules system works
     ├── agents/                  # Specialized agents (8)
     │   ├── codex-style-agent.md # Autonomous code generation
@@ -541,8 +543,8 @@ AI agents have limited context windows. This template is designed to minimize wa
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
 | **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, AI patterns, task management |
-| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, iOS, Android, Docker, web/mobile security, OWASP |
-| **`references/`** | Only when a skill reads it | Gitmoji lookup table, rules system documentation |
+| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, iOS, Android, Docker, web/mobile security, OWASP, Karpathy principles |
+| **`references/`** | Only when a skill reads it | Gitmoji lookup table, Karpathy code examples, rules system documentation |
 
 ### Enabling Platform Rules
 
@@ -567,6 +569,9 @@ make enable-mobile   # → security-mobile, security-web, security-owasp
 
 # Containerized project
 make enable-docker   # → docker, security-owasp
+
+# Behavioral overlay (combine with any stack)
+make enable-karpathy # → karpathy-principles (cautious, assumption-surfacing)
 
 # See all available rules
 make enable-rules
