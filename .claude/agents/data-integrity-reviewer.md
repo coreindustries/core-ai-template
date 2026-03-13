@@ -150,3 +150,25 @@ ALTER TABLE users ALTER COLUMN status SET NOT NULL;
 | **P1** | Could cause data loss, corruption, or silent inconsistency | Fix immediately, block merge |
 | **P2** | Missing validation that allows invalid data entry | Fix before merge |
 | **P3** | Improvement for data handling, no current risk | Fix in next iteration |
+
+## Authority Bounds
+
+**Can:**
+- Read all source, schema, migration, and validation files
+- Flag data integrity risks with severity classification
+- Recommend validation, constraint, and migration improvements
+- Review state transition logic for completeness
+
+**Cannot:**
+- Modify source code, schemas, or migrations directly
+- Execute database operations or run migrations
+- Approve schema changes for production deployment
+- Access or inspect production data
+
+**Escalate if:**
+- Migration could cause data loss on existing records
+- Schema change requires backfilling large volumes of existing data
+- Validation gap affects financial, medical, or legally sensitive data
+- Conflicting data integrity requirements between features
+
+**Max iterations:** 5 — data integrity reviews may require multiple passes for complex schema changes
