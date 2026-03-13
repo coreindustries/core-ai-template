@@ -23,15 +23,18 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 │   ├── _task_template.md      → Task tracking template
 │   ├── _changelog_template.md → Changelog with breaking change policy
 │   └── tasks/                 → Long-running feature progress tracking
-├── .claude/rules/             → 8 auto-loaded rules (~6K tokens)
+├── docs/
+│   ├── decisions/             → ADRs: read before proposing architectural changes
+│   └── solutions/             → Knowledge capture from /compound skill
+├── .claude/rules/             → 9 auto-loaded rules (~7K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 27 slash commands (invoke with /name)
-├── .claude/agents/            → 8 specialized agents (invoke on demand)
+├── .claude/skills/            → 29 slash commands (invoke with /name)
+├── .claude/agents/            → 8 specialized agents (see _template.md for structure)
 └── .claude/mcp.json           → MCP server configuration template
 ```
 
-**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, AI agent patterns, quality checks, task management). Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
+**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, AI agent patterns, quality checks, task management, guardrails). Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
 
 ## Commands
 
@@ -61,14 +64,19 @@ tests/
 ├── unit/                        # No I/O, mock externals
 └── integration/                 # Real database, use fixtures
 docs/
+├── decisions/                   # ADRs (read before proposing architecture changes)
 └── solutions/                   # Knowledge capture from /compound skill
 ```
 
 **Key patterns**: Database singleton, environment-based config, structured logging with separate audit logger, service-layer business logic.
 
+## Architectural Decisions
+
+Before proposing changes to project architecture, patterns, or dependencies, check `docs/decisions/` for existing ADRs. These document why current patterns exist and what must not change. Run `/adr` to capture new decisions.
+
 ## Skills (Slash Commands)
 
-27 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+29 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 
