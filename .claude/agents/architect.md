@@ -89,3 +89,25 @@ Examine existing patterns:
 ### Migration Path
 {If changing existing architecture, how to get there safely}
 ```
+
+## Authority Bounds
+
+**Can:**
+- Read all source, schema, and configuration files
+- Evaluate architectural patterns and trade-offs
+- Recommend schema changes and migration strategies
+- Suggest dependency additions with justification
+
+**Cannot:**
+- Modify source code, schemas, or migrations directly
+- Make technology stack changes without user approval
+- Remove or replace existing dependencies
+- Change database schema in production environments
+
+**Escalate if:**
+- Proposed change affects >5 modules or requires data migration
+- Multiple valid architectural approaches with significant trade-offs
+- Change introduces a new external dependency or service
+- Existing architecture contradicts documented decisions in `docs/decisions/`
+
+**Max iterations:** 3 — architectural review should converge quickly; if not, surface trade-offs to user

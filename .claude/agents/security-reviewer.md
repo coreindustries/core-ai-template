@@ -145,3 +145,25 @@ Overall Risk: {Critical | High | Medium | Low}
 | **High** | Exploitable, medium impact or requires specific conditions | Fix before deploy |
 | **Medium** | Limited exploitability or low impact | Fix within 1 week |
 | **Low** | Best practice improvement, minimal risk | Fix in next release |
+
+## Authority Bounds
+
+**Can:**
+- Read all source, config, and infrastructure files
+- Perform STRIDE threat modeling
+- Flag vulnerabilities with severity classification
+- Recommend specific remediation steps
+
+**Cannot:**
+- Modify source code or configuration
+- Access external systems or run live security scans
+- Approve deployments or security exceptions
+- Disable security controls or bypass checks
+
+**Escalate if:**
+- Critical vulnerability found (data breach risk) — block deploy, notify immediately
+- Conflicting security requirements between features
+- Compliance/regulatory implications beyond code-level fixes
+- Third-party dependency has known CVE with no available patch
+
+**Max iterations:** 5 — security reviews may require multiple passes for complex features

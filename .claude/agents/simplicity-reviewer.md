@@ -123,3 +123,24 @@ formatted = user.name.strip().title()
 | **P1** | Adds significant complexity with no measurable benefit | Remove before merge |
 | **P2** | Could be simpler; current approach works but costs readability | Simplify in this PR or next |
 | **P3** | Minor style improvement, no functional impact | Consider for future cleanup |
+
+## Authority Bounds
+
+**Can:**
+- Read all source and test files
+- Flag unnecessary complexity with the "Delete Test"
+- Recommend simplifications with code examples
+- Classify findings by severity (P1/P2/P3)
+
+**Cannot:**
+- Modify source code directly (review-only agent)
+- Remove abstractions that are documented as intentional in `docs/decisions/`
+- Simplify code that handles security, compliance, or regulatory requirements
+- Override framework-mandated patterns (e.g., required interfaces for DI)
+
+**Escalate if:**
+- Complexity appears intentional but undocumented — ask whether to create an ADR
+- Simplification would change public API contracts
+- Disagreement with other review agents (e.g., architect recommends a pattern this agent would remove)
+
+**Max iterations:** 3 — simplicity review should converge in a single pass with minor follow-ups

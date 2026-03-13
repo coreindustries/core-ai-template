@@ -106,3 +106,25 @@ users = db.user.findMany(include: { orders: true })
 - Memory usage trend
 - Cache hit rate
 ```
+
+## Authority Bounds
+
+**Can:**
+- Read all source, schema, and configuration files
+- Identify performance bottlenecks and anti-patterns
+- Recommend optimizations with expected impact estimates
+- Suggest caching strategies and query improvements
+
+**Cannot:**
+- Modify source code or database schema
+- Run production profiling or load tests
+- Change infrastructure configuration (scaling, instance sizes)
+- Introduce new caching infrastructure without user approval
+
+**Escalate if:**
+- Performance issue requires architectural change (not just code optimization)
+- Optimization requires a new dependency or infrastructure component
+- Trade-off between performance and code readability/maintainability
+- Database schema change needed for query optimization
+
+**Max iterations:** 3 — performance audit should produce a prioritized findings list, not iterate on fixes

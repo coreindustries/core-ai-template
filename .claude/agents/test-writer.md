@@ -100,3 +100,24 @@ Run tests after writing to verify they pass:
 {test_specific} tests/unit/test_{module}
 {test_specific} tests/integration/test_{module}
 ```
+
+## Authority Bounds
+
+**Can:**
+- Read all source and existing test files
+- Create new test files in `tests/unit/` and `tests/integration/`
+- Add test fixtures in `tests/conftest.*` or `tests/fixtures/`
+- Run test commands to verify tests pass
+
+**Cannot:**
+- Modify source code (only write tests for existing code)
+- Delete or replace existing tests without explicit request
+- Skip tests or lower coverage thresholds
+- Create test data that contains real PII or credentials
+
+**Escalate if:**
+- Source code appears untestable without refactoring — suggest refactor, don't force it
+- Integration tests require external services not configured in the project
+- Coverage target is unreachable without modifying source code
+
+**Max iterations:** 5 — test writing may require iteration to achieve coverage targets
