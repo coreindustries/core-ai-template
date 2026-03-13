@@ -29,7 +29,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 9 auto-loaded rules (~7K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 29 slash commands (invoke with /name)
+├── .claude/skills/            → 30 slash commands (invoke with /name)
 ├── .claude/agents/            → 8 specialized agents (see _template.md for structure)
 └── .claude/mcp.json           → MCP server configuration template
 ```
@@ -76,7 +76,7 @@ Before proposing changes to project architecture, patterns, or dependencies, che
 
 ## Skills (Slash Commands)
 
-29 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+30 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 
