@@ -6,10 +6,12 @@ A template for starting agentic-based software projects. Provides structure, doc
 
 This template establishes a foundation for projects where AI agents are primary contributors to the codebase. It includes:
 
-- **Structured guidance** for AI agents via `CLAUDE.md`
+- **Structured guidance** for AI agents via `CLAUDE.md` and auto-loaded rules
+- **Agent safety** — guardrails rule, authority bounds on all agents, failure mode recovery
+- **Architecture Decision Records** (ADRs) with agent-specific fields to prevent undoing intentional choices
 - **Product requirements documentation** (PRD) for maintaining project context
 - **Task tracking** for long-running features and session recovery
-- **Reusable skills** (slash commands) for common development workflows
+- **30 reusable skills** (slash commands) for common development workflows
 - **Compound engineering** practices adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) — knowledge capture, requirements discovery, and multi-perspective code review
 
 ## Features
@@ -22,9 +24,11 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
-- `.claude/agents/` - 8 specialized agents (code review, architecture, testing, performance, security, simplicity, data integrity, codebase research)
+- `.claude/agents/` - 8 specialized agents with authority bounds + standardized template
 - `.claude/skills/` - 30 slash commands for common workflows
+- `.claude/references/` - 7 on-demand references (orchestration patterns, checklists, gitmoji)
 - `.claude/mcp.json` - MCP server configuration template
+- `docs/decisions/` - Architecture Decision Records with agent-guidance fields
 
 ### Documentation & Standards
 - `.claude/rules/` + `.claude/rules-available/` - Source of truth for all standards
@@ -54,6 +58,7 @@ This template establishes a foundation for projects where AI agents are primary 
 | `/lint` | Run linting, formatting, type checking |
 | `/refactor` | Safely refactor code with tests |
 | `/review` | Code review against standards |
+| `/code-review-expert` | Senior engineer lens review (SOLID, security, perf) |
 | `/debug` | Systematic debugging workflow |
 | `/api` | Design REST/GraphQL endpoints |
 
@@ -162,9 +167,9 @@ Code review now evaluates from 6 specialist perspectives with P1/P2/P3 severity 
 
 Output includes a summary table showing findings per perspective and all issues classified as P1 (must fix), P2 (should fix), or P3 (suggestion).
 
-#### New Agents
+#### Specialized Agents
 
-Three new specialized agents support compound engineering:
+Three specialized agents support compound engineering:
 
 | Agent | Purpose |
 |-------|---------|
@@ -446,10 +451,14 @@ core-ai-template/
     │   ├── security-web.md      # Web security (React, Next.js)
     │   ├── security-mobile.md   # Mobile security (React Native)
     │   └── security-owasp.md    # OWASP Top 10 standards
-    ├── references/              # On-demand (loaded by skills)
+    ├── references/              # On-demand (loaded by skills, 7 files)
+    │   ├── code-quality-checklist.md # Code review quality checklist
     │   ├── gitmoji.md           # Gitmoji reference (/commit)
     │   ├── orchestration-patterns.md # Multi-agent coordination patterns
-    │   └── rules-guide.md       # How the rules system works
+    │   ├── removal-plan.md      # Deprecation and removal guidance
+    │   ├── rules-guide.md       # How the rules system works
+    │   ├── security-checklist.md # Security review checklist
+    │   └── solid-checklist.md   # SOLID principles checklist
     ├── agents/                  # Specialized agents (8 + template)
     │   ├── _template.md         # Standard 5-block agent structure
     │   ├── codex-style-agent.md # Autonomous code generation
@@ -487,6 +496,7 @@ core-ai-template/
         ├── ci/                  # CI/CD pipeline generation
         ├── scaffold/            # Module/component scaffolding
         ├── deploy/              # Deployment to staging/production
+        ├── code-review-expert/   # Senior engineer code review
         ├── compound/            # Knowledge capture from solved problems
         ├── brainstorm/          # Requirements exploration
         └── context/             # Context budget audit and optimization
@@ -553,7 +563,7 @@ AI agents have limited context windows. This template is designed to minimize wa
 |------|-------------|----------|
 | **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, AI patterns, task management, guardrails |
 | **`rules-available/`** | Only when symlinked into `rules/` | Next.js, iOS, Android, Docker, web/mobile security, OWASP |
-| **`references/`** | Only when a skill reads it | Gitmoji lookup table, rules system documentation |
+| **`references/`** | Only when a skill reads it | Gitmoji, orchestration patterns, quality/security/SOLID checklists, rules guide |
 
 ### Enabling Platform Rules
 
