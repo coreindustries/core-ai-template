@@ -23,7 +23,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `.claude/agents/` - 8 specialized agents (code review, architecture, testing, performance, security, simplicity, data integrity, codebase research)
-- `.claude/skills/` - 29 slash commands for common workflows
+- `.claude/skills/` - 30 slash commands for common workflows
 - `.claude/mcp.json` - MCP server configuration template
 
 ### Documentation & Standards
@@ -460,7 +460,7 @@ core-ai-template/
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (29 skills, each <name>/SKILL.md)
+    └── skills/                  # Slash commands (30 skills, each <name>/SKILL.md)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle
