@@ -15,7 +15,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ## Features
 
 ### Context-Optimized Rules System
-- `.claude/rules/` - 8 universal rules, auto-loaded (~6K tokens)
+- `.claude/rules/` - 9 universal rules, auto-loaded (~7K tokens)
 - `.claude/rules-available/` - 8 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
 - Only loads what your project needs — **65-70% less context waste** vs loading everything
@@ -23,7 +23,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `.claude/agents/` - 8 specialized agents (code review, architecture, testing, performance, security, simplicity, data integrity, codebase research)
-- `.claude/skills/` - 27 slash commands for common workflows
+- `.claude/skills/` - 29 slash commands for common workflows
 - `.claude/mcp.json` - MCP server configuration template
 
 ### Documentation & Standards
@@ -64,6 +64,7 @@ This template establishes a foundation for projects where AI agents are primary 
 | `/pr` | Create pull requests with descriptions |
 | `/hotfix` | Quick patch for production issues |
 | `/checkpoint` | Save progress to task file |
+| `/compact` | Create token-efficient state snapshot |
 
 **Project & Infrastructure**
 | Skill | Purpose |
@@ -88,6 +89,7 @@ This template establishes a foundation for projects where AI agents are primary 
 | `/compound` | Capture knowledge from solved problems to docs/solutions/ |
 | `/brainstorm` | Explore requirements (WHAT) before implementation (HOW) |
 | `/context` | Audit auto-loaded context budget and recommend optimizations |
+| `/adr` | Create Architecture Decision Records with agent guidance |
 
 ### Compound Engineering
 
@@ -419,14 +421,19 @@ core-ai-template/
 │   ├── _task_template.md        # Task tracking template
 │   ├── _changelog_template.md   # Changelog with breaking change policy
 │   └── tasks/                   # Long-running feature task files
+├── docs/
+│   └── decisions/               # Architecture Decision Records (ADRs)
+│       ├── index.md             # ADR index and status tracking
+│       └── adr-template.md      # Template for new ADRs
 └── .claude/
     ├── mcp.json                 # MCP server configuration template
-    ├── rules/                   # Auto-loaded rules (~6K tokens)
+    ├── rules/                   # Auto-loaded rules (~7K tokens)
     │   ├── code-quality.md      # Code quality standards
     │   ├── testing.md           # Testing requirements
-    │   ├── ai-agent-patterns.md # AI agent principles
+    │   ├── ai-agent-patterns.md # AI agent principles + failure modes
     │   ├── error-handling.md    # Error handling patterns
     │   ├── git-workflow.md      # Git workflow standards
+    │   ├── guardrails.md        # Agent safety boundaries
     │   ├── quality-checks.md    # Quality check requirements
     │   ├── task-management.md   # Task tracking workflow
     │   └── security-core.md     # Core security (always applies)
@@ -441,8 +448,10 @@ core-ai-template/
     │   └── security-owasp.md    # OWASP Top 10 standards
     ├── references/              # On-demand (loaded by skills)
     │   ├── gitmoji.md           # Gitmoji reference (/commit)
+    │   ├── orchestration-patterns.md # Multi-agent coordination patterns
     │   └── rules-guide.md       # How the rules system works
-    ├── agents/                  # Specialized agents (8)
+    ├── agents/                  # Specialized agents (8 + template)
+    │   ├── _template.md         # Standard 5-block agent structure
     │   ├── codex-style-agent.md # Autonomous code generation
     │   ├── architect.md         # Architecture & design review
     │   ├── test-writer.md       # Test generation
@@ -451,7 +460,9 @@ core-ai-template/
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (27 skills, each <name>/SKILL.md)
+    └── skills/                  # Slash commands (29 skills, each <name>/SKILL.md)
+        ├── adr/                 # Architecture Decision Records
+        ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle
         ├── commit/              # Conventional commits
         ├── pr/                  # Pull request creation
@@ -533,14 +544,14 @@ AI agents have limited context windows. This template is designed to minimize wa
 ### Three-Tier Rule System
 
 ```
-.claude/rules/              Always loaded — universal standards (~6K tokens)
+.claude/rules/              Always loaded — universal standards (~7K tokens)
 .claude/rules-available/    Opt-in — symlink to enable per project
 .claude/references/         On-demand — loaded by skills when needed
 ```
 
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
-| **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, AI patterns, task management |
+| **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, AI patterns, task management, guardrails |
 | **`rules-available/`** | Only when symlinked into `rules/` | Next.js, iOS, Android, Docker, web/mobile security, OWASP |
 | **`references/`** | Only when a skill reads it | Gitmoji lookup table, rules system documentation |
 
