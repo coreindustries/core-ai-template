@@ -157,3 +157,40 @@ read_parallel([
 - Read enough context before changing a file
 - Make all related changes in one pass
 - Avoid thrashing with many tiny patches to the same file
+
+## Failure Modes and Recovery
+
+### Loop Detection
+
+If you've edited the same file >3 times without tests improving or the problem resolving: **STOP**.
+
+- Write a diagnosis to the task file (`prd/tasks/`) explaining what was tried and what failed
+- Surface the diagnosis to the user rather than continuing to iterate
+- Include: what you tried, what you expected, what actually happened
+
+### Partial State Risk
+
+Before any operation that modifies >5 files or touches migrations/schema:
+
+1. Run `/checkpoint` to save current state
+2. Create a git commit or stash as a recovery point
+3. If the operation fails mid-way, report exactly what was and wasn't applied
+4. Never leave the codebase in a half-modified state without documenting it
+
+### Context Drift
+
+If you're unsure whether your current understanding matches the original task:
+
+- Re-read the task file in `prd/tasks/`
+- Re-read relevant ADRs in `docs/decisions/`
+- Do not continue from memory alone after long sessions
+- If no task file exists and the feature is non-trivial, create one before proceeding
+
+### Max Iteration Policy
+
+Any task has an implicit **10-iteration limit**. If you haven't converged:
+
+1. Stop iterating
+2. Write a structured summary: what you tried, what failed, what you need
+3. Surface it to the user with a clear question or decision point
+4. Do not retry the same approach — propose an alternative or ask for direction
