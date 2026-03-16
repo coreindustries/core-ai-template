@@ -1,0 +1,12 @@
+# Credentials and secrets
+.env*
+config/secrets/
+*.key
+*.pem
+credentials.json
+secrets.json
+auth-config.*
+database-passwords.*
+
+# PII and sensitive data
+customer-data/

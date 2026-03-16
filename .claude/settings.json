@@ -1,0 +1,47 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/.env*)",
+      "Edit(**/.env*)",
+      "Write(**/.env*)",
+      "Read(**/*.key)",
+      "Edit(**/*.key)",
+      "Write(**/*.key)",
+      "Read(**/*.pem)",
+      "Edit(**/*.pem)",
+      "Write(**/*.pem)",
+      "Read(**/credentials.json)",
+      "Edit(**/credentials.json)",
+      "Write(**/credentials.json)",
+      "Read(**/secrets.json)",
+      "Edit(**/secrets.json)",
+      "Write(**/secrets.json)",
+      "Read(**/config/secrets/**)",
+      "Edit(**/config/secrets/**)",
+      "Write(**/config/secrets/**)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "allow": [
+      "Read(prd/**)",
+      "Read(src/**)",
+      "Read(tests/**)",
+      "Read(docs/**)",
+      "Read(LICENSE)",
+      "Read(README.md)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-secrets.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
