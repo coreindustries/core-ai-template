@@ -1,0 +1,30 @@
+{
+  "_comment": [
+    "Central source of truth for per-agent model selection.",
+    "",
+    "Copy to .claude/agent-models.json to opt in. Without this file,",
+    "scripts/sync-agent-models.mjs is a no-op.",
+    "",
+    "Valid model values match Claude Code's conventions:",
+    "  - 'sonnet'  (default, balanced)",
+    "  - 'opus'    (deep analysis, architectural review)",
+    "  - 'haiku'   (fast, simple classification)",
+    "  - 'inherit' (use the parent session's model)",
+    "",
+    "After editing, run: node scripts/sync-agent-models.mjs",
+    "In CI, verify with:  node scripts/sync-agent-models.mjs --check"
+  ],
+
+  "default": { "model": "sonnet" },
+
+  "agents": {
+    "architect":               { "model": "opus" },
+    "security-reviewer":       { "model": "opus" },
+    "data-integrity-reviewer": { "model": "opus" },
+    "codebase-researcher":     { "model": "sonnet" },
+    "perf-auditor":            { "model": "sonnet" },
+    "simplicity-reviewer":     { "model": "sonnet" },
+    "test-writer":             { "model": "sonnet" },
+    "codex-style-agent":       { "model": "haiku" }
+  }
+}
