@@ -25,9 +25,17 @@
 
 ## Test-Driven Development Pattern
 
+**REQUIRED when adding new behavior:** Write the failing test before the implementation. Use `/tdd` to run the red→green→refactor cycle with required evidence of the red→green transition.
+
 **REQUIRED when refactoring:** Ensure tests exist before modifying code.
 
-**Pattern:**
+**Pattern (new behavior — see `/tdd`):**
+1. Red: write the smallest failing test; run and capture the failure
+2. Green: write the minimum implementation; run and capture the pass
+3. Refactor: clean up with tests staying green
+4. Loop per case for multi-case work — never batch all tests then all implementation
+
+**Pattern (refactoring existing code):**
 1. Verify tests exist and pass
 2. Make changes
 3. Verify tests still pass
