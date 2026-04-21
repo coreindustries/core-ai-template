@@ -127,12 +127,90 @@ jobs:
           retention-days: 7
 
   # ============================================================================
+  # Quality Gate 3b: Secret & PII Scan (parallel with test)
+  # ============================================================================
+  secret-scan:
+    name: Secret & PII Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for retroactive detection
+
+      - name: Gitleaks (full history)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          config-path: .gitleaks.toml
+
+      - name: TruffleHog (verify live credentials)
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+          extra_args: --only-verified
+
+      - name: Plaintext .env guard
+        run: bash scripts/assert-no-plaintext-env.sh
+
+  # ============================================================================
+  # Quality Gate 3c: Dependency Cooldown (pinning + 24h age)
+  # ============================================================================
+  dependency-cooldown:
+    name: Dependency Cooldown
+    runs-on: ubuntu-latest
+    # Skip on pushes to main (no base ref diff). Runs on all PRs.
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch base branch
+        run: git fetch origin ${{ github.event.pull_request.base.ref }}
+      - name: Assert dependency age ≥ 24h
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref }}
+          MIN_AGE_HOURS: "24"
+        run: bash scripts/assert-dependency-age.sh
+        # Waiver: apply the `security-hotfix-24h-waiver` label to bypass this
+        # check for a published CVE/GHSA fix. See dependency-security.md Rule 2.
+      - name: Waiver check
+        if: contains(github.event.pull_request.labels.*.name, 'security-hotfix-24h-waiver')
+        run: |
+          echo "::notice::24h cooldown waived via security-hotfix-24h-waiver label."
+          echo "Verify the PR description cites a GHSA/CVE ID and justification."
+
+  # ============================================================================
+  # Quality Gate 3d: Database Migration Conventions
+  # ============================================================================
+  migrations:
+    name: Migration Conventions
+    runs-on: ubuntu-latest
+    if: hashFiles('supabase/migrations/**/*.sql') != ''
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assert migration conventions
+        env:
+          BASE_REF: origin/${{ github.event.pull_request.base.ref || 'main' }}
+        run: bash scripts/assert-migration-conventions.sh
+
+  # ============================================================================
   # Quality Gate 3: Testing with Coverage
   # ============================================================================
   test:
     name: Test & Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # OIDC permissions for AWS secret injection via chamber.
+    # vars.AWS_CI_ROLE_ARN and vars.SERVICE_NAME are non-secret repo variables.
+    # Remove this block if using only hermetic unit tests with no external secrets.
+    permissions:
+      id-token: write
+      contents: read
 
     services:
       # Database service for integration tests
@@ -171,6 +249,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Configure AWS credentials (OIDC)
+        # Fetches short-lived credentials; no long-lived keys in GitHub secrets.
+        # Remove this block + the `permissions:` + the chamber steps below if
+        # tests are fully hermetic (no AWS-backed secrets required).
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Install chamber
+        # `chamber exec <service> -- <cmd>` injects SSM parameters as env
+        # vars into the child process. See .claude/rules/secrets-hygiene.md.
+        # TODO: before enabling in your project, look up the current chamber
+        # release (https://github.com/segmentio/chamber/releases), pin the
+        # tag below, and verify against the published checksum.
+        env:
+          CHAMBER_VERSION: "v2.14.1"
+        run: |
+          curl -fsSL -o /tmp/chamber \
+            "https://github.com/segmentio/chamber/releases/download/${CHAMBER_VERSION}/chamber-${CHAMBER_VERSION}-linux-amd64"
+          chmod +x /tmp/chamber
+          sudo mv /tmp/chamber /usr/local/bin/chamber
+          chamber version
+
       - name: Setup {language}
         # Same setup as lint job
 
@@ -179,36 +281,24 @@ jobs:
 
       - name: Setup database
         run: |
-          # Generate database client if needed
-          # Python: uv run prisma generate
-          # Node.js: npm run prisma:generate
-          # Run migrations
-          # {db_generate}
-          # {db_migrate}
+          # Generate database client / apply migrations as needed.
+          # Supabase default (see docs/decisions/0003-supabase-migrations.md):
+          #   supabase db reset --local
+          # Or for non-Supabase stacks, {db_generate} / {db_migrate}.
 
       - name: Run unit tests
+        # Wrapped in `chamber exec` so SSM secrets are in-process env only.
+        # If tests are hermetic, drop the `chamber exec ...` prefix.
         run: |
-          # Replace with your test command
-          # Python: uv run pytest tests/unit/ -v
-          # Node.js: npm run test:unit
-          # Go: go test ./... -v
-          {test_unit_command}
+          chamber exec ${{ vars.SERVICE_NAME }} -- {test_unit_command}
 
       - name: Run integration tests
         run: |
-          # Replace with your integration test command
-          # Python: uv run pytest tests/integration/ -v
-          # Node.js: npm run test:integration
-          # Go: go test ./... -tags=integration -v
-          {test_integration_command}
+          chamber exec ${{ vars.SERVICE_NAME }} -- {test_integration_command}
 
       - name: Run tests with coverage
         run: |
-          # Replace with your coverage command
-          # Python: uv run pytest --cov=src --cov-report=xml --cov-report=html
-          # Node.js: npm run test:coverage
-          # Go: go test ./... -coverprofile=coverage.out
-          {test_coverage_command}
+          chamber exec ${{ vars.SERVICE_NAME }} -- {test_coverage_command}
 
       - name: Check coverage threshold
         run: |
@@ -362,7 +452,7 @@ jobs:
   quality-gate:
     name: Quality Gate Summary
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test, security, build]
+    needs: [lint, typecheck, test, secret-scan, dependency-cooldown, migrations, security, build]
     if: always()
 
     steps:
@@ -375,16 +465,24 @@ jobs:
           echo "| Lint & Format | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Type Check | ${{ needs.typecheck.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Tests & Coverage | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Secret & PII Scan | ${{ needs.secret-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dependency Cooldown | ${{ needs.dependency-cooldown.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Migrations | ${{ needs.migrations.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Security Scan | ${{ needs.security.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
 
-          # Fail if any gate failed
-          if [ "${{ needs.lint.result }}" != "success" ] || \
-             [ "${{ needs.typecheck.result }}" != "success" ] || \
-             [ "${{ needs.test.result }}" != "success" ] || \
-             [ "${{ needs.security.result }}" != "success" ] || \
-             [ "${{ needs.build.result }}" != "success" ]; then
+          # A gate is considered "passed" if it succeeded or was legitimately skipped.
+          _ok() { [ "$1" = "success" ] || [ "$1" = "skipped" ]; }
+
+          if ! _ok "${{ needs.lint.result }}" || \
+             ! _ok "${{ needs.typecheck.result }}" || \
+             ! _ok "${{ needs.test.result }}" || \
+             ! _ok "${{ needs.secret-scan.result }}" || \
+             ! _ok "${{ needs.dependency-cooldown.result }}" || \
+             ! _ok "${{ needs.migrations.result }}" || \
+             ! _ok "${{ needs.security.result }}" || \
+             ! _ok "${{ needs.build.result }}" ; then
             echo "❌ One or more quality gates failed"
             exit 1
           else
@@ -396,11 +494,15 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const status = '${{ needs.lint.result }}' === 'success' &&
-                          '${{ needs.typecheck.result }}' === 'success' &&
-                          '${{ needs.test.result }}' === 'success' &&
-                          '${{ needs.security.result }}' === 'success' &&
-                          '${{ needs.build.result }}' === 'success';
+            const ok = r => r === 'success' || r === 'skipped';
+            const status = ok('${{ needs.lint.result }}') &&
+                          ok('${{ needs.typecheck.result }}') &&
+                          ok('${{ needs.test.result }}') &&
+                          ok('${{ needs.secret-scan.result }}') &&
+                          ok('${{ needs.dependency-cooldown.result }}') &&
+                          ok('${{ needs.migrations.result }}') &&
+                          ok('${{ needs.security.result }}') &&
+                          ok('${{ needs.build.result }}');
 
             const emoji = status ? '✅' : '❌';
             const message = status

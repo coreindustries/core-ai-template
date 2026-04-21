@@ -1,8 +1,19 @@
-# Environment
+# =============================================================================
+# Plaintext env files are FORBIDDEN (.claude/rules/secrets-hygiene.md).
+# Only reference/documentation templates may be committed.
+# =============================================================================
 .env
-.env.local
-.env.*.local
-.environment
+.env.*
+!.env.tpl
+!.env.example
+!.env.sample
+!.env.template
+
+# Local-only exception files (devcontainer/Codespace ephemeral dev).
+# Ignored by policy — must never be committed. An ADR must exist under
+# docs/decisions/ for any project that relies on one. If a project needs to
+# carry an encrypted exception file in-repo, use sops (*.enc.yaml), not this.
+.env.local.exception
 
 # IDE
 .idea/
@@ -73,8 +84,14 @@ secrets.json
 *.sqlite
 *.sqlite3
 
-# Claude plugin artifacts
+# Claude plugin artifacts (claude-mem auto-generated per-directory context)
 .claude/skills/CLAUDE.md
+.husky/CLAUDE.md
+.github/workflows/CLAUDE.md
+
+# Claude Code local settings (per-developer permissions allowlist).
+# Commit .claude/settings.local.json.example as the shared starting point.
+.claude/settings.local.json
 
 # Generated files (uncomment as needed)
 # prisma/client/

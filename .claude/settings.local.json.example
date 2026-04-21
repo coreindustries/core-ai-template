@@ -1,0 +1,71 @@
+{
+  "_comment": [
+    "Claude Code per-developer permissions allowlist.",
+    "",
+    "Copy this file to .claude/settings.local.json (gitignored) and extend with",
+    "the tool invocations you want auto-approved without a prompt. Each entry is",
+    "a tool-call pattern; '*' matches any arguments.",
+    "",
+    "What to add here: read-only commands, project-scoped scripts, and domains",
+    "you routinely fetch. Never allow destructive operations broadly — prefer",
+    "narrow patterns (e.g., 'Bash(docker compose logs *)') over 'Bash(docker *)'.",
+    "",
+    "Docs: https://docs.claude.com/en/docs/claude-code/settings"
+  ],
+
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(gh pr *)",
+      "Bash(gh issue *)",
+      "Bash(gh run *)",
+      "Bash(gh repo view*)",
+      "Bash(make *)",
+
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(diff *)",
+      "Bash(sort *)",
+      "Bash(find *)",
+      "Bash(grep *)",
+      "Bash(du *)",
+      "Bash(file *)",
+      "Bash(stat *)",
+
+      "Bash(mkdir *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(chmod *)",
+
+      "Bash(node *)",
+      "Bash(npm run *)",
+      "Bash(npm test *)",
+      "Bash(pnpm *)",
+      "Bash(bun *)",
+      "Bash(python3 *)",
+      "Bash(uv run *)",
+
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebSearch"
+    ],
+
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)",
+      "Bash(aws * delete-*)",
+      "Bash(supabase db push*)",
+      "Read(.env)",
+      "Read(.env.local)",
+      "Read(**/.aws/credentials)",
+      "Read(**/.ssh/**)"
+    ]
+  }
+}

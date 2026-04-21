@@ -1,9 +1,21 @@
 {
   "permissions": {
     "deny": [
-      "Read(**/.env*)",
-      "Edit(**/.env*)",
-      "Write(**/.env*)",
+      "Read(**/.env)",
+      "Edit(**/.env)",
+      "Write(**/.env)",
+      "Read(**/.env.local)",
+      "Edit(**/.env.local)",
+      "Write(**/.env.local)",
+      "Read(**/.env.production)",
+      "Edit(**/.env.production)",
+      "Write(**/.env.production)",
+      "Read(**/.env.staging)",
+      "Edit(**/.env.staging)",
+      "Write(**/.env.staging)",
+      "Read(**/.env.development)",
+      "Edit(**/.env.development)",
+      "Write(**/.env.development)",
       "Read(**/*.key)",
       "Edit(**/*.key)",
       "Write(**/*.key)",
@@ -28,7 +40,13 @@
       "Read(tests/**)",
       "Read(docs/**)",
       "Read(LICENSE)",
-      "Read(README.md)"
+      "Read(README.md)",
+      "Write(**/.env.tpl)",
+      "Edit(**/.env.tpl)",
+      "Read(**/.env.tpl)",
+      "Write(**/.env.example)",
+      "Edit(**/.env.example)",
+      "Read(**/.env.example)"
     ]
   },
   "hooks": {

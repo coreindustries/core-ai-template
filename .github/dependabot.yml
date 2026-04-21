@@ -1,18 +1,33 @@
-# Dependabot - Automated Dependency Updates
+# Dependabot — Automated Dependency Updates
 # https://docs.github.com/en/code-security/dependabot
 #
-# Uncomment the ecosystem(s) that match your project's tech stack.
-# Dependabot will open PRs for security patches and version updates.
+# Policy: all direct deps pinned (no ranges), all transitive deps locked,
+# every bump respects a 24h cooldown (supply-chain zero-day window).
+# See .claude/rules/dependency-security.md.
+#
+# Uncomment ecosystems that match your project's tech stack.
 
 version: 2
 
+# =============================================================================
+# Cooldown — minimum age before a version is eligible for a Dependabot PR.
+# Applies to ALL ecosystems below unless a given update overrides it.
+# =============================================================================
+# Default: 1 day (= 24h). Major bumps get 7 days to let the ecosystem settle.
+# Security advisories bypass this (Dependabot security updates ignore cooldown).
+
 updates:
-  # GitHub Actions
+  # ---------------------------------------------------------------------------
+  # GitHub Actions — pin to commit SHA. Dependabot bumps the SHA and comment.
+  # ---------------------------------------------------------------------------
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
+    cooldown:
+      default-days: 1
+      semver-major-days: 7
     labels:
       - "dependencies"
       - "ci"
@@ -20,7 +35,9 @@ updates:
       prefix: "ci"
       include: "scope"
 
+  # ---------------------------------------------------------------------------
   # --- Uncomment your stack ---
+  # ---------------------------------------------------------------------------
 
   # # npm / yarn / pnpm / bun
   # - package-ecosystem: "npm"
@@ -28,23 +45,22 @@ updates:
   #   schedule:
   #     interval: "weekly"
   #     day: "monday"
+  #   cooldown:
+  #     default-days: 1
+  #     semver-major-days: 7
+  #   versioning-strategy: "increase-if-necessary"  # preserve exact pins
   #   labels:
   #     - "dependencies"
   #   commit-message:
   #     prefix: "build"
   #     include: "scope"
-  #   # Group minor/patch updates into fewer PRs
   #   groups:
   #     production-dependencies:
   #       dependency-type: "production"
-  #       update-types:
-  #         - "minor"
-  #         - "patch"
+  #       update-types: ["minor", "patch"]
   #     development-dependencies:
   #       dependency-type: "development"
-  #       update-types:
-  #         - "minor"
-  #         - "patch"
+  #       update-types: ["minor", "patch"]
 
   # # pip / uv / poetry
   # - package-ecosystem: "pip"
@@ -52,6 +68,9 @@ updates:
   #   schedule:
   #     interval: "weekly"
   #     day: "monday"
+  #   cooldown:
+  #     default-days: 1
+  #     semver-major-days: 7
   #   labels:
   #     - "dependencies"
   #   commit-message:
@@ -64,17 +83,38 @@ updates:
   #   schedule:
   #     interval: "weekly"
   #     day: "monday"
+  #   cooldown:
+  #     default-days: 1
+  #     semver-major-days: 7
   #   labels:
   #     - "dependencies"
   #   commit-message:
   #     prefix: "build"
   #     include: "scope"
 
-  # # Docker
+  # # Cargo
+  # - package-ecosystem: "cargo"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   cooldown:
+  #     default-days: 1
+  #     semver-major-days: 7
+  #   labels:
+  #     - "dependencies"
+  #   commit-message:
+  #     prefix: "build"
+  #     include: "scope"
+
+  # # Docker — base images pinned by digest; Dependabot bumps the digest.
   # - package-ecosystem: "docker"
   #   directory: "/"
   #   schedule:
   #     interval: "weekly"
+  #   cooldown:
+  #     default-days: 1
+  #     semver-major-days: 7
   #   labels:
   #     - "dependencies"
   #     - "docker"

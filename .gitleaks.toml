@@ -66,24 +66,7 @@ description = "Global allowlist"
 regexTarget = "line"
 regexes = ['''pragma:\s*allowlist\s*secret''']
 
-# Paths that never contain real secrets
-paths = [
-    '''\.env\.example$''',
-    '''\.env\.sample$''',
-    '''\.env\.template$''',
-    '''\.gitleaks\.toml$''',
-    '''tests?/''',
-    '''__tests__/''',
-    '''spec/''',
-    '''fixtures?/''',
-    '''mocks?/''',
-    '''\.claude/''',
-    '''\.cursor/''',
-    '''prd/''',
-    '''docs?/''',
-]
-
-# Words that indicate non-real values
+# Words that indicate non-real values (filters matches whose context contains these)
 stopwords = [
     "example",
     "sample",
@@ -100,3 +83,140 @@ stopwords = [
     "mock",
     "dummy",
 ]
+
+# Paths that never contain real secrets
+# -----------------------------------------------------------------------------
+# Note: .claude/ and .cursor/ are NOT broadly allowlisted — agents write there
+# and a leaked secret would plausibly land via documentation. Only specific
+# files known to contain deliberate example PII/secret patterns are allowlisted.
+paths = [
+    '''\.env\.example$''',
+    '''\.env\.sample$''',
+    '''\.env\.template$''',
+    '''\.env\.tpl$''',
+    '''\.gitleaks\.toml$''',
+    '''tests?/''',
+    '''__tests__/''',
+    '''spec/''',
+    '''fixtures?/''',
+    '''mocks?/''',
+    # Scan-skill documentation: shows example PII patterns that the skill detects.
+    # Scoped narrowly to the single file, not the broader .claude/ tree.
+    '''(^|/)\.claude/skills/scan/SKILL\.md$''',
+    # Historical file (deleted): contained an example Stripe token in security docs.
+    # Matches history scans only; the path no longer exists in the working tree.
+    '''(^|/)\.cursor/rules/security-core\.mdc$''',
+]
+
+# =============================================================================
+# Custom Rules: Secret Detection
+# =============================================================================
+
+# Plaintext .env files
+# -----------------------------------------------------------------------------
+# RE2-compatible: no lookahead / no backreferences. The `(?m)` flag is
+# essential — Go's regexp anchors ^/$ to full-string boundaries by default,
+# so without (?m) this rule only fires on single-line files.
+#
+# The path allowlist above excludes .env.tpl / .env.example / .env.sample /
+# .env.template, so this rule's path pattern matches the full .env* family and
+# the allowlist subtracts the template files. Values that are placeholders
+# (example/placeholder/changeme/…) are filtered by [allowlist.stopwords].
+[[rules]]
+id = "plaintext-env-file"
+description = "Plaintext .env file committed (use .env.tpl with SSM/Secrets Manager references)"
+regex = '''(?im)^[A-Z_][A-Z0-9_]*\s*=\s*[A-Za-z0-9+/=_.:@!#$%&*?-]{16,}$'''
+path = '''(^|/)\.env(\..+)?$'''
+tags = ["secret", "plaintext-env"]
+
+# AI provider API keys
+[[rules]]
+id = "anthropic-api-key"
+description = "Anthropic API key"
+regex = '''\bsk-ant-(?:api03|admin01)-[A-Za-z0-9_-]{93,}\b'''
+keywords = ["sk-ant-"]
+tags = ["secret", "ai-provider"]
+
+[[rules]]
+id = "openai-api-key-modern"
+description = "OpenAI API key (sk-proj- and sk-svcacct-)"
+regex = '''\bsk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{40,}\b'''
+keywords = ["sk-proj-", "sk-svcacct-", "sk-admin-"]
+tags = ["secret", "ai-provider"]
+
+[[rules]]
+id = "xai-api-key"
+description = "xAI (Grok) API key"
+regex = '''\bxai-[A-Za-z0-9]{80,}\b'''
+keywords = ["xai-"]
+tags = ["secret", "ai-provider"]
+
+[[rules]]
+id = "google-ai-api-key"
+description = "Google AI / Gemini API key"
+regex = '''\bAIza[0-9A-Za-z_-]{35}\b'''
+keywords = ["AIza"]
+tags = ["secret", "ai-provider"]
+
+[[rules]]
+id = "openrouter-api-key"
+description = "OpenRouter API key"
+regex = '''\bsk-or-v1-[A-Fa-f0-9]{64}\b'''
+keywords = ["sk-or-v1-"]
+tags = ["secret", "ai-provider"]
+
+[[rules]]
+id = "huggingface-token"
+description = "Hugging Face access token"
+regex = '''\bhf_[A-Za-z0-9]{34,}\b'''
+keywords = ["hf_"]
+tags = ["secret", "ai-provider"]
+
+[[rules]]
+id = "replicate-api-token"
+description = "Replicate API token"
+regex = '''\br8_[A-Za-z0-9]{37,}\b'''
+keywords = ["r8_"]
+tags = ["secret", "ai-provider"]
+
+[[rules]]
+id = "perplexity-api-key"
+description = "Perplexity API key"
+regex = '''\bpplx-[A-Za-z0-9]{40,}\b'''
+keywords = ["pplx-"]
+tags = ["secret", "ai-provider"]
+
+# Private keys
+[[rules]]
+id = "private-key-block"
+description = "PEM-encoded private key block"
+regex = '''-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED |)PRIVATE KEY-----'''
+tags = ["secret", "private-key"]
+
+# JWTs with non-trivial payloads
+[[rules]]
+id = "jwt-token"
+description = "JSON Web Token"
+regex = '''\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b'''
+tags = ["secret", "jwt"]
+
+# Additional PII
+# -----------------------------------------------------------------------------
+# Phone-number pattern is noisy by nature (matches a lot of 10-digit sequences).
+# Scope to content-heavy directories where PII-in-docs is the actual risk:
+# docs/, prd/, .claude/, .cursor/, fixtures, seeds. Skip everywhere else.
+[[rules]]
+id = "us-phone-number"
+description = "US phone number (scoped to docs + agent content)"
+regex = '''\b(?:\+1[-.\s]?)?\(?[2-9]\d{2}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b'''
+path = '''(^|/)(docs?|prd|\.claude|\.cursor|fixtures?|seed|supabase/seed\.sql)(/|$)'''
+keywords = ["phone", "tel", "mobile"]
+tags = ["pii"]
+
+[[rules]]
+id = "date-of-birth"
+description = "Date of birth context"
+regex = '''(?i)(?:dob|date.of.birth|birthdate|born)[\s:=]+\d{1,4}[-/]\d{1,2}[-/]\d{1,4}'''
+keywords = ["dob", "birth"]
+tags = ["pii"]
+

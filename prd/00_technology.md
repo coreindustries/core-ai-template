@@ -21,12 +21,17 @@ last_updated: "2026-01-15"
 
 ## 2. Data Layer
 
+Default platform: **Supabase (Postgres + RLS)**. See `docs/decisions/0003-supabase-migrations.md`. Override below if the project uses a different stack.
+
 | Component | Choice |
 |-----------|--------|
-| **Database** | `{database}` |
-| **ORM / Query Builder** | `{orm}` |
-| **Schema Location** | `{schema_location}` |
-| **Migration Tool** | `{migration_tool}` |
+| **Database** | `Postgres (via Supabase)` |
+| **ORM / Query Builder** | `{orm}` (e.g. supabase-js, drizzle, prisma, sqlalchemy) |
+| **Schema Location** | `supabase/migrations/` |
+| **Migration Tool** | `supabase CLI` |
+| **Migration Conventions** | See `.claude/rules/database-migrations.md` (auto-loaded) |
+| **RLS** | Mandatory on user-data tables; pgTAP-tested |
+| **Preview Envs** | Supabase Preview Branches (per PR) |
 | **Cache** | `{cache_system}` (if applicable) |
 | **Extensions** | `{extensions}` (if applicable) |
 
@@ -34,6 +39,17 @@ last_updated: "2026-01-15"
 
 ```{language}
 {db_access_example}
+```
+
+### Migration Commands (Supabase default — override if not using Supabase)
+
+```bash
+supabase start                               # Start local stack (Postgres + PostgREST + ...)
+supabase migration new <name>                # Create a new migration file
+supabase db reset                            # Apply all migrations to fresh local DB
+supabase gen types typescript --local        # Regenerate types from current schema
+supabase test db                             # Run pgTAP tests in supabase/tests/
+chamber exec <service> -- supabase db push   # Deploy migrations (uses chamber for DB URL)
 ```
 
 ## 3. Quality Tooling
