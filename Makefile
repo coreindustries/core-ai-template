@@ -256,15 +256,22 @@ check-env: ## Verify environment setup (no plaintext .env expected)
 
 wt: ## Create a worktree off origin/main (usage: make wt name=<branch>)
 	@test -n "$(name)" || (echo "usage: make wt name=<branch>" && exit 1)
-	@REPO=$$(basename $$(git rev-parse --show-toplevel)); \
-	 WT="../$$REPO-$(name)"; \
+	@TOP=$$(git rev-parse --show-toplevel); \
+	 REPO=$$(basename "$$TOP"); \
+	 PARENT=$$(dirname "$$TOP"); \
+	 WT="$$PARENT/$$REPO-$(name)"; \
 	 git fetch origin main && \
 	 git worktree add "$$WT" -b "$(name)" origin/main && \
 	 echo "" && \
-	 echo "Worktree created: $$WT" && \
-	 echo "  cd $$WT" && \
+	 echo "WORKTREE_PATH=$$WT" && \
+	 echo "" && \
+	 echo "From a shell:   cd $$WT" && \
+	 echo "From Claude:    EnterWorktree path:\"$$WT\"" && \
+	 echo "" && \
+	 echo "Next steps (in the new worktree):" && \
 	 echo "  make install        # per-worktree dependency install" && \
 	 echo "  make db-start       # local Supabase (stop main worktree's first if port collides)" && \
+	 echo "" && \
 	 echo "See docs/runbooks/multi-agent-worktrees.md for coordination patterns."
 
 wt-list: ## List active worktrees
@@ -272,8 +279,10 @@ wt-list: ## List active worktrees
 
 wt-remove: ## Remove a worktree and delete its branch (usage: make wt-remove name=<branch>)
 	@test -n "$(name)" || (echo "usage: make wt-remove name=<branch>" && exit 1)
-	@REPO=$$(basename $$(git rev-parse --show-toplevel)); \
-	 git worktree remove "../$$REPO-$(name)" && \
+	@TOP=$$(git rev-parse --show-toplevel); \
+	 REPO=$$(basename "$$TOP"); \
+	 PARENT=$$(dirname "$$TOP"); \
+	 git worktree remove "$$PARENT/$$REPO-$(name)" && \
 	 git branch -d "$(name)" && \
 	 echo "Removed worktree and branch: $(name)"
 
