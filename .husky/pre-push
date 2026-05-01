@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+
+# Pre-push: scan commits about to be pushed for secrets.
+# Range scan via gitleaks (if available) plus a regex backstop.
+
+if [ -f "scripts/prepush-secret-check.sh" ]; then
+    bash scripts/prepush-secret-check.sh || exit 1
+fi

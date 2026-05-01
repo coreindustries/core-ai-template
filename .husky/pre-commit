@@ -7,5 +7,10 @@ scripts/assert-no-plaintext-env.sh || exit 1
 # Secret scanning on staged changes
 gitleaks protect --staged --config .gitleaks.toml --redact || exit 1
 
+# Regex-based secret pattern check (always runs, no dependencies)
+if [ -f "scripts/precommit-secret-patterns.sh" ]; then
+  bash scripts/precommit-secret-patterns.sh || exit 1
+fi
+
 # Linting + formatting
 npx lint-staged
