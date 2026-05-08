@@ -54,34 +54,33 @@ When this skill is invoked:
    git log --oneline -10
    ```
 
-4. **Generate commit message** following conventional commits:
+4. **Generate commit message** in Gitmoji + Conventional Commits format:
 
    ```
-   <type>(<scope>): <description>
+   <emoji> <type>(<scope>)?(!)?: <description>
 
    [optional body]
 
    [optional footer]
    ```
 
-   **Optional:** If Gitmoji is enabled, read `.claude/references/gitmoji.md` for the full reference, then prefix with emoji:
-   ```
-   <emoji> <type>(<scope>): <description>
-   ```
+   **Gitmoji prefix is required.** The `commit-msg` hook rejects messages without it. See `.claude/references/gitmoji.md` for the full mapping. The required type → emoji table:
 
-   **Types:**
-   - `feat`: New feature (✨ with Gitmoji)
-   - `fix`: Bug fix (🐛 with Gitmoji)
-   - `docs`: Documentation only (📝 with Gitmoji)
-   - `style`: Formatting, no code change (🎨 with Gitmoji)
-   - `refactor`: Code change that neither fixes nor adds (♻️ with Gitmoji)
-   - `perf`: Performance improvement (⚡️ with Gitmoji)
-   - `test`: Adding or updating tests (✅ with Gitmoji)
-   - `chore`: Maintenance tasks (🔧 with Gitmoji)
-   - `ci`: CI/CD changes (👷 with Gitmoji)
-   - `build`: Build system changes (📦️ with Gitmoji)
-   
-   **Breaking changes:** Use 💥 emoji regardless of type when using Gitmoji
+   | Type | Emoji |
+   |---|---|
+   | `feat` | ✨ |
+   | `fix` | 🐛 |
+   | `docs` | 📝 |
+   | `style` | 🎨 |
+   | `refactor` | ♻️ |
+   | `perf` | ⚡️ |
+   | `test` | ✅ |
+   | `chore` | 🔧 |
+   | `ci` | 👷 |
+   | `build` | 📦️ |
+   | `revert` | ⏪ |
+
+   **Breaking changes:** use 💥 regardless of type, plus `!` after the scope (e.g. `💥 feat!: drop support for Node 18`).
 
 5. **Security check**:
    - Scan for potential secrets in staged files
@@ -91,7 +90,7 @@ When this skill is invoked:
 6. **Create commit**:
    ```bash
    git commit -m "$(cat <<'EOF'
-   type(scope): description
+   ✨ feat(scope): description
 
    Body explaining what and why (not how).
 
@@ -99,6 +98,8 @@ When this skill is invoked:
    EOF
    )"
    ```
+
+   The leading emoji must match the type. The `commit-msg` hook fails closed if it doesn't.
 
 ### Commit Message Guidelines
 
