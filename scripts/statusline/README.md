@@ -6,18 +6,18 @@ A multi-line statusline for Claude Code showing directory, git branch / worktree
 📁 ~/projects/foo
 🌿 branch: main
 🧠 context: 87% [========--]
-⏱  5h: 24% [==--------]  📅 7d: 41% [====------]
+⏱  5h: 24% [==--------] → 14:30  📅 7d: 41% [====------] → 05/13
 🤖 Opus 4.7  📟 v2.0.18  🎨 default  ⚡ auto  💰 $0.4231 ($14.30/h)  📊 142,533 tok (8,932 tpm)
 ```
 
-Worktree sessions render the worktree name and branch instead of `branch: …`. The context bar colors by *remaining* (cyan → yellow → red as it drops). The rate-limit bars color by *used* (cyan → yellow → orange → red as usage climbs).
+Worktree sessions render the worktree name and branch instead of `branch: …`. The context bar colors by *remaining* (cyan → yellow → red as it drops). The rate-limit bars color by *used* (cyan → yellow → orange → red as usage climbs). Reset times after each bar (`→ 14:30` for 5-hour, `→ 05/13` for 7-day) render in light grey from `.rate_limits.*.resets_at`; if the field is absent the time suffix is silently dropped.
 
 ## What's different from upstream cc-statusline
 
 Forked from [`cc-statusline` v1.4.0](https://www.npmjs.com/package/@chongdashu/cc-statusline) with two additions:
 
 1. **Effort level** segment (`⚡ auto`/`high`/`low`/etc.). Reflects the current `/effort` setting and updates live across turns. Reads from `.effort.level`.
-2. **Rate-limit bars** for the 5-hour rolling window and 7-day weekly window. Reads from `.rate_limits.five_hour.used_percentage` and `.rate_limits.seven_day.used_percentage`. These fields are populated only for Claude.ai Pro/Max subscribers and only after the first API response in a session — both segments graceful-skip when absent, so API-only users see only the existing lines.
+2. **Rate-limit bars** for the 5-hour rolling window and 7-day weekly window. Reads `used_percentage` and `resets_at` from `.rate_limits.five_hour.*` and `.rate_limits.seven_day.*`. These fields populate only for Claude.ai Pro/Max subscribers and only after the first API response in a session — every segment graceful-skips when absent, so API-only users see only the existing lines. Reset times render in light grey: `→ HH:MM` for the 5-hour window, `→ MM/DD` for the 7-day window.
 
 ## Quick install via Claude Code (recommended)
 
