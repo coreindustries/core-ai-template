@@ -25,11 +25,12 @@ PATTERNS=(
   '-----BEGIN [A-Z ]*PRIVATE KEY-----'
 )
 
-# Exclude the secret-pattern scripts themselves so their pattern
-# definitions don't match against scanned commits.
+# Exclude the secret-pattern scripts and the doc that inlines them, so
+# their pattern definitions don't match against scanned commits.
 EXCLUDES=(
   ':!scripts/precommit-secret-patterns.sh'
   ':!scripts/prepush-secret-check.sh'
+  ':!docs/adopt-best-practices.md'
 )
 
 scan_range() {

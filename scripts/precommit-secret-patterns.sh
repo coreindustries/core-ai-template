@@ -22,11 +22,12 @@ PATTERNS=(
 BLOCKED_NAMES=('.env' 'credentials.json' 'id_rsa' 'id_ed25519' 'id_dsa' 'id_ecdsa')
 BLOCKED_EXTS=('pem' 'key' 'p12' 'pfx')
 
-# Exclude the secret-pattern scripts themselves so their pattern
-# definitions don't match against the staged diff.
+# Exclude the secret-pattern scripts and the doc that inlines them, so
+# their pattern definitions don't match against the staged diff.
 EXCLUDES=(
   ':!scripts/precommit-secret-patterns.sh'
   ':!scripts/prepush-secret-check.sh'
+  ':!docs/adopt-best-practices.md'
 )
 
 for pattern in "${PATTERNS[@]}"; do

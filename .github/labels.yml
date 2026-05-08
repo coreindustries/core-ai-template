@@ -1,0 +1,196 @@
+# =============================================================================
+# Canonical PR / issue label set
+# =============================================================================
+# Sync with: gh repo from .github/labels.yml (via the sync-labels workflow)
+# or apply manually with `gh label create` (see scripts/apply-labels.sh).
+#
+# Convention: short, lowercase, dash-separated. Group with prefixes
+# (priority/, area/, status/) to encourage consistent multi-axis labeling.
+# Colors are GitHub-style 6-digit hex without `#`.
+#
+# When adding a label:
+#   1. Add it here with name, color, description.
+#   2. Run the sync workflow (manual dispatch or `make labels-sync`).
+#   3. Document the meaning in CONTRIBUTING.md or PR template if non-obvious.
+# =============================================================================
+
+# ---------- Type (what kind of change) ----------
+- name: bug
+  color: D73A4A
+  description: A defect or unexpected behavior
+
+- name: feature
+  color: A2EEEF
+  description: New user-facing functionality
+
+- name: enhancement
+  color: BFDADC
+  description: Improvement to existing functionality
+
+- name: docs
+  color: 0075CA
+  description: Documentation only
+
+- name: chore
+  color: CFD3D7
+  description: Maintenance, internal cleanup, no user-visible change
+
+- name: refactor
+  color: C5DEF5
+  description: Code restructuring without behavior change
+
+- name: test
+  color: D4C5F9
+  description: Adds or improves tests
+
+- name: performance
+  color: 5319E7
+  description: Performance optimization
+
+- name: security
+  color: B60205
+  description: Security-relevant fix or hardening
+
+- name: breaking
+  color: E11D21
+  description: Introduces a breaking change
+
+# ---------- Area / stack (where the change lives) ----------
+- name: area/python
+  color: 3572A5
+  description: Python code or tooling
+
+- name: area/node
+  color: 41B883
+  description: Node.js / TypeScript / JavaScript
+
+- name: area/go
+  color: 00ADD8
+  description: Go code or tooling
+
+- name: area/rust
+  color: DEA584
+  description: Rust code or tooling
+
+- name: area/docker
+  color: 2496ED
+  description: Dockerfile or compose
+
+- name: area/database
+  color: 336791
+  description: Schema, migrations, queries
+
+- name: area/api
+  color: BFE5BF
+  description: HTTP / GraphQL / RPC interfaces
+
+- name: area/frontend
+  color: F1E05A
+  description: UI / web frontend
+
+- name: area/backend
+  color: 1D76DB
+  description: Server-side / business logic
+
+- name: area/mobile
+  color: A2EEEF
+  description: iOS / Android / React Native
+
+- name: area/ci
+  color: BFD4F2
+  description: CI / CD / GitHub Actions
+
+- name: area/infra
+  color: 0E8A16
+  description: Infrastructure, deploy, ops
+
+- name: area/agent
+  color: 7057FF
+  description: AI agent prompts, skills, rules
+
+- name: area/security
+  color: B60205
+  description: Auth, secrets, gitleaks, hooks
+
+- name: area/dependencies
+  color: 0366D6
+  description: Dependency manifests, lockfiles, version bumps
+
+# ---------- Priority ----------
+- name: priority/p0
+  color: B60205
+  description: Drop everything (production outage, data loss, security)
+
+- name: priority/p1
+  color: D93F0B
+  description: High — current sprint
+
+- name: priority/p2
+  color: FBCA04
+  description: Medium — next sprint or scheduled
+
+- name: priority/p3
+  color: 0E8A16
+  description: Low — nice-to-have, backlog
+
+# ---------- Status ----------
+- name: status/needs-review
+  color: FBCA04
+  description: Awaiting code review
+
+- name: status/needs-test
+  color: F9D0C4
+  description: Awaiting QA / manual verification
+
+- name: status/needs-info
+  color: D876E3
+  description: Blocked on info from author or reporter
+
+- name: status/blocked
+  color: B60205
+  description: Blocked on external dependency
+
+- name: status/wip
+  color: FEF2C0
+  description: Work in progress, do not review
+
+- name: status/do-not-merge
+  color: B60205
+  description: Hard block on merging
+
+- name: status/ready-to-merge
+  color: 0E8A16
+  description: Approved and CI green
+
+# ---------- Process / review ----------
+- name: codex
+  color: BFD4F2
+  description: Request opt-in cross-model PR review
+
+- name: dependencies
+  color: 0366D6
+  description: Dependabot or manual dependency PR
+
+- name: security-hotfix-24h-waiver
+  color: B60205
+  description: Sub-24h dep bump waiver (requires linked GHSA/CVE in PR body)
+
+- name: good-first-issue
+  color: 7057FF
+  description: Good for newcomers
+
+- name: help-wanted
+  color: 008672
+  description: Maintainers welcome external contributions
+
+- name: duplicate
+  color: CFD3D7
+  description: Tracked elsewhere
+
+- name: invalid
+  color: E4E669
+  description: Not actionable as filed
+
+- name: wontfix
+  color: FFFFFF
+  description: Will not be addressed

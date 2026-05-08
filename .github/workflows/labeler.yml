@@ -1,0 +1,31 @@
+name: PR Labeler
+
+# Auto-applies area/* labels to PRs based on changed file paths.
+# Configuration lives in .github/labeler.yml.
+#
+# Security notes:
+# - actions/labeler reads .github/labeler.yml from the BASE branch (not the
+#   PR head), so a fork PR cannot inject a malicious labeler config.
+# - No user-controlled input is interpolated into shell commands.
+# - The third-party action is pinned to a commit SHA.
+#
+# Authors still apply type (bug / feature / docs / chore / security /
+# breaking) and priority labels manually — those describe intent, not
+# file paths.
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  label:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5.0.0
+        with:
+          configuration-path: .github/labeler.yml
+          sync-labels: true
