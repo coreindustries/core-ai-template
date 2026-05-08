@@ -14,7 +14,7 @@ Understanding how the pieces fit together is critical:
 CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── CONTRIBUTING.md            → Contributor workflow and standards
 ├── Makefile                   → One-command setup, dev, test, quality
-├── scripts/                   → Utility scripts (scan-secrets.sh)
+├── scripts/                   → Utility scripts (scan-secrets.sh, statusline/)
 ├── .gitleaks.toml             → Secret & PII scanning config (gitleaks)
 ├── prd/
 │   ├── 00_index.md            → Feature tracking, tech stack summary

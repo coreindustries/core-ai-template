@@ -63,6 +63,7 @@ This template establishes a foundation for projects where AI agents are primary 
 - `.devcontainer/` - Reproducible dev environments (Codespaces-ready)
 - `.husky/` - Pre-commit hooks (lint-staged + commitlint)
 - `.github/dependabot.yml` - Automated dependency updates
+- `scripts/statusline/` - Multi-line Claude Code statusline (directory, branch/worktree, context %, model, effort level, cost, token burn rate). See `scripts/statusline/README.md` for install.
 
 ### Skills (Slash Commands)
 
