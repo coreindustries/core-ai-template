@@ -330,13 +330,13 @@ repos.
 
 ## Claude Code Statusline
 
-A multi-line statusline that surfaces directory, git branch / worktree, context %, 5-hour and 7-day rate-limit usage, model, output style, effort level, session cost, and token burn rate.
+A multi-line statusline that surfaces directory, git branch / worktree, context %, 5-hour and 7-day rate-limit usage (with reset times), model, output style, effort level, session cost, and token burn rate.
 
 ```
 📁 ~/projects/foo
 🌿 branch: main
 🧠 context: 87% [========--]
-⏱  5h: 24% [==--------]  📅 7d: 41% [====------]
+⏱  5h: 24% [==--------] → 14:30  📅 7d: 41% [====------] → 05/13
 🤖 Opus 4.7  📟 v2.0.18  🎨 default  ⚡ auto  💰 $0.4231 ($14.30/h)  📊 142,533 tok (8,932 tpm)
 ```
 
