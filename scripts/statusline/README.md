@@ -19,7 +19,65 @@ Forked from [`cc-statusline` v1.4.0](https://www.npmjs.com/package/@chongdashu/c
 1. **Effort level** segment (`⚡ auto`/`high`/`low`/etc.). Reflects the current `/effort` setting and updates live across turns. Reads from `.effort.level`.
 2. **Rate-limit bars** for the 5-hour rolling window and 7-day weekly window. Reads from `.rate_limits.five_hour.used_percentage` and `.rate_limits.seven_day.used_percentage`. These fields are populated only for Claude.ai Pro/Max subscribers and only after the first API response in a session — both segments graceful-skip when absent, so API-only users see only the existing lines.
 
-## Install
+## Quick install via Claude Code (recommended)
+
+Paste this prompt into a fresh Claude Code session in any repo. The agent will fetch the script, wire it into `~/.claude/settings.json` (preserving other keys), and run the smoke test before reporting done.
+
+```
+Set up the multi-line Claude Code statusline from
+coreindustries/core-ai-template (effort level + 5h/7d rate-limit
+bars + cost + context).
+
+Source files:
+- https://raw.githubusercontent.com/coreindustries/core-ai-template/main/scripts/statusline/statusline.sh
+- https://raw.githubusercontent.com/coreindustries/core-ai-template/main/scripts/statusline/README.md  (reference)
+
+Steps:
+
+1. If ~/.claude/statusline.sh exists, back it up to
+   ~/.claude/statusline.sh.bak before overwriting.
+
+2. Download statusline.sh to ~/.claude/statusline.sh:
+     mkdir -p ~/.claude
+     curl -fsSL "<RAW URL above>" -o ~/.claude/statusline.sh
+     chmod +x ~/.claude/statusline.sh
+
+3. Update ~/.claude/settings.json to add (or merge) this top-level
+   block. Preserve every other key. If a different statusLine config
+   already exists, show me the diff and ask before replacing.
+
+     "statusLine": {
+       "type": "command",
+       "command": "~/.claude/statusline.sh",
+       "padding": 0
+     }
+
+   Use jq for the merge: read the existing JSON, set the statusLine
+   key, write it back atomically. Do NOT pretty-print in a way that
+   reorders other keys unnecessarily.
+
+4. Smoke test:
+     printf '{"cwd":"/tmp","model":{"display_name":"Opus 4.7"},"effort":{"level":"auto"}}' \
+       | bash ~/.claude/statusline.sh
+
+   Expected: three lines — directory, "context: TBD", model + effort.
+
+5. Tell me to restart Claude Code (or send a message) so the new
+   statusline takes effect on the next turn.
+
+Hard rules:
+- Never paste the contents of ~/.claude/settings.json or any other
+  settings file into chat.
+- Do not modify anything else under ~/.claude/.
+- If curl is missing, use wget; if both missing, fall back to
+  `gh api repos/coreindustries/core-ai-template/contents/scripts/statusline/statusline.sh -H "Accept: application/vnd.github.raw" > ~/.claude/statusline.sh`.
+```
+
+After it finishes, restart Claude Code (or send any message) and the statusline appears on the next turn.
+
+---
+
+## Manual install
 
 ### 1. Prerequisites
 
