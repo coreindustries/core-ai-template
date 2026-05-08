@@ -419,12 +419,25 @@ fi
 if [ -n "$git_line" ]; then
   printf '\n%s' "$git_line"
 fi
+
+# Combine context + rate-limit segments onto one line. Rate-limit
+# segments only show for Pro/Max sessions after the first API
+# response, so the line is just the context bar otherwise.
+context_limits_line=""
 if [ -n "$line2" ]; then
-  printf '\n%s' "$line2"
+  context_limits_line="$line2"
 fi
 if [ -n "$limits_line" ]; then
-  printf '\n%s' "$limits_line"
+  if [ -n "$context_limits_line" ]; then
+    context_limits_line="${context_limits_line}  ${limits_line}"
+  else
+    context_limits_line="$limits_line"
+  fi
 fi
+if [ -n "$context_limits_line" ]; then
+  printf '\n%s' "$context_limits_line"
+fi
+
 if [ -n "$line3" ]; then
   printf '\n%s  %s' "$model_line" "$line3"
 else
