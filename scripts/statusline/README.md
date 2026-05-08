@@ -5,8 +5,7 @@ A multi-line statusline for Claude Code showing directory, git branch / worktree
 ```
 📁 ~/projects/foo
 🌿 branch: main
-🧠 context: 87% [========--]
-⏱  5h: 24% [==--------] → 14:30  📅 7d: 41% [====------] → 05/13
+🧠 context: 87% [========--]  ⏱  5h: 24% [==--------] → 14:30  📅 7d: 41% [====------] → 05/13
 🤖 Opus 4.7  📟 v2.0.18  🎨 default  ⚡ auto  💰 $0.4231 ($14.30/h)  📊 142,533 tok (8,932 tpm)
 ```
 
