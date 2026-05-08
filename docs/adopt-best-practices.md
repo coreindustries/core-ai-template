@@ -1786,6 +1786,15 @@ recommended extensions for the stack, debug configs.
 Confirm `make wt`, `make wt-list`, `make wt-remove` work. Document
 parallel agent development in `docs/runbooks/multi-agent-worktrees.md`.
 
+### 9.4 Claude Code statusline (optional)
+
+A multi-line statusline showing directory, branch/worktree, context %,
+model, effort level, session cost, and token burn rate. Drop the
+script into `~/.claude/statusline.sh` (user-level, not project-level)
+and wire it via `statusLine` in `~/.claude/settings.json`. See the
+template's `scripts/statusline/README.md` for the canonical install
+procedure and the full script.
+
 ### Verify Phase 9
 
 Open the repo in a fresh Codespace (or `code .` locally) — extensions
