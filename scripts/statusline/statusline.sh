@@ -210,6 +210,49 @@ if [ "$HAS_JQ" -eq 1 ]; then
   fi
 fi
 
+# ---- Rate-limit windows (Claude.ai Pro/Max subscribers only) ----
+# `.rate_limits.five_hour.used_percentage` and `.rate_limits.seven_day.used_percentage`
+# may be absent when not on a subscription, when the JSON predates the field, or
+# before the first API response of the session. Skip the segment if absent.
+five_hour_pct=""
+seven_day_pct=""
+
+if [ "$HAS_JQ" -eq 1 ]; then
+  five_hour_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty' 2>/dev/null)
+  seven_day_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty' 2>/dev/null)
+fi
+
+# Round to integers for the bar (used_percentage is 0-100, possibly fractional).
+round_pct() {
+  v="$1"
+  [ -z "$v" ] && { echo ""; return; }
+  if command -v awk >/dev/null 2>&1; then
+    awk "BEGIN {printf \"%.0f\", $v}"
+  else
+    # Fallback: strip the decimal portion.
+    echo "${v%%.*}"
+  fi
+}
+five_hour_int=$(round_pct "$five_hour_pct")
+seven_day_int=$(round_pct "$seven_day_pct")
+
+# Color a bar by used percentage: lower = greener, higher = redder.
+# Inverted from the context bar (which colors by *remaining*).
+limit_color_for_pct() {
+  pct="$1"
+  if [ "$use_color" -ne 1 ]; then return; fi
+  if [ -z "$pct" ]; then printf '\033[1;37m'; return; fi
+  if [ "$pct" -ge 80 ]; then
+    printf '\033[38;5;203m'   # red
+  elif [ "$pct" -ge 60 ]; then
+    printf '\033[38;5;215m'   # orange
+  elif [ "$pct" -ge 40 ]; then
+    printf '\033[38;5;221m'   # yellow
+  else
+    printf '\033[38;5;158m'   # cyan/green
+  fi
+}
+
 # ---- Extract cost and usage data ----
 cost_usd=""
 cost_per_hour=""
@@ -290,6 +333,25 @@ if [ -z "$line2" ]; then
   line2="🧠 $(context_color)context: TBD$(rst)"
 fi
 
+# Rate-limit line (only when at least one window is present)
+limits_line=""
+if [ -n "$five_hour_int" ] || [ -n "$seven_day_int" ]; then
+  if [ -n "$five_hour_int" ]; then
+    fh_bar=$(progress_bar "$five_hour_int" 10)
+    fh_color=$(limit_color_for_pct "$five_hour_int")
+    limits_line="⏱  ${fh_color}5h: ${five_hour_int}% [${fh_bar}]$(rst)"
+  fi
+  if [ -n "$seven_day_int" ]; then
+    sd_bar=$(progress_bar "$seven_day_int" 10)
+    sd_color=$(limit_color_for_pct "$seven_day_int")
+    if [ -n "$limits_line" ]; then
+      limits_line="${limits_line}  📅 ${sd_color}7d: ${seven_day_int}% [${sd_bar}]$(rst)"
+    else
+      limits_line="📅 ${sd_color}7d: ${seven_day_int}% [${sd_bar}]$(rst)"
+    fi
+  fi
+fi
+
 # Line 3: Cost and usage
 line3=""
 if [ -n "$cost_usd" ] && [[ "$cost_usd" =~ ^[0-9.]+$ ]] && [ "$cost_usd" != "0" ]; then
@@ -337,6 +399,9 @@ if [ -n "$git_line" ]; then
 fi
 if [ -n "$line2" ]; then
   printf '\n%s' "$line2"
+fi
+if [ -n "$limits_line" ]; then
+  printf '\n%s' "$limits_line"
 fi
 if [ -n "$line3" ]; then
   printf '\n%s  %s' "$model_line" "$line3"
