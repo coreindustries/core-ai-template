@@ -29,59 +29,61 @@ git clean -fd            # Removes untracked files
 
 ## Commit Message Standards
 
-**REQUIRED Format:**
+**REQUIRED Format (Gitmoji + Conventional Commits):**
 ```
-<type>: <description>
+<emoji> <type>(<scope>)?: <description>
 
 <body (optional)>
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
-**Optional Gitmoji Format:**
-If Gitmoji is enabled (see `.claude/references/gitmoji.md`):
-```
-<emoji> <type>: <description>
+Gitmoji prefix is **required** on every commit. The emoji-to-type
+mapping is the canonical signal for visual scanning of `git log`. See
+`.claude/references/gitmoji.md` for the full reference.
 
-<body (optional)>
+**Type → Gitmoji map:**
 
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-**Example with Gitmoji:** `✨ feat(auth): add OAuth2 login support`
-
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `refactor`: Code refactoring
-- `test`: Test additions/changes
-- `chore`: Maintenance tasks
-- `ci`: CI/CD changes
-- `build`: Build system changes
+| Type | Emoji | When |
+|---|---|---|
+| `feat` | ✨ | New user-facing feature |
+| `fix` | 🐛 | Bug fix |
+| `docs` | 📝 | Documentation only |
+| `style` | 🎨 | Formatting / no behavior change |
+| `refactor` | ♻️ | Restructure without behavior change |
+| `perf` | ⚡️ | Performance improvement |
+| `test` | ✅ | Add or improve tests |
+| `chore` | 🔧 | Maintenance / dep bumps |
+| `ci` | 👷 | CI / CD changes |
+| `build` | 📦️ | Build system changes |
+| `revert` | ⏪ | Revert a prior commit |
+| breaking | 💥 | Use **regardless of type** when the commit is a breaking change (e.g. `💥 feat!: drop Node 18`) |
 
 **Example:**
 ```
-feat: add user authentication with JWT
+✨ feat(auth): add user authentication with JWT
 
-Implements JWT-based authentication with session storage.
-Includes login, logout, and token refresh endpoints with full
-test coverage and audit logging.
+Implements JWT-based authentication with session storage. Includes
+login, logout, and token refresh endpoints with full test coverage
+and audit logging.
 
 Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 **Guidelines:**
-- Use imperative mood ("add" not "added")
-- Max 72 characters for subject line
-- No period at end of subject
-- Lowercase after type
-- Reference tickets in footer when available
+- Use imperative mood ("add" not "added").
+- Max 72 characters for the subject line (emoji + type + scope + description).
+- No period at end of subject.
+- Lowercase after the type.
+- Reference tickets in the footer when available.
+- The `commit-msg` hook accepts the leading emoji as part of the
+  validation regex; commits without a Gitmoji are rejected.
 
 ## Git Hygiene Checklist
 
+- [ ] Gitmoji prefix matches the type
 - [ ] Conventional commit format used
-- [ ] Co-authored by Claude attribution included
+- [ ] Co-authored by Claude attribution included (when applicable)
 - [ ] Quality checks passed before commit
 - [ ] No unrelated changes in commits
 - [ ] Existing changes preserved (not reverted)

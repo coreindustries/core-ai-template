@@ -1,25 +1,49 @@
 #!/usr/bin/env sh
-# Conventional Commits validator. Lightweight regex check that requires
-# no dependencies (the template ships without package.json). If
-# commitlint is installed in the project, it runs as well for stricter
-# rules.
+# Gitmoji + Conventional Commits validator.
+# Format: <emoji> <type>(<scope>)?(!)?: <description>
+# Lightweight regex check that requires no dependencies (the template
+# ships without package.json). If commitlint is installed in the
+# project, it runs as well for stricter rules.
 
 MSG_FILE="$1"
 MSG=$(head -1 "$MSG_FILE")
 
+# Auto-generated commit messages bypass the format check.
 case "$MSG" in
-  Merge*|fixup\!*|squash\!*|amend\!*) exit 0 ;;
+  Merge*|fixup\!*|squash\!*|amend\!*|"Revert \""*) exit 0 ;;
 esac
 
-if echo "$MSG" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([a-zA-Z0-9_/-]+\))?(!)?: .+'; then
+# Pattern: leading non-alphanumeric chars (the Gitmoji and any variation
+# selector), single space, then standard Conventional Commits header.
+TYPES='feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert'
+SCOPE='(\([a-zA-Z0-9_/-]+\))?'
+BREAKING='(!)?'
+PATTERN="^[^a-zA-Z0-9[:space:]]+ ($TYPES)$SCOPE$BREAKING: .+"
+
+if echo "$MSG" | grep -qE "$PATTERN"; then
   if [ -f "node_modules/.bin/commitlint" ]; then
     node_modules/.bin/commitlint --edit "$MSG_FILE" || exit 1
   fi
   exit 0
 fi
 
-echo "ERROR: commit message does not follow Conventional Commits format."
-echo "  Expected: type(scope)?: description"
-echo "  Types:    feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert"
-echo "  Got:      $MSG"
+cat >&2 <<'ERR'
+ERROR: commit message must use Gitmoji + Conventional Commits.
+
+  Expected: <emoji> <type>(<scope>)?(!)?: <description>
+  Types:    feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert
+
+Common Gitmoji:
+  ✨ feat   🐛 fix    📝 docs    🎨 style   ♻️ refactor   ⚡️ perf
+  ✅ test   🔧 chore  👷 ci      📦️ build  ⏪ revert     💥 breaking
+
+Examples:
+  ✨ feat(auth): add password reset endpoint
+  🐛 fix(api): handle null response
+  📝 docs(readme): document install steps
+  💥 feat!: drop support for Node 18
+
+See .claude/references/gitmoji.md for the full mapping.
+ERR
+echo "Got: $MSG" >&2
 exit 1
