@@ -45,8 +45,16 @@ PY
 
 fmt_time_hm() {
   epoch="$1"
-  if date -r 0 +%s >/dev/null 2>&1; then date -r "$epoch" +"%H:%M"; else date -d "@$epoch" +"%H:%M"; fi
+  if date -r 0 +%s >/dev/null 2>&1; then date -r "$epoch" +"%H:%M" 2>/dev/null; else date -d "@$epoch" +"%H:%M" 2>/dev/null; fi
 }
+
+fmt_date_md() {
+  epoch="$1"
+  if date -r 0 +%s >/dev/null 2>&1; then date -r "$epoch" +"%m/%d" 2>/dev/null; else date -d "@$epoch" +"%m/%d" 2>/dev/null; fi
+}
+
+# Light grey for reset-time stamps and similarly muted secondary info.
+muted_color() { if [ "$use_color" -eq 1 ]; then printf '\033[38;5;249m'; fi; }
 
 progress_bar() {
   pct="${1:-0}"; width="${2:-10}"
@@ -215,11 +223,15 @@ fi
 # may be absent when not on a subscription, when the JSON predates the field, or
 # before the first API response of the session. Skip the segment if absent.
 five_hour_pct=""
+five_hour_resets=""
 seven_day_pct=""
+seven_day_resets=""
 
 if [ "$HAS_JQ" -eq 1 ]; then
   five_hour_pct=$(echo "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty' 2>/dev/null)
+  five_hour_resets=$(echo "$input" | jq -r '.rate_limits.five_hour.resets_at // empty' 2>/dev/null)
   seven_day_pct=$(echo "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty' 2>/dev/null)
+  seven_day_resets=$(echo "$input" | jq -r '.rate_limits.seven_day.resets_at // empty' 2>/dev/null)
 fi
 
 # Round to integers for the bar (used_percentage is 0-100, possibly fractional).
@@ -339,15 +351,25 @@ if [ -n "$five_hour_int" ] || [ -n "$seven_day_int" ]; then
   if [ -n "$five_hour_int" ]; then
     fh_bar=$(progress_bar "$five_hour_int" 10)
     fh_color=$(limit_color_for_pct "$five_hour_int")
-    limits_line="⏱  ${fh_color}5h: ${five_hour_int}% [${fh_bar}]$(rst)"
+    fh_segment="⏱  ${fh_color}5h: ${five_hour_int}% [${fh_bar}]$(rst)"
+    if [ -n "$five_hour_resets" ]; then
+      fh_time=$(fmt_time_hm "$five_hour_resets")
+      [ -n "$fh_time" ] && fh_segment="${fh_segment} $(muted_color)→ ${fh_time}$(rst)"
+    fi
+    limits_line="$fh_segment"
   fi
   if [ -n "$seven_day_int" ]; then
     sd_bar=$(progress_bar "$seven_day_int" 10)
     sd_color=$(limit_color_for_pct "$seven_day_int")
+    sd_segment="📅 ${sd_color}7d: ${seven_day_int}% [${sd_bar}]$(rst)"
+    if [ -n "$seven_day_resets" ]; then
+      sd_date=$(fmt_date_md "$seven_day_resets")
+      [ -n "$sd_date" ] && sd_segment="${sd_segment} $(muted_color)→ ${sd_date}$(rst)"
+    fi
     if [ -n "$limits_line" ]; then
-      limits_line="${limits_line}  📅 ${sd_color}7d: ${seven_day_int}% [${sd_bar}]$(rst)"
+      limits_line="${limits_line}  ${sd_segment}"
     else
-      limits_line="📅 ${sd_color}7d: ${seven_day_int}% [${sd_bar}]$(rst)"
+      limits_line="$sd_segment"
     fi
   fi
 fi
