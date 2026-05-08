@@ -328,6 +328,76 @@ dependencies beyond `git`, `bash`, and (optionally) `gitleaks` and
 `gh`. It works for Node, Python, Go, Rust, polyglot, or scriptless
 repos.
 
+## Claude Code Statusline
+
+A multi-line statusline that surfaces directory, git branch / worktree, context %, 5-hour and 7-day rate-limit usage, model, output style, effort level, session cost, and token burn rate.
+
+```
+📁 ~/projects/foo
+🌿 branch: main
+🧠 context: 87% [========--]
+⏱  5h: 24% [==--------]  📅 7d: 41% [====------]
+🤖 Opus 4.7  📟 v2.0.18  🎨 default  ⚡ auto  💰 $0.4231 ($14.30/h)  📊 142,533 tok (8,932 tpm)
+```
+
+The script lives at [`scripts/statusline/statusline.sh`](scripts/statusline/statusline.sh).
+
+### Quick install via Claude Code
+
+Paste this prompt into a fresh Claude Code session in any repo. The agent will fetch the script, wire it into `~/.claude/settings.json` (preserving other keys), and run the smoke test before reporting done.
+
+```
+Set up the multi-line Claude Code statusline from
+coreindustries/core-ai-template (effort level + 5h/7d rate-limit
+bars + cost + context).
+
+Source files:
+- https://raw.githubusercontent.com/coreindustries/core-ai-template/main/scripts/statusline/statusline.sh
+- https://raw.githubusercontent.com/coreindustries/core-ai-template/main/scripts/statusline/README.md  (reference)
+
+Steps:
+
+1. If ~/.claude/statusline.sh exists, back it up to
+   ~/.claude/statusline.sh.bak before overwriting.
+
+2. Download statusline.sh to ~/.claude/statusline.sh:
+     mkdir -p ~/.claude
+     curl -fsSL "<RAW URL above>" -o ~/.claude/statusline.sh
+     chmod +x ~/.claude/statusline.sh
+
+3. Update ~/.claude/settings.json to add (or merge) this top-level
+   block. Preserve every other key. If a different statusLine config
+   already exists, show me the diff and ask before replacing.
+
+     "statusLine": {
+       "type": "command",
+       "command": "~/.claude/statusline.sh",
+       "padding": 0
+     }
+
+   Use jq for the merge: read the existing JSON, set the statusLine
+   key, write it back atomically. Do NOT pretty-print in a way that
+   reorders other keys unnecessarily.
+
+4. Smoke test:
+     printf '{"cwd":"/tmp","model":{"display_name":"Opus 4.7"},"effort":{"level":"auto"}}' \
+       | bash ~/.claude/statusline.sh
+
+   Expected: three lines — directory, "context: TBD", model + effort.
+
+5. Tell me to restart Claude Code (or send a message) so the new
+   statusline takes effect on the next turn.
+
+Hard rules:
+- Never paste the contents of ~/.claude/settings.json or any other
+  settings file into chat.
+- Do not modify anything else under ~/.claude/.
+- If curl is missing, use wget; if both missing, fall back to
+  `gh api repos/coreindustries/core-ai-template/contents/scripts/statusline/statusline.sh -H "Accept: application/vnd.github.raw" > ~/.claude/statusline.sh`.
+```
+
+For manual install, color customization, and the full feature list, see [`scripts/statusline/README.md`](scripts/statusline/README.md).
+
 ## Tech Stack Examples
 
 Copy one of these configurations into `prd/00_technology.md` as a starting point.
