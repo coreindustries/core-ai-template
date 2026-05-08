@@ -1,9 +1,25 @@
 #!/usr/bin/env sh
+# Conventional Commits validator. Lightweight regex check that requires
+# no dependencies (the template ships without package.json). If
+# commitlint is installed in the project, it runs as well for stricter
+# rules.
 
-# Commit message hook: Validate conventional commit format
-# Requires: npm install -D @commitlint/cli @commitlint/config-conventional
-#
-# For Python projects, replace with:
-#   uv run cz check --commit-msg-file "$1"
+MSG_FILE="$1"
+MSG=$(head -1 "$MSG_FILE")
 
-npx --no -- commitlint --edit "$1"
+case "$MSG" in
+  Merge*|fixup\!*|squash\!*|amend\!*) exit 0 ;;
+esac
+
+if echo "$MSG" | grep -qE '^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\([a-zA-Z0-9_/-]+\))?(!)?: .+'; then
+  if [ -f "node_modules/.bin/commitlint" ]; then
+    node_modules/.bin/commitlint --edit "$MSG_FILE" || exit 1
+  fi
+  exit 0
+fi
+
+echo "ERROR: commit message does not follow Conventional Commits format."
+echo "  Expected: type(scope)?: description"
+echo "  Types:    feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert"
+echo "  Got:      $MSG"
+exit 1

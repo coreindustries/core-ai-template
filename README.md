@@ -40,6 +40,22 @@ This template establishes a foundation for projects where AI agents are primary 
 - `_task_template.md` - Template for progress tracking and context recovery
 - `/resume` skill - Automated session recovery after context compression
 
+### PR / Issue Labels
+- `.github/labels.yml` - Canonical label set (type, area, priority, status, process)
+- `.github/labeler.yml` - Path-based auto-labeling rules (e.g. `*.py` → `area/python`)
+- `.github/workflows/labeler.yml` - Auto-applies `area/*` labels on PR open / sync
+- `.github/workflows/labels-sync.yml` - Reconciles repo labels with `labels.yml` on push to main
+- PR template includes a labels checklist (type + priority + `codex` opt-in)
+
+### Cross-Repo Coordination
+- `docs/coordination/` - Track work that crosses a repository boundary (schema changes, ops handoffs, contract negotiations between services)
+- `docs/coordination/README.md` - Lifecycle, frontmatter schema, when to open one
+- `docs/coordination/_template.md` - Blank template with `direction: incoming|outgoing`
+
+### Adopt Into Any Existing Repo
+- `docs/adopt-best-practices.md` - **Self-contained** markdown file you can hand to any Claude Code (or compatible) agent in another repo to land this template's tooling discipline (secret scanning, Conventional Commits, PR template, ADR/PRD/coordination workflows) in a single PR
+- See "Adopting Into An Existing Repo" below for usage
+
 ### Developer Experience
 - `Makefile` - One-command setup, dev, test, quality checks
 - `.editorconfig` - Cross-IDE formatting consistency
@@ -272,6 +288,44 @@ git checkout -b feat/my-feature
 ```
 
 **Total Setup Time:** ~15 minutes
+
+## Adopting Into An Existing Repo
+
+`docs/adopt-best-practices.md` is a self-contained playbook for landing
+this template's tooling discipline (secret scanning, Conventional
+Commits enforcement, PR template, AGENTS.md, decision/product/
+coordination workflows, optional cross-model PR review) into any
+existing repository.
+
+### How to use it
+
+Hand the file to a Claude Code (or compatible) agent running inside
+the target repo:
+
+```
+Read docs/adopt-best-practices.md from <this repo or a vendored copy>
+and apply it to the current repo. Open a PR titled
+"chore: adopt security/commit/review best-practices kit".
+```
+
+The agent will:
+
+1. Confirm the target repo and create a feature branch.
+2. Inventory existing tooling (so it doesn't overwrite project-specific
+   hooks).
+3. Drop in hook scripts, gitleaks config, commit-msg hook,
+   `.gitmessage`, PR template, `AGENTS.md`, optional Codex review
+   workflow, optional ADR/PRD/coordination scaffolding.
+4. Verify each layer (commit-msg accepts/rejects, secret backstop
+   blocks, workflow YAML parses).
+5. Open a PR with the kit, leaving GitHub-side follow-ups (label
+   creation, environment secrets, branch protection) as checklist
+   items.
+
+The doc inlines every script and config — no fetches, no external
+dependencies beyond `git`, `bash`, and (optionally) `gitleaks` and
+`gh`. It works for Node, Python, Go, Rust, polyglot, or scriptless
+repos.
 
 ## Tech Stack Examples
 

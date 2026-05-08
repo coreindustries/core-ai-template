@@ -1,0 +1,179 @@
+# =============================================================================
+# Path-based PR auto-labeling
+# =============================================================================
+# Used by .github/workflows/labeler.yml (actions/labeler@v5).
+# Maps changed-file globs → labels. Authors can add type/priority/status
+# labels manually; this file only handles `area/*` based on what was touched.
+#
+# When adding a path: keep the most-specific match first. Globs follow
+# minimatch syntax (https://github.com/isaacs/minimatch).
+# =============================================================================
+
+area/python:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.py"
+          - "pyproject.toml"
+          - "requirements*.txt"
+          - "uv.lock"
+          - "poetry.lock"
+          - "Pipfile*"
+          - "setup.cfg"
+          - "setup.py"
+
+area/node:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.ts"
+          - "**/*.tsx"
+          - "**/*.js"
+          - "**/*.jsx"
+          - "**/*.mjs"
+          - "**/*.cjs"
+          - "package.json"
+          - "package-lock.json"
+          - "pnpm-lock.yaml"
+          - "yarn.lock"
+          - "bun.lockb"
+          - "tsconfig*.json"
+
+area/go:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.go"
+          - "go.mod"
+          - "go.sum"
+
+area/rust:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.rs"
+          - "Cargo.toml"
+          - "Cargo.lock"
+
+area/docker:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/Dockerfile*"
+          - "**/docker-compose*.yml"
+          - "**/docker-compose*.yaml"
+          - ".dockerignore"
+
+area/database:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "supabase/migrations/**"
+          - "migrations/**"
+          - "db/migrations/**"
+          - "**/*.sql"
+          - "prisma/schema.prisma"
+          - "drizzle/**"
+          - "alembic/versions/**"
+
+area/api:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/api/**"
+          - "**/routes/**"
+          - "**/handlers/**"
+          - "openapi.yaml"
+          - "openapi.yml"
+          - "**/*.proto"
+          - "schema.graphql"
+
+area/frontend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/components/**"
+          - "src/pages/**"
+          - "src/app/**"
+          - "**/*.svelte"
+          - "**/*.vue"
+          - "**/*.css"
+          - "**/*.scss"
+          - "public/**"
+          - "static/**"
+
+area/backend:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "src/services/**"
+          - "src/server/**"
+          - "src/lib/**"
+
+area/mobile:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "ios/**"
+          - "android/**"
+          - "**/*.swift"
+          - "**/*.kt"
+          - "**/*.kts"
+
+area/ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/actions/**"
+          - ".gitlab-ci.yml"
+          - ".circleci/**"
+          - "Jenkinsfile"
+
+area/infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "infra/**"
+          - "terraform/**"
+          - "**/*.tf"
+          - "**/*.tfvars"
+          - "k8s/**"
+          - "kubernetes/**"
+          - "helm/**"
+          - "deploy/**"
+
+area/agent:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".claude/**"
+          - "AGENTS.md"
+          - "CLAUDE.md"
+          - "prd/**"
+          - "docs/decisions/**"
+
+area/security:
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".gitleaks.toml"
+          - ".gitleaksignore"
+          - ".husky/**"
+          - ".githooks/**"
+          - "scripts/precommit-secret-patterns.sh"
+          - "scripts/prepush-secret-check.sh"
+          - "scripts/scan-secrets.sh"
+          - "scripts/assert-no-plaintext-env.sh"
+
+area/dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "package.json"
+          - "package-lock.json"
+          - "pnpm-lock.yaml"
+          - "yarn.lock"
+          - "bun.lockb"
+          - "pyproject.toml"
+          - "requirements*.txt"
+          - "uv.lock"
+          - "poetry.lock"
+          - "go.mod"
+          - "go.sum"
+          - "Cargo.toml"
+          - "Cargo.lock"
+          - "Gemfile*"
+          - "composer.json"
+          - "composer.lock"
+
+docs:
+  - changed-files:
+      - all-globs-to-all-files:
+          - "**/*.md"
+          - "!.claude/**"

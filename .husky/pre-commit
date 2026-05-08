@@ -1,5 +1,10 @@
 #!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+# Source husky's bootstrap when present. The template repo intentionally
+# ships without it (no `package.json` / `npm install`), so the rest of
+# the hook still needs to run for raw-git installs and template clones
+# that haven't run husky init yet.
+HUSKY_INIT="$(dirname -- "$0")/_/husky.sh"
+[ -f "$HUSKY_INIT" ] && . "$HUSKY_INIT"
 
 # Block plaintext .env files BEFORE lint-staged (fail fast)
 scripts/assert-no-plaintext-env.sh || exit 1
@@ -12,5 +17,9 @@ if [ -f "scripts/precommit-secret-patterns.sh" ]; then
   bash scripts/precommit-secret-patterns.sh || exit 1
 fi
 
-# Linting + formatting
-npx lint-staged
+# Linting + formatting (only when the project has installed deps;
+# the template ships without package.json / node_modules so this
+# is a no-op until the repo is initialized).
+if [ -f package.json ] && [ -d node_modules ]; then
+  npx lint-staged
+fi

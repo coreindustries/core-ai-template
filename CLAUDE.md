@@ -24,8 +24,10 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 │   ├── _changelog_template.md → Changelog with breaking change policy
 │   └── tasks/                 → Long-running feature progress tracking
 ├── docs/
-│   ├── decisions/             → ADRs: read before proposing architectural changes
-│   └── solutions/             → Knowledge capture from /compound skill
+│   ├── adopt-best-practices.md → Self-contained kit to land into ANY existing repo
+│   ├── decisions/              → ADRs: read before proposing architectural changes
+│   ├── coordination/           → Cross-repo coordination tracking (incoming/outgoing)
+│   └── solutions/              → Knowledge capture from /compound skill
 ├── .claude/rules/             → 9 auto-loaded rules (~7K tokens)
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
@@ -73,6 +75,29 @@ docs/
 ## Architectural Decisions
 
 Before proposing changes to project architecture, patterns, or dependencies, check `docs/decisions/` for existing ADRs. These document why current patterns exist and what must not change. Run `/adr` to capture new decisions.
+
+## PR / Issue Labels
+
+The canonical label set lives in `.github/labels.yml` and is reconciled with the live repo by `.github/workflows/labels-sync.yml`. Path-based area labels (`area/python`, `area/database`, etc.) are auto-applied by `.github/workflows/labeler.yml` based on `.github/labeler.yml` rules.
+
+When opening a PR, apply at minimum:
+- One **type** label (`feature`, `bug`, `docs`, `chore`, `refactor`, `test`, `performance`, `security`, `breaking`).
+- One **priority** label if not P3 default.
+- `codex` if requesting cross-model review.
+
+The PR template includes a Labels checklist.
+
+## Cross-Repo Coordination
+
+When work crosses a repository boundary (a schema change in another repo blocks shipping here, an ops task another team must complete first, etc.), open a coordination doc under `docs/coordination/` rather than rely on chat. See `docs/coordination/README.md` for the lifecycle and frontmatter schema, and `_template.md` for the blank.
+
+Don't open a coordination doc for inside-one-repo work — issues and PRs are the right tool there.
+
+## Adopt Into Any Existing Repo
+
+`docs/adopt-best-practices.md` is a **self-contained markdown file** that any Claude Code (or compatible) agent can use to land this template's tooling discipline into another existing repo. Hand it to the agent in the target repo; it inlines all hook scripts, configs, workflows, and document templates so no external fetches are needed.
+
+Use cases: onboarding an existing repo to the kit's secret-scan / commit / PR-template / ADR / PRD / coordination workflows in one PR.
 
 ## Skills (Slash Commands)
 
