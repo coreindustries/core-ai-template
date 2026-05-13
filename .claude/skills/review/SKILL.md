@@ -1,112 +1,173 @@
 ---
 name: review
-description: "Multi-perspective code review against project standards with P1/P2/P3 severity classification."
+description: >-
+  Multi-perspective code review against project standards with P1/P2/P3 severity
+  classification. Works in Claude Code (Agent + optional GitHub MCP) and Cursor
+  (Task subagents + gh/git). Use when the user invokes /review, asks for a PR or
+  diff review, or wants a standards-aligned review with severity tags.
 ---
 
 # /review
 
 Multi-perspective code review against project standards with P1/P2/P3 severity classification.
 
+**Runtimes:** Use the blocks labeled **Claude Code** or **Cursor** below. Steps 2, 4, and 6 are identical for both.
+
 ## Usage
 
 ```
-/review [target] [--pr <branch>] [--strict]
+/review [target] [--pr <number|branch>] [--last <n>] [--fix] [--strict]
 ```
 
 ## Arguments
 
 - `target`: File or directory to review (default: staged changes)
-- `--pr <branch>`: Review changes from a PR branch
-- `--strict`: Apply stricter standards
+- `--pr <number>`: Review a GitHub PR by number (open or merged), via MCP or `gh`
+- `--pr <branch>`: Review changes from a local branch vs `main` (or repo default branch)
+- `--last <n>`: Review the last `n` merged PRs (skips registry/CSS-only changes)
+- `--fix`: After generating the report, implement all P1 and P2 fixes, run tests, commit, push, and open a PR
+- `--strict`: Treat P3 findings as P2 (require fixes before merge)
+
+## Specialist delegation (token budget)
+
+| Perspective    | Inline? | Claude Code              | Cursor                                      |
+|----------------|---------|--------------------------|---------------------------------------------|
+| Code Quality   | yes     | (same)                   | (same)                                      |
+| Architecture   | yes     | (same)                   | (same)                                      |
+| Performance    | no      | `Agent` with `haiku`     | `Task` with `subagent_type: "perf-auditor"` |
+| Security       | no      | `Agent` with `sonnet`    | `Task` with `subagent_type: "security-reviewer"` |
+| Simplicity + Data Integrity | no | one `Agent` with `sonnet` (combined prompt) | one `Task` (combined prompt; see Step 3) |
+
+In **Cursor**, do not pass `model: "haiku"` / `"sonnet"` unless the user asked for an explicit model slug your environment supports. Default subagent models are fine.
 
 ## Instructions
 
 When this skill is invoked:
 
-### Agent Behavior (Codex-Max Pattern)
+### Step 1 — Identify the diff
 
-**Autonomy:**
-- Complete the review end-to-end
-- Provide specific, actionable feedback
-- Include file:line references for all issues
+- **`--pr <number>`**
+  - **Claude Code (if GitHub MCP is configured):** call the GitHub MCP diff fetch for that PR (e.g. tools like `pull_request_read` / `get_diff`, depending on the MCP server).
+  - **Fallback / Cursor:** `gh pr diff <number>` (works when the repo is a GitHub checkout with `gh` auth).
 
-**Thoroughness:**
-- Check against all standards in `.claude/rules/` (auto-loaded)
-- Check security practices from `.claude/rules/security*.md`
-- Check technology-specific patterns from `prd/00_technology.md`
+- **`--pr <branch>`:** `git diff main...{branch}` (replace `main` with the repo default branch if different).
 
-### Review Process
+- **`--last <n>`:**
+  - **With GitHub MCP:** list recent PRs, filter to substantive changes (skip titles like `chore(registry)`, trivial/CSS-only), fetch diffs in parallel.
+  - **With `gh` only:** `gh pr list --state merged --limit <n+5> --json number,title`, filter the same way, then `gh pr diff <number>` for each selected PR.
 
-1. **Identify files to review**:
-   - If `target`: Review specified files
-   - If `--pr`: `git diff main...{branch}`
-   - Otherwise: `git diff --staged`
+- **`target` specified:** `git diff HEAD -- <target>`
 
-2. **Read all relevant files in parallel**:
-   - Files being reviewed
-   - Related test files
-   - PRDs for standards
-   - `.claude/agents/simplicity-reviewer.md` (simplicity perspective)
-   - `.claude/agents/data-integrity-reviewer.md` (data integrity perspective)
-   - `.claude/agents/security-reviewer.md` (security perspective)
-   - `.claude/agents/perf-auditor.md` (performance perspective)
+- **default:** `git diff --staged`
 
-3. **Evaluate from 6 perspectives**:
+### Step 2 — Run inline checks (no delegation cost)
 
-   **Perspective 1 — Code Quality** (inline, using rules):
-   - [ ] Type annotations on all functions
-   - [ ] Docstrings on public functions/classes
-   - [ ] DRY principle followed
-   - [ ] Naming conventions followed
-   - [ ] No broad exception catches
-   - [ ] No silent failures
-   - [ ] Complete implementation (no TODOs)
-   - [ ] All relevant surfaces updated
-   - [ ] Tests exist for new code
+Do these yourself directly against the diff:
 
-   **Perspective 2 — Security** (from security-reviewer agent):
-   - [ ] No hardcoded secrets
-   - [ ] Input validation present
-   - [ ] Parameterized queries
-   - [ ] Proper error handling (no internal details leaked)
-   - [ ] Audit logging for sensitive operations
+**Code Quality** (`.claude/rules/code-quality.md`):
+- [ ] Type annotations on all functions and return types
+- [ ] Docstrings on public functions and classes
+- [ ] DRY principle followed (no duplicated logic)
+- [ ] Naming conventions followed (language standard)
+- [ ] No broad exception catches or silent failures
+- [ ] No dead code, TODOs, or placeholder implementations
+- [ ] All relevant surfaces updated (models, services, routes, tests)
+- [ ] Tests exist for new behavior
 
-   **Perspective 3 — Performance** (from perf-auditor agent):
-   - [ ] No N+1 queries
-   - [ ] Appropriate indexing for new queries
-   - [ ] No unnecessary data loading
-   - [ ] Pagination for list endpoints
-   - [ ] Caching considered for expensive operations
+**Architecture** (project patterns from `prd/00_technology.md`):
+- [ ] Routes are thin — delegate to service layer
+- [ ] Business logic lives in services, not handlers
+- [ ] Database access follows project singleton pattern
+- [ ] No circular dependencies introduced
+- [ ] Separation of concerns maintained
 
-   **Perspective 4 — Architecture** (project patterns):
-   - [ ] Uses project's database pattern
-   - [ ] Uses project's logging pattern
-   - [ ] Follows project's structure
-   - [ ] Appropriate separation of concerns
-   - [ ] No circular dependencies
+### Step 3 — Spawn specialist reviewers in parallel
 
-   **Perspective 5 — Simplicity** (from simplicity-reviewer agent):
-   - [ ] No unnecessary abstractions
-   - [ ] No over-engineering
-   - [ ] Functions are focused and right-sized
-   - [ ] Code is clear without excessive comments
-   - [ ] Right level of complexity for the problem
+Send **three** delegations in a **single assistant turn** so they run concurrently. Paste the same `<diff>` into each prompt.
 
-   **Perspective 6 — Data Integrity** (from data-integrity-reviewer agent):
-   - [ ] Input validation complete (lengths, ranges, enums)
-   - [ ] Database constraints appropriate (NOT NULL, FKs, indexes)
-   - [ ] Migrations are safe and reversible
-   - [ ] State transitions are validated
-   - [ ] Null handling is explicit
+**Claude Code** — three `Agent` calls:
 
-4. **Classify findings with P1/P2/P3 severity**:
-   - **P1 (Critical)**: Must fix before merge — security flaws, data loss risk, broken functionality
-   - **P2 (Important)**: Should fix before merge — bugs, missing validation, test gaps
-   - **P3 (Suggestion)**: Nice to have — style improvements, minor simplifications
+```
+Agent(
+  model: "haiku",
+  prompt: """Review this diff for performance issues only.
+  Check: N+1 queries, missing pagination, unbounded data loads,
+  missing timeouts on external calls, unnecessary sequential ops
+  that could be parallel, expensive ops in hot paths.
+  Cite file:line for every finding. Return P1/P2/P3.
+  <diff>{diff}</diff>"""
+)
 
-5. **Generate report**:
+Agent(
+  model: "sonnet",
+  prompt: """Review this diff for security issues only.
+  Consult .claude/rules/security-core.md.
+  Check: hardcoded secrets, SQL/shell injection, missing auth checks,
+  unvalidated user input, insecure dependencies, PII in logs.
+  Cite file:line for every finding. Return P1/P2/P3.
+  <diff>{diff}</diff>"""
+)
 
-### Review Report Format
+Agent(
+  model: "sonnet",
+  prompt: """Review this diff for two concerns — simplicity and data integrity.
+
+  Simplicity: unnecessary abstractions, over-engineering, functions doing
+  too much, unclear logic that could be simpler.
+
+  Data integrity: missing input validation (lengths, ranges, enums),
+  missing DB constraints (NOT NULL, FKs, indexes), unsafe migrations,
+  invalid state transitions, unhandled nulls.
+
+  Cite file:line for every finding. Return P1/P2/P3 for each.
+  <diff>{diff}</diff>"""
+)
+```
+
+> Simplicity and Data Integrity share one `sonnet` call to avoid a third parallel heavy model — they rarely conflict.
+
+**Cursor** — three `Task` calls with `subagent_type`:
+
+| Call | `subagent_type`        | Prompt focus |
+|------|-------------------------|--------------|
+| 1    | `perf-auditor`          | Same focus as Claude Code haiku prompt above |
+| 2    | `security-reviewer`     | Same focus as Claude Code security prompt above |
+| 3    | `simplicity-reviewer`   | Same **combined** simplicity + data integrity prompt as the third Claude Code `Agent` block |
+
+Optional: set `readonly: true` on each `Task` when you only want review output (no writes).
+
+> **Note:** Cursor also exposes `data-integrity-reviewer`. Prefer the **combined** third task to match token budget; split only if the diff is large and you need separation.
+
+### Step 4 — Classify and report
+
+Merge inline findings with delegated results. Deduplicate. Classify:
+
+- **P1 (Critical)**: Must fix before merge — security flaws, data loss risk, broken functionality
+- **P2 (Important)**: Should fix before merge — bugs, missing validation, test gaps, logging gaps
+- **P3 (Suggestion)**: Nice to have — style, minor simplifications, optional improvements
+
+With `--strict`: promote all P3s to P2.
+
+### Step 5 — Optionally fix
+
+If `--fix` was passed (or user confirms after seeing the report):
+
+1. Implement all P1 and P2 fixes directly
+2. Run the relevant test suite (see `prd/00_technology.md` for `{test_all}`)
+3. `git add <changed files>` (never `-A`)
+4. Commit with message `fix(code-quality): <summary of fixes>`
+5. Push to a new branch `fix/code-quality-<slug>`
+6. Open a PR against `main`:
+   - **Claude Code:** GitHub MCP `create_pull_request` (or equivalent), if configured
+   - **Cursor / fallback:** `gh pr create` following the repo workflow
+
+Skip P3 fixes unless `--strict` was passed.
+
+### Step 6 — Capture solutions (optional)
+
+If a P1 finding reveals a non-obvious root cause (e.g. a framework gotcha, a subtle migration ordering constraint), write a brief solution doc to `docs/solutions/` summarizing the root cause and canonical fix. Follow the format of existing docs in that directory.
+
+## Review Report Format
 
 ```markdown
 ## Code Review
@@ -115,63 +176,33 @@ When this skill is invoked:
 
 ### Summary Table
 
-| Perspective | P1 | P2 | P3 | Status |
-|-------------|----|----|----|----|
-| Code Quality | 0 | 1 | 0 | Pass |
-| Security | 1 | 0 | 0 | Fail |
-| Performance | 0 | 0 | 1 | Pass |
-| Architecture | 0 | 0 | 0 | Pass |
-| Simplicity | 0 | 1 | 0 | Pass |
-| Data Integrity | 0 | 1 | 0 | Pass |
+| Perspective | P1 | P2 | P3 |
+|-------------|----|----|-----|
+| Code Quality | 0 | 1 | 0 |
+| Architecture | 0 | 0 | 0 |
+| Performance | 0 | 0 | 1 |
+| Security | 1 | 0 | 0 |
+| Simplicity | 0 | 1 | 0 |
+| Data Integrity | 0 | 1 | 0 |
 | **Total** | **1** | **3** | **1** | |
 
 ---
 
-### P1 — Critical (must fix)
+### P1 — Critical (must fix before merge)
 
-1. **[Security] Hardcoded API key** (`src/{project}/services/auth:45`)
-   JWT secret should be loaded from environment variable.
-   ```
-   # Current (bad)
-   SECRET = "hardcoded-secret-key"
+1. **[Security] Hardcoded API key** (`src/{project}/services/auth.py:45`)
+   JWT secret should be loaded from environment variable, not hardcoded.
 
-   # Should be
-   SECRET = os.environ["JWT_SECRET"]
-   ```
+### P2 — Important (should fix before merge)
 
-### P2 — Important (should fix)
-
-1. **[Code Quality] Missing type hints** (`src/{project}/api/users:15`)
-   ```
-   # Current
-   async def get_user(user_id):
-
-   # Should be
-   async def get_user(user_id: str) -> User:
-   ```
-
-2. **[Simplicity] Interface with single implementation** (`src/{project}/repos/base:1-20`)
-   `BaseRepository` interface has only `UserRepository` implementing it. Use the class directly.
-
-3. **[Data Integrity] Missing length validation** (`src/{project}/models/user:12`)
-   `name` field accepts unbounded strings. Add max length constraint.
+1. **[Code Quality] Missing type annotations** (`src/{project}/api/users.py:15`)
+2. **[Simplicity] Interface with single implementation** (`src/{project}/repos/base.py:1-20`)
+3. **[Data Integrity] Missing length validation** (`src/{project}/models/user.py:12`)
 
 ### P3 — Suggestions
 
-1. **[Performance] Consider index** (`src/{project}/db/queries:34`)
+1. **[Performance] Consider index** (`src/{project}/db/queries.py:34`)
    Query filters on `created_at` without index. Add if query frequency is high.
-
----
-
-### Recommendations
-
-**Priority 1 (P1 fixes):**
-1. Move JWT secret to environment variable
-
-**Priority 2 (P2 fixes):**
-1. Add type hints to all functions
-2. Remove unnecessary BaseRepository interface
-3. Add length validation to user name field
 
 ---
 
@@ -179,52 +210,6 @@ When this skill is invoked:
 
 1. Fix P1 issues (blocks merge)
 2. Address P2 issues
-3. Re-run quality checks
+3. Re-run `/lint` and quality checks
 4. Request re-review if needed
-```
-
-## Example
-
-```
-$ /review --pr feat/user-auth
-
-Reviewing: feat/user-auth (12 files changed)
-
-Reading files and specialist agent perspectives...
-
-## Code Review
-
-**Overall Assessment:** Needs Work
-
-### Summary Table
-
-| Perspective | P1 | P2 | P3 | Status |
-|-------------|----|----|----|----|
-| Code Quality | 0 | 1 | 0 | Pass |
-| Security | 1 | 1 | 0 | Fail |
-| Performance | 0 | 0 | 1 | Pass |
-| Architecture | 0 | 0 | 0 | Pass |
-| Simplicity | 0 | 0 | 1 | Pass |
-| Data Integrity | 0 | 1 | 0 | Pass |
-| **Total** | **1** | **3** | **2** | |
-
-### P1 — Critical
-
-1. **[Security] Hardcoded secret** (`src/{project}/services/auth:45`)
-   JWT secret should be from environment
-
-### P2 — Important
-
-1. **[Code Quality] Missing type hints** in auth service
-2. **[Security] No audit logging** for login attempts
-3. **[Data Integrity] No rate limiting** on token refresh endpoint
-
-### P3 — Suggestions
-
-1. **[Performance] Consider caching** JWT validation results
-2. **[Simplicity] Token validation** could be extracted to middleware
-
----
-
-Run `/lint --fix` then address P1 issues before merge.
 ```

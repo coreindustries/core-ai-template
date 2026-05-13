@@ -32,7 +32,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
 ├── .claude/skills/            → 30 slash commands (invoke with /name)
-├── .claude/agents/            → 8 specialized agents (see _template.md for structure)
+├── .claude/agents/            → 10 specialized agents (see _template.md for structure)
 └── .claude/mcp.json           → MCP server configuration template
 ```
 
@@ -75,6 +75,19 @@ docs/
 ## Architectural Decisions
 
 Before proposing changes to project architecture, patterns, or dependencies, check `docs/decisions/` for existing ADRs. These document why current patterns exist and what must not change. Run `/adr` to capture new decisions.
+
+## Agent Routing
+
+**Default model:** `claude-sonnet-4-6` (set in `.claude/settings.json`). Opus is reserved for `planner` and `judge` only — do not override other agents upward to Opus.
+
+**Opus routing — use these two agents, nothing else:**
+- **`planner` agent** — invoke before implementing any task that touches more than two modules, involves schema changes, or has non-obvious sequencing. Produces a concrete step-by-step plan with file paths. Do NOT invoke for single-file changes.
+- **`judge` agent** — invoke after completing significant work (new feature, cross-cutting change, security-sensitive code) and before the final commit. Produces P1/P2/P3 findings with `file:line` citations. Skip for trivial one-line fixes.
+
+**Subagent cost discipline:**
+- For lookups (find X / grep Z / list files): use `Grep`/`Glob`/`Read` directly or the `codebase-researcher` agent (read-only). Do NOT use `general-purpose` for lookups.
+- For multi-file research where reasoning matters, use `Explore` (built-in) or pass `model: "sonnet"` to `Agent`.
+- **Project agents** (`.claude/agents/`) have their models pinned in frontmatter — do not override upward unless using `planner` or `judge`.
 
 ## PR / Issue Labels
 
