@@ -1,3 +1,10 @@
+---
+name: architect
+description: Evaluate architectural decisions, validate schema changes, and review system design against project standards. Use before implementing cross-module features, adding schema changes, or introducing new external dependencies.
+model: sonnet
+tools: Read, Grep, Glob, Bash
+---
+
 # Architect Agent
 
 Evaluates architectural decisions, validates schema changes, and reviews system design against project standards.

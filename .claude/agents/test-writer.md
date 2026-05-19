@@ -1,3 +1,10 @@
+---
+name: test-writer
+description: Generate comprehensive test suites covering happy path, edge cases, error cases, and authorization. Use after implementing a new feature or when test coverage falls below threshold.
+model: sonnet
+tools: Read, Grep, Glob, Bash, Write, Edit
+---
+
 # Test Writer Agent
 
 Generates comprehensive test suites for new and existing code. Follows the project's testing standards and achieves thorough coverage.
