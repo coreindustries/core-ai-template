@@ -13,14 +13,13 @@ name: PR Labeler
 # breaking) and priority labels manually — those describe intent, not
 # file paths.
 
+# pull_request_target is required so the action can write labels to PRs from
+# forks (fork PRs lack write access under the pull_request event). Safe here
+# because: (1) actions/labeler reads labeler.yml from the BASE branch only —
+# a fork PR cannot inject a malicious config; (2) no user-controlled input
+# is interpolated into shell commands; (3) no PR-head code is checked out or
+# executed; (4) permissions are narrowed to pull-requests:write, contents:read.
 # zizmor: ignore[dangerous-triggers]
-# pull_request_target is required here so the action can write labels to PRs
-# from forks (which lack write access under the pull_request event). This is
-# safe because: (1) actions/labeler reads .github/labeler.yml from the BASE
-# branch, not the PR head — a fork PR cannot inject a malicious config;
-# (2) no user-controlled input is interpolated into shell commands; (3) no
-# code from the PR head is checked out or executed; (4) permissions are
-# narrowed to pull-requests: write, contents: read only.
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
