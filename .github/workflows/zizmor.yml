@@ -1,0 +1,35 @@
+name: Zizmor
+
+# Static analysis gate for GitHub Actions workflow files.
+# Runs on every PR that touches .github/workflows/** and blocks merge
+# on any finding at --min-severity low.
+#
+# This is the regression gate for ADR-0005 (CI/CD supply chain hardening).
+# Do not disable or raise the severity threshold without updating the ADR.
+#
+# Security notes:
+# - No user-controlled input is interpolated into shell commands.
+# - Third-party action is pinned to a commit SHA.
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/**
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: Zizmor workflow analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install Zizmor
+        run: pip install zizmor==1.6.0
+
+      - name: Run Zizmor
+        run: zizmor --min-severity low --persona regular .github/workflows/

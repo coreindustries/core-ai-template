@@ -13,7 +13,13 @@ name: PR Labeler
 # breaking) and priority labels manually — those describe intent, not
 # file paths.
 
-on:
+# pull_request_target is required so the action can write labels to PRs from
+# forks (fork PRs lack write access under the pull_request event). Safe here
+# because: (1) actions/labeler reads labeler.yml from the BASE branch only —
+# a fork PR cannot inject a malicious config; (2) no user-controlled input
+# is interpolated into shell commands; (3) no PR-head code is checked out or
+# executed; (4) permissions are narrowed to pull-requests:write, contents:read.
+on: # zizmor: ignore[dangerous-triggers]
   pull_request_target:
     types: [opened, synchronize, reopened]
 
