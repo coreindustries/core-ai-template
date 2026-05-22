@@ -196,3 +196,16 @@
 - name: wontfix
   color: "FFFFFF"
   description: Will not be addressed
+
+# ---------- Auto-merge tiers ----------
+- name: auto-merge-tier-0
+  color: "0e8a16"
+  description: "Auto-merge immediately when CI passes (chore/docs/style)"
+
+- name: auto-merge-tier-1
+  color: "fbca04"
+  description: "Auto-merge after 30-minute review window (fix)"
+
+- name: needs-review
+  color: "e4e669"
+  description: "Requires human review before merge"

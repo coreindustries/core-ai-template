@@ -33,6 +33,7 @@ with two AI-agent-specific additions: every ADR includes an
 | [0003](0003-supabase-migrations.md) | Database Migrations via Supabase CLI (Default) | Accepted | 2026-04-21 |
 | [0004](0004-unified-review-skill-claude-and-cursor.md) | Unified `/review` skill for Claude Code and Cursor | Accepted | 2026-05-13 |
 | [0005](0005-ci-cd-supply-chain-hardening.md) | CI/CD Supply Chain Hardening (SHA-pinned actions, credential scope, Zizmor) | Accepted | 2026-05-21 |
+| [0006](0006-autonomous-dev-workflow.md) | Autonomous Dev Workflow (self-healing CI, tier-based auto-merge, CTO agent) | Accepted | 2026-05-22 |
 
 ## Template
 

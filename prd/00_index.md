@@ -19,7 +19,7 @@
 
 ## Active Features (In Progress)
 
-- None currently (this is a template)
+- PRD-05: Autonomous Dev Workflow — stop babysitting agents (`worktree-feat+prd-05-autonomous-dev-workflow`)
 
 ## Completed Features
 

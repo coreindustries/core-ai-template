@@ -1,0 +1,143 @@
+name: Auto-Fix CI Failures
+# Triggered when the main CI workflow completes with a failure.
+# For lint and type errors: runs Claude Code to fix and re-push.
+# For all other failure classes: notifies Core via Slack.
+#
+# Security: only runs on same-repo branches (not fork PRs).
+# The auto-fix agent commits with write access; review agent
+# output in commit history if unexpected changes appear.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+
+jobs:
+  classify-and-fix:
+    name: Classify failure and auto-fix if possible
+    runs-on: ubuntu-latest
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      (
+        startsWith(github.event.workflow_run.head_branch, 'feat/') ||
+        startsWith(github.event.workflow_run.head_branch, 'fix/')  ||
+        startsWith(github.event.workflow_run.head_branch, 'bug/')
+      )
+
+    env:
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      RUN_URL: ${{ github.event.workflow_run.html_url }}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git identity
+        run: |
+          git config user.name "CI Auto-Fix Bot"
+          git config user.email "ci-bot@users.noreply.github.com"
+
+      - name: Classify CI failure
+        id: classify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          class=$(./scripts/classify-ci-failure.sh "$RUN_ID")
+          echo "failure_class=${class}" >> "$GITHUB_OUTPUT"
+          echo "Failure class: ${class}"
+
+      - name: Set up uv
+        if: >-
+          steps.classify.outputs.failure_class == 'lint' ||
+          steps.classify.outputs.failure_class == 'types'
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        if: >-
+          steps.classify.outputs.failure_class == 'lint' ||
+          steps.classify.outputs.failure_class == 'types'
+        run: uv python install 3.13
+
+      - name: Install project dependencies
+        if: >-
+          steps.classify.outputs.failure_class == 'lint' ||
+          steps.classify.outputs.failure_class == 'types'
+        run: uv sync --frozen --extra dev
+
+      - name: Install Claude Code CLI
+        if: >-
+          steps.classify.outputs.failure_class == 'lint' ||
+          steps.classify.outputs.failure_class == 'types'
+        # Pin version when stable release is available; track at github.com/anthropics/claude-code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run auto-fix agent
+        id: autofix
+        if: >-
+          steps.classify.outputs.failure_class == 'lint' ||
+          steps.classify.outputs.failure_class == 'types'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FAILURE_CLASS: ${{ steps.classify.outputs.failure_class }}
+        run: |
+          claude --dangerously-skip-permissions "$(cat <<'PROMPT'
+          CI failed with $FAILURE_CLASS errors.
+          Fix all lint, format, and type errors in src/ and tests/. Do NOT change logic or behavior.
+          For lint errors: run 'uv run ruff check --fix src/ tests/ && uv run ruff format src/ tests/'
+          For type errors: run 'uv run mypy src/' and fix the reported issues.
+          After fixing, verify quality passes: run 'uv run ruff check src/ tests/' and 'uv run mypy src/'
+          Commit all changes with exactly this message: "🔧 chore: auto-fix ci [$FAILURE_CLASS]"
+          Do not push — the workflow handles that.
+          PROMPT
+          )"
+
+      - name: Push auto-fix commit
+        if: >-
+          steps.classify.outputs.failure_class == 'lint' ||
+          steps.classify.outputs.failure_class == 'types'
+        run: |
+          git push origin "HEAD:$HEAD_BRANCH"
+
+      - name: Notify — auto-fix applied
+        if: >-
+          (steps.classify.outputs.failure_class == 'lint' ||
+          steps.classify.outputs.failure_class == 'types') &&
+          steps.autofix.outcome == 'success'
+        env:
+          SLACK_WEBHOOK_CTO: ${{ secrets.SLACK_WEBHOOK_CTO }}
+          FAILURE_CLASS: ${{ steps.classify.outputs.failure_class }}
+        run: |
+          node tools/comms/send-hook.js \
+            --to cto --from cos \
+            --message "✅ Auto-fix applied [$FAILURE_CLASS] on $HEAD_BRANCH — CI re-triggered. Run: $RUN_URL"
+
+      - name: Notify — human review needed
+        if: >-
+          steps.classify.outputs.failure_class != 'lint' &&
+          steps.classify.outputs.failure_class != 'types'
+        env:
+          SLACK_WEBHOOK_CTO: ${{ secrets.SLACK_WEBHOOK_CTO }}
+          FAILURE_CLASS: ${{ steps.classify.outputs.failure_class }}
+        run: |
+          node tools/comms/send-hook.js \
+            --to cto --from cos \
+            --message "$(printf '🔴 [FAILURE CLASS: %s] — %s/%s\nClass: %s | Auto-fix attempted: no | Result: not attempted\nNext: needs Core review\nLog: %s' \
+              "$FAILURE_CLASS" \
+              "$GITHUB_REPOSITORY" \
+              "$HEAD_BRANCH" \
+              "$FAILURE_CLASS" \
+              "$RUN_URL")"

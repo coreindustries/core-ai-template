@@ -1,0 +1,97 @@
+name: Auto-Merge Policy
+# Classifies PRs by commit type prefix and enables GitHub native
+# auto-merge for Tier 0 (chore/docs/style) and Tier 1 (fix) PRs
+# once all required status checks pass.
+#
+# Tier 0 — Auto-merge immediately when CI passes
+# Tier 1 — Auto-merge after 30-minute review window
+# Tier 2 — Requires Core review (feat or unknown prefix)
+# Tier 3 — Hold (PRs with auth/billing/db/infra area labels)
+#
+# Prerequisites: "Allow auto-merge" must be enabled in repo Settings → General.
+# Branch protection must require status checks to pass before merge.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  tier-check:
+    name: Classify PR tier and configure merge
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Classify PR tier
+        id: tier
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          TITLE="$PR_TITLE"
+          LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
+
+          # Tier 3: protected areas set by labeler.yml
+          if echo "$LABELS" | grep -qE '"area/(auth|billing|database|infra)"'; then
+            echo "tier=3" >> "$GITHUB_OUTPUT"
+
+          # Tier 0: chore, docs, style (with or without gitmoji prefix)
+          elif echo "$TITLE" | grep -qiE '^(🔧 chore|📝 docs|🎨 style|chore|docs|style):'; then
+            echo "tier=0" >> "$GITHUB_OUTPUT"
+
+          # Tier 1: fix (with or without gitmoji prefix)
+          elif echo "$TITLE" | grep -qiE '^(🐛 fix|fix):'; then
+            echo "tier=1" >> "$GITHUB_OUTPUT"
+
+          # Tier 2: feat or anything else
+          else
+            echo "tier=2" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply tier label
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          TIER: ${{ steps.tier.outputs.tier }}
+        run: |
+          case "$TIER" in
+            0) LABEL="auto-merge-tier-0" ;;
+            1) LABEL="auto-merge-tier-1" ;;
+            *) LABEL="needs-review" ;;
+          esac
+          gh pr edit "$PR_NUMBER" --add-label "$LABEL" || true
+
+      - name: Enable auto-merge — Tier 0 (immediate)
+        if: steps.tier.outputs.tier == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
+
+      - name: Enable auto-merge — Tier 1 (30-minute window)
+        if: steps.tier.outputs.tier == '1'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          # NOTE: sleep holds a runner for 30 minutes. Replace with a
+          # dedicated delay action before using in high-volume repos.
+          echo "Waiting 30-minute review window before enabling auto-merge..."
+          sleep 1800
+          gh pr merge "$PR_NUMBER" --auto --squash
+
+      - name: Notify Slack — auto-merge enabled
+        if: steps.tier.outputs.tier == '0' || steps.tier.outputs.tier == '1'
+        env:
+          SLACK_WEBHOOK_CTO: ${{ secrets.SLACK_WEBHOOK_CTO }}
+          TIER: ${{ steps.tier.outputs.tier }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          SUFFIX=""
+          [ "$TIER" = "1" ] && SUFFIX=" (30min review window)"
+          node tools/comms/send-hook.js \
+            --to cto --from cos \
+            --message "🤖 Auto-merge enabled${SUFFIX} — PR #${PR_NUMBER}: ${PR_TITLE} (Tier ${TIER})"

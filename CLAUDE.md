@@ -130,3 +130,13 @@ When resuming after context compression, use `/resume` or follow manually:
 ## Template Setup
 
 See README.md "Getting Started" for the full 7-step setup. Key steps: fill in `prd/00_technology.md`, replace `{placeholder}` values, enable platform rules (`make enable-*`), run `make setup`.
+
+## Current State
+<!-- MACHINE UPDATED — do not edit manually -->
+<!-- Last updated by: claude on 2026-05-22 -->
+
+**Active feature:** none — PRD-05 implementation complete
+**Last action:** implemented all 5 phases of PRD-05 autonomous dev workflow
+**Blockers:** none
+**Next action:** review and merge PR for PRD-05
+**Worktree:** worktree-feat+prd-05-autonomous-dev-workflow
