@@ -52,6 +52,18 @@ This template establishes a foundation for projects where AI agents are primary 
 - `docs/coordination/README.md` - Lifecycle, frontmatter schema, when to open one
 - `docs/coordination/_template.md` - Blank template with `direction: incoming|outgoing`
 
+### Autonomous Dev Workflow
+
+Reduces human-in-the-loop overhead by automating the three most common interruptions: CI failures that agents can fix, safe PRs that don't need manual merging, and post-deploy health checks that require a human to run.
+
+- **`/handoff` skill** — writes structured session context to `CONTEXT.md`, the feature task file, and `CLAUDE.md → ## Current State` at session end. Gives the next agent a single-file starting point instead of re-reading git log.
+- **`auto-fix.yml`** — `workflow_run`-triggered CI self-healing. Classifies failures (`lint | types | test | flaky | build`); fixes lint and type errors autonomously via Claude Code, routes the rest to the CTO agent.
+- **`auto-merge.yml`** — tier-based merge policy: `chore/docs/style` PRs merge immediately after CI; `fix` PRs after a 30-minute window; `feat` and sensitive scopes require human review.
+- **`post-deploy-health.sh`** — hits configurable health endpoints after deploy (3 retries, 5s backoff) and posts a green/red Slack summary.
+- **`cto.md` agent** — receives classified CI/CD failure alerts and routes them: analyze test failures, investigate flakiness, escalate unknowns to emergency channel.
+
+See `REPO_SETUP.md` for one-time GitHub configuration (auto-merge setting, branch protection, secrets).
+
 ### Adopt Into Any Existing Repo
 - `docs/adopt-best-practices.md` - **Self-contained** markdown file you can hand to any Claude Code (or compatible) agent in another repo to land this template's tooling discipline (secret scanning, Conventional Commits, PR template, ADR/PRD/coordination workflows) in a single PR
 - See "Adopting Into An Existing Repo" below for usage
@@ -86,6 +98,7 @@ This template establishes a foundation for projects where AI agents are primary 
 | `/pr` | Create pull requests with descriptions |
 | `/hotfix` | Quick patch for production issues |
 | `/checkpoint` | Save progress to task file |
+| `/handoff` | Write structured session handoff for context recovery |
 | `/compact` | Create token-efficient state snapshot |
 
 **Project & Infrastructure**
@@ -518,6 +531,7 @@ core-ai-template/
 ├── README.md                    # This file - project overview
 ├── CLAUDE.md                    # AI agent project guidance
 ├── CONTRIBUTING.md              # Contributor guide and workflow
+├── REPO_SETUP.md                # GitHub repo configuration for autonomous workflow
 ├── Makefile                     # One-command setup, dev, test, quality
 ├── .editorconfig                # Cross-IDE formatting consistency
 ├── .env.example                 # Environment variable template
@@ -529,6 +543,8 @@ core-ai-template/
 │   ├── dependabot.yml           # Automated dependency updates
 │   └── workflows/
 │       ├── ci.yml.example       # CI/CD pipeline template
+│       ├── auto-fix.yml         # Self-healing CI (lint/type failures)
+│       ├── auto-merge.yml       # Tier-based PR auto-merge policy
 │       └── README.md            # CI/CD setup instructions
 ├── .gitleaks.toml               # Secret & PII scanning config (gitleaks)
 ├── .husky/
@@ -542,7 +558,12 @@ core-ai-template/
 │   ├── devcontainer.json        # Dev container config (Codespaces)
 │   └── docker-compose.yml       # Dev container services
 ├── scripts/
-│   └── scan-secrets.sh          # Secret & PII scanner wrapper (gitleaks)
+│   ├── scan-secrets.sh          # Secret & PII scanner wrapper (gitleaks)
+│   ├── classify-ci-failure.sh   # CI failure classifier (lint/types/test/flaky/build)
+│   └── post-deploy-health.sh    # Post-deploy health check with Slack notification
+├── tools/
+│   └── comms/
+│       └── send-hook.js         # Zero-dependency Slack webhook router (Node.js built-ins)
 ├── prd/
 │   ├── 00_index.md              # Feature tracking index
 │   ├── 00_technology.md         # Tech stack template (customize)
@@ -583,7 +604,7 @@ core-ai-template/
     │   ├── rules-guide.md       # How the rules system works
     │   ├── security-checklist.md # Security review checklist
     │   └── solid-checklist.md   # SOLID principles checklist
-    ├── agents/                  # Specialized agents (8 + template)
+    ├── agents/                  # Specialized agents (9 + template)
     │   ├── _template.md         # Standard 5-block agent structure
     │   ├── codex-style-agent.md # Autonomous code generation
     │   ├── architect.md         # Architecture & design review
@@ -592,8 +613,9 @@ core-ai-template/
     │   ├── security-reviewer.md # Security review (STRIDE)
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
-    │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (30 skills, each <name>/SKILL.md)
+    │   ├── codebase-researcher.md # Deep codebase analysis
+    │   └── cto.md               # CI/CD failure triage and escalation routing
+    └── skills/                  # Slash commands (31 skills, each <name>/SKILL.md)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle
@@ -623,7 +645,8 @@ core-ai-template/
         ├── code-review-expert/   # Senior engineer code review
         ├── compound/            # Knowledge capture from solved problems
         ├── brainstorm/          # Requirements exploration
-        └── context/             # Context budget audit and optimization
+        ├── context/             # Context budget audit and optimization
+        └── handoff/             # Session-end handoff for context recovery
 ```
 
 ## Git Commit Template
