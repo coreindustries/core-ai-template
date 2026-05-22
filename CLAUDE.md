@@ -135,8 +135,8 @@ See README.md "Getting Started" for the full 7-step setup. Key steps: fill in `p
 <!-- MACHINE UPDATED — do not edit manually -->
 <!-- Last updated by: claude on 2026-05-22 -->
 
-**Active feature:** PRD-05 autonomous dev workflow
-**Last action:** added /handoff skill, PRD file, and task tracking
+**Active feature:** none — PRD-05 implementation complete
+**Last action:** implemented all 5 phases of PRD-05 autonomous dev workflow
 **Blockers:** none
-**Next action:** implement auto-fix CI workflow (Phase 2)
+**Next action:** review and merge PR for PRD-05
 **Worktree:** worktree-feat+prd-05-autonomous-dev-workflow
