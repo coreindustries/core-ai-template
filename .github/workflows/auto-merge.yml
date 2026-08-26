@@ -29,9 +29,9 @@ jobs:
         id: tier
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           TITLE="$PR_TITLE"
-          LABELS='${{ toJSON(github.event.pull_request.labels.*.name) }}'
 
           # Tier 3: protected areas set by labeler.yml
           if echo "$LABELS" | grep -qE '"area/(auth|billing|database|infra)"'; then

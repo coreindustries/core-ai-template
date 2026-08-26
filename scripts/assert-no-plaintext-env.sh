@@ -42,14 +42,20 @@ while IFS= read -r file; do
   base=$(basename "$file")
   case "$base" in
     .env.tpl|.env.example|.env.sample|.env.template)
-      # Template files are allowed — but verify they don't contain real values
-      # (heuristic: lines with = followed by something that looks like a live
-      # secret and isn't a reference / placeholder).
-      if [[ -f "$file" ]] && grep -Eq '^[A-Z_][A-Z0-9_]*=[^#]*[A-Za-z0-9_/+=-]{32,}' "$file" 2>/dev/null; then
-        # Allow-list: reference patterns and obvious placeholders
-        if ! grep -Eq '^[A-Z_][A-Z0-9_]*=(op://|arn:aws:|sops://|vault:|\$\{|\{\{|.*placeholder|.*example|.*changeme|.*your[-_])' "$file"; then
-          OFFENDERS+=("$file (template contains what looks like a real value)")
-        fi
+      # Template files are allowed — but verify they don't contain real values.
+      # Check is per-line: each line with a ≥32-char value must individually
+      # match an allowlist reference/placeholder pattern. A file with one
+      # reference line plus one real secret must be caught.
+      if [[ -f "$file" ]]; then
+        while IFS= read -r line; do
+          [[ -z "$line" || "$line" == \#* ]] && continue
+          if echo "$line" | grep -Eq '^[A-Z_][A-Z0-9_]*=[^#]*[A-Za-z0-9_/+=-]{32,}' 2>/dev/null; then
+            if ! echo "$line" | grep -Eq '^[A-Z_][A-Z0-9_]*=(op://|arn:aws:|sops://|vault:|\$\{|\{\{|.*placeholder|.*example|.*changeme|.*your[-_])' 2>/dev/null; then
+              OFFENDERS+=("$file (template contains what looks like a real value)")
+              break
+            fi
+          fi
+        done < "$file"
       fi
       ;;
     *)
