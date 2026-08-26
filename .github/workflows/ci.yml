@@ -26,7 +26,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check project initialized
+        id: init
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No pyproject.toml found — template not yet initialized. Skipping CI steps."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up uv
+        if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           version: "latest"
@@ -34,15 +45,19 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
+        if: steps.init.outputs.ready == 'true'
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
+        if: steps.init.outputs.ready == 'true'
         run: uv sync --frozen --extra dev
 
       - name: Run Ruff linter
+        if: steps.init.outputs.ready == 'true'
         run: uv run ruff check src/ tests/
 
       - name: Run Ruff formatter check
+        if: steps.init.outputs.ready == 'true'
         run: uv run ruff format --check src/ tests/
 
   # ===========================================================================
@@ -57,7 +72,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check project initialized
+        id: init
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No pyproject.toml found — template not yet initialized. Skipping CI steps."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up uv
+        if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           version: "latest"
@@ -65,15 +91,19 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
+        if: steps.init.outputs.ready == 'true'
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
+        if: steps.init.outputs.ready == 'true'
         run: uv sync --frozen --extra dev
 
       - name: Generate Prisma client
+        if: steps.init.outputs.ready == 'true'
         run: uv run prisma generate
 
       - name: Run mypy
+        if: steps.init.outputs.ready == 'true'
         run: uv run mypy src/
 
   # ===========================================================================
@@ -117,7 +147,18 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Check project initialized
+        id: init
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No pyproject.toml found — template not yet initialized. Skipping CI steps."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up uv
+        if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           version: "latest"
@@ -125,18 +166,23 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
+        if: steps.init.outputs.ready == 'true'
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
+        if: steps.init.outputs.ready == 'true'
         run: uv sync --frozen --extra dev
 
       - name: Generate Prisma client
+        if: steps.init.outputs.ready == 'true'
         run: uv run prisma generate
 
       - name: Setup database schema
+        if: steps.init.outputs.ready == 'true'
         run: uv run prisma db push --skip-generate --accept-data-loss
 
       - name: Run tests with coverage
+        if: steps.init.outputs.ready == 'true'
         run: |
           uv run pytest tests/ \
             --cov=src \
@@ -145,6 +191,7 @@ jobs:
             --cov-fail-under=66
 
       - name: Upload coverage to Codecov
+        if: steps.init.outputs.ready == 'true'
         uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354 # v6
         with:
           files: ./coverage.xml
@@ -164,7 +211,18 @@ jobs:
           fetch-depth: 0  # Full history for secret scanning
           persist-credentials: false
 
+      - name: Check project initialized
+        id: init
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No pyproject.toml found — template not yet initialized. Skipping Python security steps."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Set up uv
+        if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           version: "latest"
@@ -172,15 +230,19 @@ jobs:
           cache-dependency-glob: "uv.lock"
 
       - name: Set up Python
+        if: steps.init.outputs.ready == 'true'
         run: uv python install ${{ env.PYTHON_VERSION }}
 
       - name: Install dependencies
+        if: steps.init.outputs.ready == 'true'
         run: uv sync --frozen --extra dev
 
       - name: Run Bandit security check
+        if: steps.init.outputs.ready == 'true'
         run: uv run bandit -r src/ -c pyproject.toml
 
       - name: Run pip-audit
+        if: steps.init.outputs.ready == 'true'
         run: uv run pip-audit
         continue-on-error: true  # Don't fail on vulnerabilities, just report
 
