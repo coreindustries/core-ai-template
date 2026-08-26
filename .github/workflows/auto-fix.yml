@@ -82,8 +82,7 @@ jobs:
         if: >-
           steps.classify.outputs.failure_class == 'lint' ||
           steps.classify.outputs.failure_class == 'types'
-        # Pin version when stable release is available; track at github.com/anthropics/claude-code
-        run: npm install -g @anthropic-ai/claude-code
+        run: npm install -g @anthropic-ai/claude-code@2.1.246
 
       - name: Run auto-fix agent
         id: autofix
