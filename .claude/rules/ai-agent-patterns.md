@@ -1,6 +1,29 @@
 # AI Agent Development Patterns
 
-**Scope:** AI agent development principles (autonomy, persistence, exploration)
+**Scope:** AI agent development principles (autonomy, persistence, exploration, Claude API defaults)
+
+## Claude API Defaults
+
+When writing code that calls the Claude API, apply these defaults unconditionally.
+
+**Model**: `claude-sonnet-5` (default workhorse); `claude-opus-5` for planner/judge only.
+
+**Thinking**: `thinking: { type: "adaptive" }` for any non-trivial request. Do NOT use `budget_tokens` — rejected with 400 on Sonnet 5 / Opus 5.
+
+**Streaming**: use `.stream()` for any request that may produce long output or hit high `max_tokens`. Call `.get_final_message()` / `.finalMessage()` if you only need the complete result.
+
+**Prompt caching**: always add `cache_control: { type: "ephemeral" }` to the system prompt block. Cache the last tool definition if the tools array is large. See `.claude/references/prompt-caching.md` for multi-turn patterns and anti-patterns.
+
+```typescript
+// Minimum correct API call
+const response = await client.messages.create({
+  model: "claude-sonnet-5",
+  max_tokens: 8096,
+  thinking: { type: "adaptive" },
+  system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+  messages,
+});
+```
 
 ## Autonomy and Persistence
 
