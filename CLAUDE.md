@@ -78,13 +78,17 @@ Before proposing changes to project architecture, patterns, or dependencies, che
 
 ## Agent Routing
 
-**Default model:** `sonnet` (set in `.claude/settings.json`). Opus is reserved for `planner` and `judge` only — do not override other agents upward to Opus.
+**Default model:** `sonnet` (set in `.claude/settings.json`). Opus is reserved for the three-stage design chain below — do not override any other agent upward to Opus.
 
 **Model pins use short-form aliases** (`opus` / `sonnet` / `haiku` / `inherit`), never dated IDs like `claude-sonnet-5`. An alias tracks the current generation, so a model upgrade needs no edit and no agent silently pins to a retired version. Dated IDs belong only in application code and API examples, where the alias is not a valid model identifier. The pins live in `.claude/agent-models.json` and are written into agent frontmatter by `node scripts/sync-agent-models.mjs`; edit the config, not the frontmatter. CI enforces that they match.
 
-**Opus routing — use these two agents, nothing else:**
-- **`planner` agent** — invoke before implementing any task that touches more than two modules, involves schema changes, or has non-obvious sequencing. Produces a concrete step-by-step plan with file paths. Do NOT invoke for single-file changes.
-- **`judge` agent** — invoke after completing significant work (new feature, cross-cutting change, security-sensitive code) and before the final commit. Produces P1/P2/P3 findings with `file:line` citations. Skip for trivial one-line fixes.
+**Opus routing — the design chain, and nothing else.** Three stages, each answering a different question. Run them in order; skip stages that don't apply, but never reorder them.
+
+- **`architect` agent — "what should exist?"** Invoke *before* planning a feature that adds a module, a dependency, or a schema change. Returns the smallest shape that fully delivers the requirement, naming the **reuse rung** it landed on: configuration → existing dependency's capability → composing existing first-party modules → new code. Landing on "new code" without a stated reason the three rungs above it failed is a finding against the proposal. Also names what the change lets us **delete** — a proposal that only adds is suspect. Do NOT invoke for a change whose shape is already agreed.
+- **`planner` agent — "in what order?"** Invoke after the shape is agreed, for any task touching more than two modules, involving schema changes, or with non-obvious sequencing. Produces ordered, file-level steps. Do NOT invoke for single-file changes, and do not use it to decide the shape — that is `architect`.
+- **`judge` agent — "what does it break?"** Invoke after completing significant work and before the final commit. Reviews the diff adversarially for new failure modes, not for whether it does what the author claims. Produces P1/P2/P3 findings with `file:line` citations. Skip for trivial one-line fixes.
+
+Each agent's file carries a "what you are not" section enforcing these boundaries. The cost rationale still holds — opus runs roughly 15-20x haiku and 3-5x sonnet per token — which is why these three are invoked deliberately at decision points, not routinely. `architect` earns opus because a wrong *shape* is more expensive than a wrong plan: it invalidates the plan, the implementation, and the review beneath it.
 
 **Subagent cost discipline:**
 - For lookups (find X / grep Z / list files): use `Grep`/`Glob`/`Read` directly or the `codebase-researcher` agent (read-only). Do NOT use `general-purpose` for lookups.

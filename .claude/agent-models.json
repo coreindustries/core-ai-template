@@ -13,8 +13,9 @@
     "Dated IDs (claude-opus-5, claude-sonnet-5) belong only in application code",
     "and API examples, where the alias is not a valid model identifier.",
     "",
-    "Opus is reserved for `planner` and `judge` — see CLAUDE.md Agent Routing.",
-    "Adding a third opus agent is a cost decision, not a formatting one.",
+    "Opus is reserved for the design chain — `architect`, `planner`, `judge`.",
+    "See CLAUDE.md Agent Routing. Adding a fourth is a cost decision, not a",
+    "formatting one: opus runs roughly 15-20x haiku and 3-5x sonnet per token.",
     "",
     "Agents not listed here take default.model.",
     "",
@@ -25,6 +26,7 @@
   "default": { "model": "sonnet" },
 
   "agents": {
+    "architect":           { "model": "opus" },
     "planner":             { "model": "opus" },
     "judge":               { "model": "opus" },
     "codebase-researcher": { "model": "haiku" },
