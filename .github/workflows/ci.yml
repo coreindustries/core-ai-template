@@ -245,6 +245,12 @@ jobs:
         if: steps.init.outputs.ready == 'true'
         run: uv run pip-audit --desc
 
+      - name: Enforce 24h dependency cooldown
+        run: bash scripts/assert-dependency-age.sh
+        env:
+          BASE_REF: origin/${{ github.base_ref || github.event.repository.default_branch }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run Gitleaks (secret and PII scanning)
         uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
