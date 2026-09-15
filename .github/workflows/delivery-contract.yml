@@ -1,0 +1,44 @@
+name: Delivery Contract
+
+# Requires evidence in the PR body when a PR touches a high-risk surface:
+# model/prompt behavior, infra and deploy, database writers, scheduled jobs,
+# cost-bearing APIs, or user-visible UI. Docs- and test-only PRs are exempt
+# automatically by path, and never see this check fail.
+#
+# Escape hatch: apply the `skip-delivery-contract` label.
+#
+# Security note: the PR body and title are attacker-controllable. They are
+# passed through `env:` and quoted, never interpolated into a shell command.
+#
+# See .claude/rules/delivery-contract.md
+
+on:
+  pull_request:
+    # `edited` so filling in the body re-runs the gate; `labeled`/`unlabeled`
+    # so the skip label takes effect without an empty push.
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Delivery contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: >-
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      !contains(github.event.pull_request.labels.*.name, 'skip-delivery-contract')
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0 # full history so the base-ref diff resolves
+          persist-credentials: false
+
+      - name: Check delivery contract
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: origin/${{ github.base_ref }}
+          MODE: enforce
+        run: printf '%s' "$PR_BODY" | bash scripts/pr-delivery-contract-check.sh

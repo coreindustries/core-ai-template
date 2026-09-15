@@ -1,0 +1,52 @@
+name: Dependency Audit
+
+# Vulnerability gate for dependencies, scoped to what the PR actually changed.
+#
+# This is deliberately narrower than the full audit in ci.yml's Security job:
+# it runs on every PR (initialized or not) but only inspects manifests the
+# branch touched, so a docs-only PR finishes in seconds while a lockfile bump
+# is still gated at --audit-level=critical.
+#
+# Manifest discovery happens at runtime via `find` inside
+# scripts/audit-dependencies.sh — there is no directory list here to go stale.
+#
+# Enforces .claude/rules/dependency-security.md Rule 3.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # npm's defaults (2 retries, 60s ceiling) turn ordinary registry blips into
+  # red builds; the script additionally retries transient transport errors.
+  npm_config_fetch_retries: "5"
+  npm_config_fetch_retry_mintimeout: "20000"
+  npm_config_fetch_retry_maxtimeout: "120000"
+
+jobs:
+  audit:
+    name: Audit changed dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          fetch-depth: 0 # full history so the base-ref diff resolves
+          persist-credentials: false
+
+      - name: Set up uv
+        if: hashFiles('pyproject.toml') != ''
+        uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.7.13"
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Audit changed dependency manifests
+        run: bash scripts/audit-dependencies.sh --changed-only
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+          AUDIT_LEVEL: critical

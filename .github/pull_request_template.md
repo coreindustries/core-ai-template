@@ -23,6 +23,36 @@
 - [ ]
 - [ ]
 
+## Risk Class
+
+<!--
+  REQUIRED if this PR touches: LLM/prompt/agent behavior, infra/CI/deploy,
+  database schema or writers, scheduled jobs, cost-bearing APIs, or user-visible
+  UI. Enforced by .github/workflows/delivery-contract.yml.
+
+  Name the surface and the blast radius if this change is wrong.
+  Not applicable? Delete these three sections and apply `skip-delivery-contract`.
+-->
+
+## Delivery Contract
+
+<!-- REQUIRED alongside Risk Class. See .claude/rules/delivery-contract.md -->
+
+- **Invariant:** <!-- what must remain true after this merges -->
+- **Runtime boundaries touched:** <!-- processes, queues, external calls, schedules -->
+- **All writers/callers checked:** <!-- how you know nothing depends on the old shape -->
+- **Silent fallback paths changed or ruled out:** <!-- where could this fail without raising -->
+- **Rollback/killswitch:** <!-- how to undo this in production -->
+
+## Real Proof
+
+<!--
+  Evidence from an ACTUAL run: pasted command output, a real request/response,
+  a screenshot from a real device, a log line showing the new path was taken.
+
+  "Tests pass" and "should work" are not proof.
+-->
+
 ## Additional Notes
 
 <!-- Any additional context, breaking changes, migration steps, or related issues -->

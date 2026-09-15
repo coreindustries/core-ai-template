@@ -186,7 +186,18 @@ deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-securit
 	    echo "Unpinned deps in pyproject.toml (use exact versions: ==x.y.z)" && exit 1; \
 	  fi ; \
 	fi
-	@echo "  ✓ deps pinned + aged"
+	@echo ""
+	@echo "Auditing for known vulnerabilities..."
+	@scripts/audit-dependencies.sh
+	@echo "  ✓ deps pinned + aged + audited"
+
+deps-vuln: ## Audit only the dependency manifests this branch changed
+	@scripts/audit-dependencies.sh --changed-only
+
+contract-check: ## Dry-run the delivery-contract gate against this PR's body
+	@gh pr view --json body -q .body 2>/dev/null \
+	  | MODE=warn scripts/pr-delivery-contract-check.sh \
+	  || echo "  (no open PR for this branch — nothing to check)"
 
 doctor:  ## Audit the project for secret-hygiene + dep compliance
 	@echo "Checking for plaintext .env files..."
