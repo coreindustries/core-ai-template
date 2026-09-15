@@ -4,7 +4,7 @@
 
 ## Autonomy and Persistence
 
-**REQUIRED:** AI agents MUST operate autonomously and persist until tasks are fully complete.
+AI agents MUST operate autonomously and persist until tasks are fully complete.
 
 **Autonomous Senior Engineer Mindset:**
 - Once given direction, proactively gather context, plan, implement, test, and refine
@@ -26,7 +26,7 @@
 
 ## Bias to Action
 
-**REQUIRED:** Agents MUST default to implementation over clarification.
+Agents MUST default to implementation over clarification.
 
 **When to Implement Immediately:**
 - Requirements are reasonably clear (even if some details missing)
@@ -54,7 +54,7 @@ User: "Add payment processing"
 
 ## Correctness Over Speed
 
-**REQUIRED:** Prioritize correctness, clarity, and reliability over implementation speed.
+Prioritize correctness, clarity, and reliability over implementation speed.
 
 **Quality Criteria:**
 - Cover the root cause or core ask, not just symptoms
@@ -70,7 +70,7 @@ User: "Add payment processing"
 
 ## Comprehensiveness and Completeness
 
-**REQUIRED:** Ensure changes are comprehensive across all relevant surfaces.
+Ensure changes are comprehensive across all relevant surfaces.
 
 **Example:**
 ```
@@ -91,7 +91,7 @@ Complete (✓):
 
 ## Behavior-Safe Defaults
 
-**REQUIRED:** Preserve intended behavior and UX.
+Preserve intended behavior and UX.
 
 - Don't change existing behavior without explicit request
 - Gate intentional behavior changes with feature flags or configuration
@@ -111,7 +111,7 @@ getUsers(includeDeleted = false, includeArchived = false)  // New parameter
 
 ### Think First, Batch Everything
 
-**REQUIRED:** Plan all file reads before executing, then batch them in parallel.
+Plan all file reads before executing, then batch them in parallel.
 
 **Pattern:**
 1. **Think**: Decide ALL files/resources needed
@@ -138,7 +138,7 @@ read_parallel([
 
 ### Maximize Parallelism
 
-**REQUIRED:** Always read files in parallel unless logically unavoidable.
+Always read files in parallel unless logically unavoidable.
 
 **Applies To:**
 - File reads
@@ -152,7 +152,7 @@ read_parallel([
 
 ### Efficient, Coherent Edits
 
-**REQUIRED:** Batch logical edits together, not repeated micro-edits.
+Batch logical edits together, not repeated micro-edits.
 
 - Read enough context before changing a file
 - Make all related changes in one pass

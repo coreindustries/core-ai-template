@@ -1,7 +1,7 @@
 ---
 name: planner
 description: Use before implementing multi-step features, architectural changes, cross-cutting refactors, or any task that touches more than two modules. Produces a concrete step-by-step plan with file paths, specific changes, and sequencing. Do NOT use for single-file changes or obvious fixes.
-model: claude-opus-4-7
+model: claude-opus-5
 tools: Read, Grep, Glob, Bash
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: simplicity-reviewer
 description: Review code for unnecessary complexity, over-engineering, and premature abstractions. Use during code review when a feature feels overly complex, after refactoring, or to counterbalance architectural over-engineering.
-model: sonnet
+model: claude-sonnet-5
 tools: Read, Grep, Glob, Bash
 ---
 

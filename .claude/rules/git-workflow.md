@@ -4,7 +4,7 @@
 
 ## Working with Dirty Worktrees
 
-**REQUIRED:** Preserve existing changes not made by you.
+Preserve existing changes not made by you.
 
 **Rules:**
 - **NEVER revert changes you didn't make** unless explicitly requested

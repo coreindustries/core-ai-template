@@ -40,7 +40,7 @@ jobs:
         if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
-          version: "latest"
+          version: "0.7.13"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -86,7 +86,7 @@ jobs:
         if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
-          version: "latest"
+          version: "0.7.13"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -161,7 +161,7 @@ jobs:
         if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
-          version: "latest"
+          version: "0.7.13"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 
@@ -225,7 +225,7 @@ jobs:
         if: steps.init.outputs.ready == 'true'
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
-          version: "latest"
+          version: "0.7.13"
           enable-cache: true
           cache-dependency-glob: "uv.lock"
 

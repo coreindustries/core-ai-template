@@ -4,7 +4,7 @@
 
 ## Frequent Check Pattern
 
-**REQUIRED:** Run quality checks every 15-30 minutes during active development.
+Run quality checks every 15-30 minutes during active development.
 
 **Benefits:**
 - Prevents error accumulation (50% less debugging time)
@@ -27,7 +27,7 @@
 
 ## Pre-Commit Requirements
 
-**REQUIRED:** All code MUST pass linting before commits.
+All code MUST pass linting before commits.
 
 **Typical tools (see `prd/00_technology.md` for specifics):**
 - Linting tool
@@ -38,7 +38,7 @@
 
 ## Before Every Commit
 
-**REQUIRED:** Run the full quality check suite:
+Run the full quality check suite:
 
 ```bash
 # 1. Lint and format

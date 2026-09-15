@@ -1,7 +1,7 @@
 ---
 name: test-writer
 description: Generate comprehensive test suites covering happy path, edge cases, error cases, and authorization. Use after implementing a new feature or when test coverage falls below threshold.
-model: sonnet
+model: claude-sonnet-5
 tools: Read, Grep, Glob, Bash, Write, Edit
 ---
 

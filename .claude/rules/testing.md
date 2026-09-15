@@ -4,7 +4,7 @@
 
 ## Unit Test Coverage
 
-**REQUIRED:** Minimum test coverage as defined in `prd/00_technology.md` (typically 66-100%).
+Minimum test coverage as defined in `prd/00_technology.md` (typically 66-100%).
 
 - All new code MUST have corresponding unit tests
 - Use project's designated test framework
@@ -15,7 +15,7 @@
 
 ## Integration Testing
 
-**REQUIRED:** Integration tests for all database and external service interactions.
+Integration tests for all database and external service interactions.
 
 - Test database operations against real (test) database
 - Test API endpoints with test client

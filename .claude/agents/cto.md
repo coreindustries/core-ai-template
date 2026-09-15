@@ -1,7 +1,7 @@
 ---
 name: cto
 description: CTO C-suite agent. First receiver of all classified CI/CD failures. Triages, routes, and handles failures resolvable without Core's attention. Escalates only when unresolvable or requiring architectural judgment. Invoke when a CI/CD failure message needs routing.
-model: sonnet
+model: claude-sonnet-5
 tools: Read, Grep, Glob, Bash
 ---
 

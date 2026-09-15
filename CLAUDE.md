@@ -78,7 +78,7 @@ Before proposing changes to project architecture, patterns, or dependencies, che
 
 ## Agent Routing
 
-**Default model:** `claude-sonnet-4-6` (set in `.claude/settings.json`). Opus is reserved for `planner` and `judge` only — do not override other agents upward to Opus.
+**Default model:** `claude-sonnet-5` (set in `.claude/settings.json`). Opus is reserved for `planner` and `judge` only — do not override other agents upward to Opus.
 
 **Opus routing — use these two agents, nothing else:**
 - **`planner` agent** — invoke before implementing any task that touches more than two modules, involves schema changes, or has non-obvious sequencing. Produces a concrete step-by-step plan with file paths. Do NOT invoke for single-file changes.
