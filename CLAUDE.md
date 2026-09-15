@@ -78,7 +78,9 @@ Before proposing changes to project architecture, patterns, or dependencies, che
 
 ## Agent Routing
 
-**Default model:** `claude-sonnet-5` (set in `.claude/settings.json`). Opus is reserved for `planner` and `judge` only — do not override other agents upward to Opus.
+**Default model:** `sonnet` (set in `.claude/settings.json`). Opus is reserved for `planner` and `judge` only — do not override other agents upward to Opus.
+
+**Model pins use short-form aliases** (`opus` / `sonnet` / `haiku` / `inherit`), never dated IDs like `claude-sonnet-5`. An alias tracks the current generation, so a model upgrade needs no edit and no agent silently pins to a retired version. Dated IDs belong only in application code and API examples, where the alias is not a valid model identifier. The pins live in `.claude/agent-models.json` and are written into agent frontmatter by `node scripts/sync-agent-models.mjs`; edit the config, not the frontmatter. CI enforces that they match.
 
 **Opus routing — use these two agents, nothing else:**
 - **`planner` agent** — invoke before implementing any task that touches more than two modules, involves schema changes, or has non-obvious sequencing. Produces a concrete step-by-step plan with file paths. Do NOT invoke for single-file changes.

@@ -1,7 +1,7 @@
 ---
 name: perf-auditor
 description: Scan for performance bottlenecks including N+1 queries, missing indexes, unbounded result sets, and memory leaks. Read-only scan. Use before deploying features with database access or list endpoints.
-model: claude-haiku-4-5
+model: haiku
 tools: Read, Grep, Glob, Bash
 ---
 

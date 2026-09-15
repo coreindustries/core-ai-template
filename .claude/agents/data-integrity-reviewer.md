@@ -1,7 +1,7 @@
 ---
 name: data-integrity-reviewer
 description: Review code for data consistency bugs, validation gaps, and migration safety. Use when implementing schema changes, write endpoints, state machines, or external data integrations.
-model: claude-sonnet-5
+model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 
