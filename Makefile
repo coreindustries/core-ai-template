@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules
+.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts
 
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
@@ -304,6 +304,7 @@ enable-rules: ## Symlink platform-specific rules (interactive)
 	@echo "  make enable-mobile    # React Native mobile app"
 	@echo "  make enable-docker    # Dockerized / containerized project"
 	@echo "  make enable-python    # Python (uv, ruff, FastAPI)"
+	@echo "  make enable-ts        # TypeScript (strict tsconfig, ESLint, tsc)"
 	@echo "  make enable-ios       # Native iOS (Swift / SwiftUI)"
 	@echo "  make enable-android   # Native Android (Kotlin / Compose)"
 
@@ -342,3 +343,8 @@ enable-android: ## Enable rules for native Android (Kotlin/Compose) projects
 	@ln -sf ../rules-available/android.md .claude/rules/android.md
 	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 	@echo "Enabled: android, security-owasp"
+
+enable-ts: ## Enable rules for TypeScript projects (strict tsconfig, ESLint, tsc)
+	@ln -sf ../rules-available/typescript.md .claude/rules/typescript.md
+	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+	@echo "Enabled: typescript, security-owasp"

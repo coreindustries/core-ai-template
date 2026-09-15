@@ -243,8 +243,7 @@ jobs:
 
       - name: Run pip-audit
         if: steps.init.outputs.ready == 'true'
-        run: uv run pip-audit
-        continue-on-error: true  # Don't fail on vulnerabilities, just report
+        run: uv run pip-audit --desc
 
       - name: Run Gitleaks (secret and PII scanning)
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2

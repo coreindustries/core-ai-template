@@ -1,0 +1,30 @@
+# CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Each line: <pattern> <owner> [<owner> ...]
+# Last matching pattern wins. Patterns follow .gitignore syntax.
+#
+# Replace @coreindustries/core-team with your actual GitHub team(s).
+
+# Default: every file requires review from the core team
+*                                   @coreindustries/core-team
+
+# CI / CD — extra scrutiny on pipeline changes
+.github/                            @coreindustries/core-team @coreindustries/platform
+.github/workflows/                  @coreindustries/core-team @coreindustries/platform
+
+# Security rules — require security review for any change
+.claude/rules/security-core.md      @coreindustries/core-team
+.claude/rules/secrets-hygiene.md    @coreindustries/core-team
+.claude/rules/dependency-security.md @coreindustries/core-team
+.claude/rules-available/security-owasp.md @coreindustries/core-team
+.claude/rules-available/security-web.md   @coreindustries/core-team
+.claude/rules-available/security-mobile.md @coreindustries/core-team
+
+# Agent configuration — changes to agent tiers affect cost / quality across all projects
+.claude/agents/                     @coreindustries/core-team
+.claude/settings.json               @coreindustries/core-team
+
+# PRD / ADR — architectural decisions need core-team sign-off
+docs/decisions/                     @coreindustries/core-team
+prd/                                @coreindustries/core-team
