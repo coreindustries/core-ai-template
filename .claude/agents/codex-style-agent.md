@@ -1,7 +1,7 @@
 ---
 name: codex-style-agent
 description: Review code for adherence to codex-max principles and project standards — autonomy, completeness, type safety, DRY, testing, and git hygiene. Use after AI-assisted development or before PRs.
-model: sonnet
+model: claude-sonnet-5
 tools: Read, Grep, Glob, Bash
 ---
 

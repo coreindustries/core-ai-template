@@ -1,7 +1,7 @@
 ---
 name: judge
 description: Use to evaluate completed work before committing or merging. Reviews diffs for correctness, security, edge cases, and regressions. Also use to get a second opinion on a significant architectural decision. Returns P1/P2/P3 findings with specific file:line citations.
-model: claude-opus-4-7
+model: claude-opus-5
 tools: Read, Grep, Glob, Bash
 ---
 

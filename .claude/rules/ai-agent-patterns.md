@@ -1,10 +1,33 @@
 # AI Agent Development Patterns
 
-**Scope:** AI agent development principles (autonomy, persistence, exploration)
+**Scope:** AI agent development principles (autonomy, persistence, exploration, Claude API defaults)
+
+## Claude API Defaults
+
+When writing code that calls the Claude API, apply these defaults unconditionally.
+
+**Model**: use the default from `settings.json` / `CLAUDE.md` Agent Routing. Do not hardcode a model string in application code — read it from config so upgrades are one-line changes.
+
+**Thinking**: `thinking: { type: "adaptive" }` for any non-trivial request. Do NOT use `budget_tokens` — rejected with 400 on current-generation models.
+
+**Streaming**: use `.stream()` for any request that may produce long output or hit high `max_tokens`. Call `.get_final_message()` / `.finalMessage()` if you only need the complete result.
+
+**Prompt caching**: always add `cache_control: { type: "ephemeral" }` to the system prompt block. Cache the last tool definition if the tools array is large. See `.claude/references/prompt-caching.md` for multi-turn patterns and anti-patterns.
+
+```typescript
+// Minimum correct API call
+const response = await client.messages.create({
+  model: config.model,   // read from env / config, not hardcoded
+  max_tokens: 8096,
+  thinking: { type: "adaptive" },
+  system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
+  messages,
+});
+```
 
 ## Autonomy and Persistence
 
-**REQUIRED:** AI agents MUST operate autonomously and persist until tasks are fully complete.
+AI agents MUST operate autonomously and persist until tasks are fully complete.
 
 **Autonomous Senior Engineer Mindset:**
 - Once given direction, proactively gather context, plan, implement, test, and refine
@@ -26,7 +49,7 @@
 
 ## Bias to Action
 
-**REQUIRED:** Agents MUST default to implementation over clarification.
+Agents MUST default to implementation over clarification.
 
 **When to Implement Immediately:**
 - Requirements are reasonably clear (even if some details missing)
@@ -54,7 +77,7 @@ User: "Add payment processing"
 
 ## Correctness Over Speed
 
-**REQUIRED:** Prioritize correctness, clarity, and reliability over implementation speed.
+Prioritize correctness, clarity, and reliability over implementation speed.
 
 **Quality Criteria:**
 - Cover the root cause or core ask, not just symptoms
@@ -70,7 +93,7 @@ User: "Add payment processing"
 
 ## Comprehensiveness and Completeness
 
-**REQUIRED:** Ensure changes are comprehensive across all relevant surfaces.
+Ensure changes are comprehensive across all relevant surfaces.
 
 **Example:**
 ```
@@ -91,7 +114,7 @@ Complete (✓):
 
 ## Behavior-Safe Defaults
 
-**REQUIRED:** Preserve intended behavior and UX.
+Preserve intended behavior and UX.
 
 - Don't change existing behavior without explicit request
 - Gate intentional behavior changes with feature flags or configuration
@@ -111,7 +134,7 @@ getUsers(includeDeleted = false, includeArchived = false)  // New parameter
 
 ### Think First, Batch Everything
 
-**REQUIRED:** Plan all file reads before executing, then batch them in parallel.
+Plan all file reads before executing, then batch them in parallel.
 
 **Pattern:**
 1. **Think**: Decide ALL files/resources needed
@@ -138,7 +161,7 @@ read_parallel([
 
 ### Maximize Parallelism
 
-**REQUIRED:** Always read files in parallel unless logically unavoidable.
+Always read files in parallel unless logically unavoidable.
 
 **Applies To:**
 - File reads
@@ -152,7 +175,7 @@ read_parallel([
 
 ### Efficient, Coherent Edits
 
-**REQUIRED:** Batch logical edits together, not repeated micro-edits.
+Batch logical edits together, not repeated micro-edits.
 
 - Read enough context before changing a file
 - Make all related changes in one pass

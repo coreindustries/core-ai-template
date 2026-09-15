@@ -4,7 +4,7 @@
 
 ## Specific Exception Types
 
-**REQUIRED:** Use specific exception/error types, not broad catches.
+Use specific exception/error types, not broad catches.
 
 - Create custom exceptions for domain errors
 - Always include context in error messages
@@ -30,7 +30,7 @@ class ValidationError extends Error {
 
 ## Tight Error Handling
 
-**REQUIRED:** Do NOT add broad exception catches or silent defaults.
+Do NOT add broad exception catches or silent defaults.
 
 **What to Avoid:**
 - Broad `try/catch` blocks that swallow errors

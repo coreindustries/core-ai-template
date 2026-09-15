@@ -4,7 +4,7 @@
 
 ## DRY Principle (Don't Repeat Yourself)
 
-**REQUIRED:** All code MUST follow the DRY principle.
+All code MUST follow the DRY principle.
 
 - Extract common functionality into reusable functions or modules
 - Avoid code duplication across files or services
@@ -14,7 +14,7 @@
 
 ## Static Typing Requirements
 
-**REQUIRED:** Static typing MUST be used for all code.
+Static typing MUST be used for all code.
 
 - All function signatures MUST include type annotations
 - All class attributes MUST be type-annotated
@@ -24,7 +24,7 @@
 
 ## Naming Conventions
 
-**REQUIRED:** All code MUST follow consistent naming conventions.
+All code MUST follow consistent naming conventions.
 
 | Element             | Convention         | Example                                       |
 | ------------------- | ------------------ | --------------------------------------------- |
@@ -36,7 +36,7 @@
 
 ## Code Documentation
 
-**REQUIRED:** All code MUST be documented.
+All code MUST be documented.
 
 - All modules MUST have a module-level docstring/comment
 - All classes MUST have a class-level docstring/comment
@@ -71,7 +71,7 @@
 
 ## Project Organization
 
-**REQUIRED:** The project root MUST be kept clean.
+The project root MUST be kept clean.
 
 **Allowed in root:**
 - Configuration files (package manager, linter, type checker)

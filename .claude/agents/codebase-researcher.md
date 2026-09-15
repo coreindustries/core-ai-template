@@ -1,7 +1,7 @@
 ---
 name: codebase-researcher
 description: Find existing patterns, prior art, and reusable code before implementing a new feature. Read-only grep/search agent. Use to avoid reinventing the wheel and ensure consistency with existing conventions.
-model: haiku
+model: claude-haiku-4-5
 tools: Read, Grep, Glob, Bash
 ---
 

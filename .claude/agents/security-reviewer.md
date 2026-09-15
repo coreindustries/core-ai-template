@@ -1,7 +1,7 @@
 ---
 name: security-reviewer
 description: Deep security review with STRIDE threat modeling. Identifies auth flaws, IDOR, injection vulnerabilities, and data exposure risks. Use before deploying features that handle user data, authentication, or external integrations.
-model: sonnet
+model: claude-sonnet-5
 tools: Read, Grep, Glob, Bash
 ---
 

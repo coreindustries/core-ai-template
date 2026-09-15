@@ -17,7 +17,7 @@
 
 ## Plan Discipline
 
-**REQUIRED:** Plans MUST be reconciled before finishing a task.
+Plans MUST be reconciled before finishing a task.
 
 **Plan Lifecycle:**
 1. Create plan with clear steps
