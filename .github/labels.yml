@@ -177,6 +177,10 @@
   color: "B60205"
   description: Sub-24h dep bump waiver (requires linked GHSA/CVE in PR body)
 
+- name: skip-delivery-contract
+  color: "FBCA04"
+  description: Opt out of the delivery-contract evidence gate (auditable)
+
 - name: good-first-issue
   color: "7057FF"
   description: Good for newcomers

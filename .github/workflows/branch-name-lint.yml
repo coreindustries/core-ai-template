@@ -1,0 +1,67 @@
+name: Branch Name Lint
+
+# Requires branches to be namespaced (`<type>/<slug>`) rather than bare.
+#
+# This matters most for parallel agent work: when two agents independently pick
+# up "fix the login bug", bare names like `fix-login` collide, while
+# `fix/login-null-session` and `fix/login-timeout` do not. The Makefile's
+# `make wt name=<branch>` target produces conforming names.
+#
+# Security note: the branch name is attacker-controllable on a fork PR, so it is
+# passed through `env:` and quoted rather than interpolated into the shell.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  branch-name:
+    name: Branch name
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Validate branch name is namespaced
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+
+          # Accepted shapes:
+          #   <type>/<slug>        feat/oauth-login, fix/null-session,
+          #                        dependabot/npm_and_yarn/left-pad-1.3.0
+          #   worktree-<slug>      created by `make wt`
+          #   revert-<n>-<slug>    GitHub's auto-generated revert branches
+          PATTERN='^(worktree-[A-Za-z0-9._+-]+|revert-[0-9]+-[A-Za-z0-9._/+-]+|[a-z][a-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/+-]*)$'
+
+          if printf '%s' "$BRANCH" | grep -qE "$PATTERN"; then
+            echo "OK: '$BRANCH' is namespaced."
+            exit 0
+          fi
+
+          echo "::error title=Bare branch name::'$BRANCH' is not namespaced."
+          cat >&2 <<'ERR'
+
+          Branch names must be namespaced so parallel agents don't collide.
+
+            Expected: <type>/<slug>
+            Types:    feat | fix | docs | style | refactor | perf | test |
+                      chore | ci | build | revert
+
+            Good:  feat/oauth-login
+                   fix/null-session-on-logout
+                   ci/pin-action-shas
+            Bad:   fix-login          (no namespace)
+                   my-changes         (no namespace)
+                   Feat/OAuth         (type must be lowercase)
+
+          Rename with:
+            git branch -m <new-name>
+            git push origin -u <new-name>
+            git push origin --delete <old-name>
+
+          See .claude/rules/git-workflow.md
+          ERR
+          exit 1
