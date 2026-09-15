@@ -38,6 +38,14 @@ jobs:
         with:
           persist-credentials: false
 
+      # Unconditional: agent model pins concern .claude/, not the Python
+      # toolchain, so this runs even on an uninitialized template. Catches
+      # frontmatter hand-edited away from .claude/agent-models.json — that
+      # drift is silent otherwise, and an agent meant for opus quietly
+      # downgrades to sonnet.
+      - name: Check agent model pins match agent-models.json
+        run: node scripts/sync-agent-models.mjs --check
+
       - name: Check project initialized
         id: init
         run: |

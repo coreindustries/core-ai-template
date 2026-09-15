@@ -1,7 +1,7 @@
 ---
 name: architect
 description: Evaluate architectural decisions, validate schema changes, and review system design against project standards. Use before implementing cross-module features, adding schema changes, or introducing new external dependencies.
-model: claude-sonnet-5
+model: sonnet
 tools: Read, Grep, Glob, Bash
 ---
 

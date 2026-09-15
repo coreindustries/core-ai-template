@@ -191,6 +191,12 @@ deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-securit
 	@scripts/audit-dependencies.sh
 	@echo "  ✓ deps pinned + aged + audited"
 
+agent-models: ## Write .claude/agent-models.json pins into agent frontmatter
+	@node scripts/sync-agent-models.mjs
+
+agent-models-check: ## Verify agent frontmatter matches .claude/agent-models.json
+	@node scripts/sync-agent-models.mjs --check
+
 deps-vuln: ## Audit only the dependency manifests this branch changed
 	@scripts/audit-dependencies.sh --changed-only
 
