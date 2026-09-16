@@ -205,9 +205,9 @@ jobs:
     name: Test & Coverage
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # OIDC permissions for AWS secret injection via chamber.
-    # vars.AWS_CI_ROLE_ARN and vars.SERVICE_NAME are non-secret repo variables.
-    # Remove this block if using only hermetic unit tests with no external secrets.
+    # id-token: write enables federated (OIDC) auth to a secret store, so no
+    # long-lived keys live in GitHub secrets. Remove this block if using only
+    # hermetic unit tests with no external secrets.
     permissions:
       id-token: write
       contents: read
@@ -249,29 +249,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
-        # Fetches short-lived credentials; no long-lived keys in GitHub secrets.
-        # Remove this block + the `permissions:` + the chamber steps below if
-        # tests are fully hermetic (no AWS-backed secrets required).
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_CI_ROLE_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
-
-      - name: Install chamber
-        # `chamber exec <service> -- <cmd>` injects SSM parameters as env
-        # vars into the child process. See .claude/rules/secrets-hygiene.md.
-        # TODO: before enabling in your project, look up the current chamber
-        # release (https://github.com/segmentio/chamber/releases), pin the
-        # tag below, and verify against the published checksum.
-        env:
-          CHAMBER_VERSION: "v2.14.1"
-        run: |
-          curl -fsSL -o /tmp/chamber \
-            "https://github.com/segmentio/chamber/releases/download/${CHAMBER_VERSION}/chamber-${CHAMBER_VERSION}-linux-amd64"
-          chmod +x /tmp/chamber
-          sudo mv /tmp/chamber /usr/local/bin/chamber
-          chamber version
+      # OPTIONAL — secret injection.
+      # This template names no secret-manager vendor. If your tests need real
+      # secrets, add two steps here:
+      #
+      #   1. Authenticate to your secret store using federated/OIDC auth
+      #      (the `permissions: id-token: write` above enables it). Pin the
+      #      action to a commit SHA per .claude/rules/dependency-security.md.
+      #
+      #   2. Install your store's CLI, pinned to an exact version and verified
+      #      against its published checksum.
+      #
+      # Then set WRAPPER below. If your tests are hermetic, add neither and
+      # delete the `permissions:` block above.
 
       - name: Setup {language}
         # Same setup as lint job
@@ -286,19 +276,25 @@ jobs:
           #   supabase db reset --local
           # Or for non-Supabase stacks, {db_generate} / {db_migrate}.
 
+      # WRAPPER is the secret-injection prefix (see Makefile). Leave it empty
+      # for hermetic tests; secrets then stay in-process only when set.
       - name: Run unit tests
-        # Wrapped in `chamber exec` so SSM secrets are in-process env only.
-        # If tests are hermetic, drop the `chamber exec ...` prefix.
+        env:
+          WRAPPER: ""
         run: |
-          chamber exec ${{ vars.SERVICE_NAME }} -- {test_unit_command}
+          $WRAPPER {test_unit_command}
 
       - name: Run integration tests
+        env:
+          WRAPPER: ""
         run: |
-          chamber exec ${{ vars.SERVICE_NAME }} -- {test_integration_command}
+          $WRAPPER {test_integration_command}
 
       - name: Run tests with coverage
+        env:
+          WRAPPER: ""
         run: |
-          chamber exec ${{ vars.SERVICE_NAME }} -- {test_coverage_command}
+          $WRAPPER {test_coverage_command}
 
       - name: Check coverage threshold
         run: |

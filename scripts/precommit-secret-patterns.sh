@@ -30,8 +30,13 @@ EXCLUDES=(
   ':!docs/adopt-best-practices.md'
 )
 
+# Scan ADDED lines only. Grepping the whole diff also matches removal lines,
+# which means deleting an already-committed secret would block the very commit
+# that removes it — the fix for a leak becomes unmergeable. `^+` with `+++`
+# filtered out is the added-line set.
 for pattern in "${PATTERNS[@]}"; do
-  if git diff --cached --diff-filter=ACM -- "${EXCLUDES[@]}" | grep -qE -- "$pattern"; then
+  if git diff --cached --diff-filter=ACM -- "${EXCLUDES[@]}" \
+      | grep -E '^\+' | grep -v '^+++' | grep -qE -- "$pattern"; then
     echo "BLOCKED: Found potential secret matching '$pattern'"
     echo "Remove the secret and try again."
     exit 1

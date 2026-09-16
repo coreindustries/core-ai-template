@@ -19,37 +19,41 @@
 
 ## Next 30 minutes — rotate
 
-### AWS-managed secrets (Secrets Manager / SSM)
+### Secrets held in your secret store
+
+Fill in the exact commands for your store the first time you run this — a runbook
+you have to improvise during an incident is not a runbook.
 
 ```bash
-# 1. Rotate
-aws secretsmanager rotate-secret --secret-id <arn> --force-rotate-immediately
-# or for SSM:
-chamber write <service-name> <key> '<new-value>'
+# 1. Rotate — write the new value into the store
+<your-secret-cli> write <service> <key> '<new-value>'
 
-# 2. Verify
-chamber list <service-name>
+# 2. Verify the new value is present (list keys, never print values)
+<your-secret-cli> list <service>
 
-# 3. Redeploy consumers so they pick up the new value
-#    (ECS task definitions need a new revision + service update for Secrets Manager
-#     ARN changes; chamber values are picked up on next start automatically)
+# 3. Redeploy consumers so they pick up the new value.
+#    Know in advance which of your services re-read on restart and which
+#    need an explicit new revision — that difference is what makes a
+#    rotation look successful while a stale value is still in use.
 ```
 
 ### Third-party API keys (Anthropic, OpenAI, Stripe, etc.)
 
 1. Log into the provider dashboard.
 2. **Create** a new key first.
-3. **Deploy** the new key to production (via SSM/Secrets Manager as normal).
+3. **Deploy** the new key to production (through your secret store as normal).
 4. **Revoke** the old key only after deploy is confirmed healthy.
 5. Rotating order matters: revoking first causes downtime.
 
-### AWS IAM credentials (long-lived access keys — if any exist, they shouldn't)
+### Long-lived cloud access keys (if any exist, they shouldn't)
 
-1. Deactivate the key in IAM console (don't delete yet — CloudTrail will want it).
+1. Deactivate the key in the provider console — **don't delete it yet**, the audit
+   log lookup below needs the key id to attribute activity.
 2. Create a replacement key.
 3. Update wherever it was consumed.
 4. Delete the old key after 48 hours.
-5. File a follow-up task to eliminate the long-lived key (convert to SSO or IAM role).
+5. File a follow-up task to eliminate the long-lived key entirely, replacing it
+   with federated or workload identity (see ADR-0001).
 
 ## Next 30 minutes — contain history
 
@@ -65,7 +69,7 @@ chamber list <service-name>
 3. **If the commit is on `main` or any shared branch:** do NOT force-push without incident commander approval. History rewrite invalidates every outstanding PR, breaks every clone, and is rarely worth it *after* rotation has already neutralized the secret.
    - Instead: document the leak in the incident report, confirm rotation is complete, and move on.
    - Consider making the repo private temporarily if the secret grants access to systems that can't be rotated within the hour.
-4. **GitHub secret scanning** should auto-revoke many provider credentials (AWS, Stripe, Slack, etc.) — check `https://github.com/<org>/<repo>/security/secret-scanning` for confirmation.
+4. **GitHub secret scanning** should auto-revoke many provider credentials (major clouds, Stripe, Slack, etc.) — check `https://github.com/<org>/<repo>/security/secret-scanning` for confirmation.
 
 ### If the secret was only in local filesystem
 
@@ -86,12 +90,10 @@ chamber list <service-name>
 
 ## Audit
 
-1. **CloudTrail:** check for unexpected API calls from the leaked credential in the window between leak and rotation:
-   ```bash
-   aws cloudtrail lookup-events \
-     --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=<key-id> \
-     --start-time <leak-time>
-   ```
+1. **Cloud provider audit log:** check for unexpected API calls attributed to the
+   leaked credential between the leak and the rotation. Every major provider has
+   one; look up your provider's query syntax and record it here the first time,
+   filtering by the credential id and the exposure window.
 2. **Provider logs:** for Anthropic / OpenAI / Stripe, check usage dashboards for unexpected activity during the exposure window.
 3. **Egress logs** (if VPC flow logs enabled): look for unusual outbound connections from the machine that held the secret.
 
@@ -102,7 +104,7 @@ Within 48 hours, file an incident report in `docs/incidents/YYYY-MM-DD-<slug>.md
 - Timeline (discovery → rotation → verification)
 - Root cause (how did the secret land on disk in the first place?)
 - Blast radius (what was accessible with this credential?)
-- Evidence of abuse (CloudTrail, provider logs, egress)
+- Evidence of abuse (cloud audit log, provider logs, egress)
 - Remediation (what was rotated, what was history-rewritten, what was left alone and why)
 - Prevention (what rule, control, or process change prevents recurrence?)
 

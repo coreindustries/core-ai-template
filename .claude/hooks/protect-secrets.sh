@@ -12,7 +12,7 @@ fi
 
 base=$(basename "$FILE_PATH")
 
-# Reference/template files are always safe — they contain SSM paths and
+# Reference/template files are always safe — they contain store references and
 # placeholder values only, never real secrets. Allow before pattern check.
 case "$base" in
   .env.tpl|.env.example|.env.sample|.env.template) exit 0 ;;

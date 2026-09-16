@@ -62,7 +62,7 @@ After PR approval + CI green + merge to `main`.
 
 ```bash
 # 1. Apply migrations to staging first (never simultaneously with app deploy)
-chamber exec <service-name> -- supabase db push --db-url "$STAGING_DB_URL"
+$(WRAPPER) supabase db push --db-url "$STAGING_DB_URL"
 
 # 2. Build + push artifact (ECR / registry)
 make build
@@ -81,9 +81,9 @@ For production:
 
 ```bash
 # Same sequence, with explicit profile — no cross-account mistakes
-AWS_PROFILE=core-prod chamber exec <service-name> -- supabase db push --db-url "$PROD_DB_URL"
-AWS_PROFILE=core-prod make deploy ENV=prod SHA=<sha>
-AWS_PROFILE=core-prod make deploy-status ENV=prod
+$(PROD_WRAPPER) supabase db push --db-url "$PROD_DB_URL"
+make deploy ENV=prod SHA=<sha>
+make deploy-status ENV=prod
 ```
 
 **Fails on:** migration error (stop here; do not deploy app), build failure, deploy timeout, post-deploy healthcheck failure.

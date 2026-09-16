@@ -65,7 +65,7 @@ Other port-binding services to watch for: app dev servers (Next.js 3000, Vite 51
 All worktrees share the same `.env.tpl` (it's in git, so it follows the branch). Secrets are injected at runtime by the wrapper — not read from a file on disk — so worktrees don't have per-instance secret state to coordinate. Each shell runs its own:
 
 ```bash
-aws-vault exec <profile> -- chamber exec <service> -- <command>
+$(WRAPPER) <command>    # see Makefile WRAPPER
 ```
 
 See `.claude/rules/secrets-hygiene.md`. Never copy a resolved secret into a second worktree's env — always re-run the wrapper.

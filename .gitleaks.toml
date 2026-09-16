@@ -1,7 +1,7 @@
 # =============================================================================
 # Gitleaks Configuration
 # =============================================================================
-# Extends the default gitleaks ruleset (150+ patterns for AWS, GCP, GitHub,
+# Extends the default gitleaks ruleset (150+ patterns for major cloud providers, GitHub,
 # Stripe, Twilio, SendGrid, etc.) with custom PII detection rules.
 #
 # Usage:
@@ -124,7 +124,7 @@ paths = [
 # (example/placeholder/changeme/…) are filtered by [allowlist.stopwords].
 [[rules]]
 id = "plaintext-env-file"
-description = "Plaintext .env file committed (use .env.tpl with SSM/Secrets Manager references)"
+description = "Plaintext .env file committed (use .env.tpl with secret-store references)"
 regex = '''(?im)^[A-Z_][A-Z0-9_]*\s*=\s*[A-Za-z0-9+/=_.:@!#$%&*?-]{16,}$'''
 path = '''(^|/)\.env(\..+)?$'''
 tags = ["secret", "plaintext-env"]

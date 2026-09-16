@@ -17,7 +17,7 @@
 
 ### What Constitutes a Secret
 
-- API Keys (Stripe, Twilio, AWS, etc.)
+- API Keys (Stripe, Twilio, cloud providers, etc.)
 - Credentials (database passwords, OAuth secrets)
 - Tokens (JWT signing keys, access tokens)
 - Encryption Keys (AES, RSA private keys, certificates)
@@ -36,7 +36,7 @@
 |-------------|--------|
 | Local Dev | `.env` files (must be in `.gitignore`) |
 | CI/CD | Pipeline secrets (GitHub Secrets, GitLab CI Variables) |
-| Production | Secret managers (AWS Secrets Manager, HashiCorp Vault) |
+| Production | A managed secret store, injected at process start (see `.claude/rules/secrets-hygiene.md`) |
 | Containers | Mounted secrets, environment injection |
 
 ### .gitignore Requirements

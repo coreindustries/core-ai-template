@@ -30,7 +30,7 @@ Default migration platform: **Supabase CLI**.
 - Local dev uses `supabase start` + `supabase db reset`.
 - CI uses `supabase db push --db-url "$DB_URL"` on merge.
 - Preview branches are enabled on all Supabase projects created via this template.
-- Secrets (DB URL) flow via chamber — never paste connection strings.
+- Secrets (DB URL) are injected by the wrapper — never paste connection strings.
 - RLS is mandatory on user-data tables; CI gates missing RLS.
 
 Projects with constraints incompatible with Supabase (on-prem-only, non-Postgres, regulatory) override this in `prd/00_technology.md` and adjust the Makefile; the invariants in `.claude/rules/database-migrations.md` (numbered files, no editing committed migrations, expand/contract, CI fresh-DB apply) still apply.

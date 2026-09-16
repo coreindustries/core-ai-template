@@ -76,7 +76,7 @@ Auto-detect from project files:
 | `render.yaml` | Render |
 | `railway.json` | Railway |
 | `Procfile` | Heroku |
-| `apprunner.yaml` | AWS App Runner |
+| `apprunner.yaml` | App Runner |
 | `Fastfile` (iOS) | TestFlight via Fastlane |
 | `Fastfile` (Android) | Play Console via Fastlane |
 | `app.json` (Expo) | EAS Build / Submit |

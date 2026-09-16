@@ -51,11 +51,11 @@ supabase test db
 ## Deploying migrations
 
 ```bash
-# Staging (via chamber — DB URL is a secret, never paste it)
-chamber exec <service>-staging -- supabase db push --db-url "$DATABASE_URL"
+# Staging (via the secret wrapper — DB URL is a secret, never paste it)
+$(WRAPPER) supabase db push --db-url "$DATABASE_URL"
 
 # Production (usually via GitHub Actions, not local)
-chamber exec <service>-prod -- supabase db push --db-url "$DATABASE_URL"
+$(PROD_WRAPPER) supabase db push --db-url "$DATABASE_URL"
 ```
 
 CI runs migrations on PR open against a preview branch and on merge to `main` against staging. Production deploys are gated on a manual approval.
