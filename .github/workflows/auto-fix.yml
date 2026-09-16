@@ -118,11 +118,13 @@ jobs:
           steps.classify.outputs.failure_class == 'types') &&
           steps.autofix.outcome == 'success'
         env:
-          SLACK_WEBHOOK_CTO: ${{ secrets.SLACK_WEBHOOK_CTO }}
+          # Unset in this template, so send-hook.js skips and the step passes.
+          # Downstream: create this secret to start receiving these. See REPO_SETUP.md.
+          SLACK_WEBHOOK_CI_ALERTS: ${{ secrets.SLACK_WEBHOOK_CI_ALERTS }}
           FAILURE_CLASS: ${{ steps.classify.outputs.failure_class }}
         run: |
           node tools/comms/send-hook.js \
-            --to cto --from cos \
+            --to ci-alerts --from ci \
             --message "✅ Auto-fix applied [$FAILURE_CLASS] on $HEAD_BRANCH — CI re-triggered. Run: $RUN_URL"
 
       - name: Notify — human review needed
@@ -130,11 +132,13 @@ jobs:
           steps.classify.outputs.failure_class != 'lint' &&
           steps.classify.outputs.failure_class != 'types'
         env:
-          SLACK_WEBHOOK_CTO: ${{ secrets.SLACK_WEBHOOK_CTO }}
+          # Unset in this template, so send-hook.js skips and the step passes.
+          # Downstream: create this secret to start receiving these. See REPO_SETUP.md.
+          SLACK_WEBHOOK_CI_ALERTS: ${{ secrets.SLACK_WEBHOOK_CI_ALERTS }}
           FAILURE_CLASS: ${{ steps.classify.outputs.failure_class }}
         run: |
           node tools/comms/send-hook.js \
-            --to cto --from cos \
+            --to ci-alerts --from ci \
             --message "$(printf '🔴 [FAILURE CLASS: %s] — %s/%s\nClass: %s | Auto-fix attempted: no | Result: not attempted\nNext: needs Core review\nLog: %s' \
               "$FAILURE_CLASS" \
               "$GITHUB_REPOSITORY" \

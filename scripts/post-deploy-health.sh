@@ -9,7 +9,8 @@
 #
 # Optional env vars:
 #   HEALTH_ENDPOINTS  Space-separated paths to check (default: /api/health /api/usage /api/clients)
-#   SLACK_WEBHOOK_CTO       Slack webhook for success notifications
+#   SLACK_WEBHOOK_CI_ALERTS Slack webhook for success notifications (optional —
+#                           unset means the notification is skipped, not failed)
 #   SLACK_WEBHOOK_EMERGENCY Slack webhook for failure alerts
 #
 # Exit codes: 0 = all endpoints healthy, 1 = one or more failed
@@ -47,12 +48,12 @@ done
 RESULTS="${RESULTS%' | '}"
 
 if [ "$FAILED" -eq 0 ]; then
-  node tools/comms/send-hook.js --to cto --from cos \
+  node tools/comms/send-hook.js --to ci-alerts --from ci \
     --message "✅ Deploy green — ${BASE_URL} | SHA: ${SHA} | ${RESULTS}"
   echo "All endpoints healthy."
   exit 0
 else
-  node tools/comms/send-hook.js --to emergency --from cos \
+  node tools/comms/send-hook.js --to emergency --from ci \
     --message "🚨 Deploy health check FAILED — ${BASE_URL} | SHA: ${SHA} | ${RESULTS} | Action required."
   echo "Health check FAILED — ${RESULTS}" >&2
   exit 1

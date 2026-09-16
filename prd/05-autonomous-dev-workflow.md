@@ -11,7 +11,7 @@ owner: "@coreyszopinski"
 
 **Audience:** Core (CEO / operator), Claude Code agents, CI/CD pipeline
 
-**Problem:** 80% of Core's dev time is agent babysitting — copy-pasting context, monitoring deploys, triaging CI failures, and rubber-stamping trivial PRs. This is a structural problem, not a capacity problem.
+**Problem:** A large share of maintainer time goes to agent babysitting — copy-pasting context, monitoring deploys, triaging CI failures, and rubber-stamping trivial PRs. This is a structural problem, not a capacity problem.
 
 **Goal:** Reduce human-in-the-loop overhead to <20% of dev time by building the scaffolding that makes agents self-sufficient, failures self-routing, and deploys self-observable.
 
@@ -52,8 +52,8 @@ When CI fails on lint, format, or type errors, an auto-fix agent runs automatica
 - Trigger: CI job fails on `feat/*` or `bug/*` branch
 - Agent scope: lint fix, format fix, type error fix only — no logic changes
 - Commit message: `chore: auto-fix ci [lint|types|format]`
-- On success: re-trigger CI, post result to `#csuite-cto`
-- On failure (agent can't fix): notify Core via `#csuite-cto` with failure type + log snippet
+- On success: re-trigger CI, post result to the configured alert channel
+- On failure (agent can't fix): notify the alert channel with failure type + log snippet
 
 **FR2.2 — Failure Taxonomy**
 
@@ -74,7 +74,7 @@ All CI failures MUST be classified before routing to human:
 
 **FR3.1 — Tier-Based PR Routing**
 
-PRs are auto-classified by commit type prefix and scope. Auto-merge executes without Core's review where safe.
+PRs are auto-classified by commit type prefix and scope. Auto-merge executes without maintainer review where safe.
 
 | Tier | Criteria | Action |
 |---|---|---|
@@ -88,7 +88,7 @@ PRs are auto-classified by commit type prefix and scope. Auto-merge executes wit
 - Implemented via GitHub branch protection rules + `auto-merge.yml` workflow
 - Tier 0 and Tier 1 PRs get `auto-merge` label applied by workflow on open
 - GitHub native auto-merge executes when conditions met
-- All auto-merged PRs post summary to `#csuite-cto`
+- All auto-merged PRs post summary to the configured alert channel
 
 ---
 
@@ -99,7 +99,7 @@ PRs are auto-classified by commit type prefix and scope. Auto-merge executes wit
 Every deploy MUST run a health check and report result to Slack. Core never watches a deploy console.
 
 - Health check hits: `/api/health` + 2–3 critical business endpoints
-- On pass: post green summary to `#csuite-cto` with deploy SHA and duration
+- On pass: post green summary to the configured alert channel with deploy SHA and duration
 - On fail: post red alert to `#emergency` with failing endpoint + response
 
 **FR4.2 — Deploy Summary Format**
@@ -125,9 +125,11 @@ When PRD-04 (WatchTower) ships, FR4.1 health checks migrate to WatchTower monito
 
 ### FR5 — Agent Failure Triage Routing
 
-**FR5.1 — CTO Agent Owns Failure Triage**
+**FR5.1 — Classified Failures Are Routed, Not Polled**
 
-The `CTO` C-suite agent is the first receiver of all classified CI/CD failures. Core only sees failures that are unresolvable or require architectural judgment.
+Every classified CI/CD failure is pushed to the configured alert channel so nobody has to poll CI status. Failures the pipeline can fix are fixed without notifying anyone; only the remainder surface to a human.
+
+This template ships no triage agent. A downstream repo that wants an agent to take the first look adds one under `.claude/agents/` and invokes it on the alert — what counts as triage is project-specific.
 
 **FR5.2 — Failure Message Format (Slack)**
 
@@ -153,7 +155,7 @@ Log: {link or 3-line snippet}
 | 2 | `auto-fix.yml` CI workflow | 3h | Eliminates deterministic failure babysitting |
 | 3 | Auto-merge rules (Tier 0 / Tier 1) | 2h | Eliminates trivial PR reviews |
 | 4 | Post-deploy health check script + Slack routing | 2h | Eliminates deploy watching |
-| 5 | CTO agent failure triage routing | 3h | Triage becomes agent job, not Core's |
+| 5 | Failure triage routing to alert channel | 3h | Triage is pushed, not polled |
 
 ---
 
@@ -164,8 +166,8 @@ Log: {link or 3-line snippet}
 | `ANTHROPIC_API_KEY` | Claude API key for auto-fix agent | GitHub Secrets |
 | `DEPLOY_URL` | Base URL for health checks | GitHub Env / `.env` |
 | `DEPLOY_SHA` | Injected by deploy workflow | GitHub Actions |
-| `SLACK_WEBHOOK_CTO` | Slack webhook for #csuite-cto | GitHub Secrets / AWS SSM |
-| `SLACK_WEBHOOK_EMERGENCY` | Slack webhook for #emergency | GitHub Secrets / AWS SSM |
+| `SLACK_WEBHOOK_CI_ALERTS` | Routine CI notifications (optional; unset = skipped) | GitHub Secrets / AWS SSM |
+| `SLACK_WEBHOOK_EMERGENCY` | Deploy-health failures (optional; unset = skipped) | GitHub Secrets / AWS SSM |
 
 ---
 

@@ -86,7 +86,9 @@ jobs:
       - name: Notify Slack — auto-merge enabled
         if: steps.tier.outputs.tier == '0' || steps.tier.outputs.tier == '1'
         env:
-          SLACK_WEBHOOK_CTO: ${{ secrets.SLACK_WEBHOOK_CTO }}
+          # Unset in this template, so send-hook.js skips and the step passes.
+          # Downstream: create this secret to start receiving these. See REPO_SETUP.md.
+          SLACK_WEBHOOK_CI_ALERTS: ${{ secrets.SLACK_WEBHOOK_CI_ALERTS }}
           TIER: ${{ steps.tier.outputs.tier }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
@@ -94,5 +96,5 @@ jobs:
           SUFFIX=""
           [ "$TIER" = "1" ] && SUFFIX=" (30min review window)"
           node tools/comms/send-hook.js \
-            --to cto --from cos \
+            --to ci-alerts --from ci \
             --message "🤖 Auto-merge enabled${SUFFIX} — PR #${PR_NUMBER}: ${PR_TITLE} (Tier ${TIER})"

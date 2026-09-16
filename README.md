@@ -57,10 +57,10 @@ This template establishes a foundation for projects where AI agents are primary 
 Reduces human-in-the-loop overhead by automating the three most common interruptions: CI failures that agents can fix, safe PRs that don't need manual merging, and post-deploy health checks that require a human to run.
 
 - **`/handoff` skill** — writes structured session context to `CONTEXT.md`, the feature task file, and `CLAUDE.md → ## Current State` at session end. Gives the next agent a single-file starting point instead of re-reading git log.
-- **`auto-fix.yml`** — `workflow_run`-triggered CI self-healing. Classifies failures (`lint | types | test | flaky | build`); fixes lint and type errors autonomously via Claude Code, routes the rest to the CTO agent.
+- **`auto-fix.yml`** — `workflow_run`-triggered CI self-healing. Classifies failures (`lint | types | test | flaky | build`); fixes lint and type errors autonomously via Claude Code, routes the rest to your alert channel for human triage.
 - **`auto-merge.yml`** — tier-based merge policy: `chore/docs/style` PRs merge immediately after CI; `fix` PRs after a 30-minute window; `feat` and sensitive scopes require human review.
 - **`post-deploy-health.sh`** — hits configurable health endpoints after deploy (3 retries, 5s backoff) and posts a green/red Slack summary.
-- **`cto.md` agent** — receives classified CI/CD failure alerts and routes them: analyze test failures, investigate flakiness, escalate unknowns to emergency channel.
+- **`send-hook.js`** — zero-dependency Slack notifier. `--to <channel>` resolves `SLACK_WEBHOOK_<CHANNEL>` by convention, so adding a channel needs no code change, and an unconfigured channel is skipped rather than failing the build. The template ships no channels configured.
 
 See `REPO_SETUP.md` for one-time GitHub configuration (auto-merge setting, branch protection, secrets).
 
@@ -613,8 +613,7 @@ core-ai-template/
     │   ├── security-reviewer.md # Security review (STRIDE)
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
-    │   ├── codebase-researcher.md # Deep codebase analysis
-    │   └── cto.md               # CI/CD failure triage and escalation routing
+    │   └── codebase-researcher.md # Deep codebase analysis
     └── skills/                  # Slash commands (31 skills, each <name>/SKILL.md)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
