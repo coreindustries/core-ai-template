@@ -42,9 +42,9 @@
 - [x] Task 4.1: Create tools/comms/send-hook.js
 - [x] Task 4.2: Create scripts/post-deploy-health.sh
 
-### Phase 5: CTO Agent Failure Triage
+### Phase 5: Failure Triage Routing
 
-- [x] Task 5.1: Create .claude/agents/cto.md
+- [x] Task 5.1: Route classified failures to the configured alert channel
 
 ## Progress Summary
 
@@ -61,7 +61,7 @@
 
 1. Review PR and merge — all phases complete
 2. Configure GitHub repo: enable "Allow auto-merge" in Settings → General
-3. Add SLACK_WEBHOOK_CTO, SLACK_WEBHOOK_EMERGENCY, ANTHROPIC_API_KEY to GitHub Secrets
+3. Add ANTHROPIC_API_KEY to GitHub Secrets; optionally SLACK_WEBHOOK_CI_ALERTS / SLACK_WEBHOOK_EMERGENCY for notifications
 
 ## Blockers
 
@@ -70,7 +70,7 @@
 ## Handoff — PRD-05 — 2026-05-22
 
 ### Completed This Session
-- [→ ✅] All 5 phases implemented: handoff skill, auto-fix CI, auto-merge policy, post-deploy health check, CTO agent
+- [→ ✅] All 5 phases implemented: handoff skill, auto-fix CI, auto-merge policy, post-deploy health check, failure alert routing
 
 ### Decisions Made
 - env: vars for GitHub Actions expressions (injection-safe pattern, better than spec)
@@ -81,7 +81,7 @@
 - none
 
 ### Last File Touched
-- .claude/agents/cto.md
+- tools/comms/send-hook.js
 
 ### Recommended Next Action
 Open PR from worktree-feat+prd-05-autonomous-dev-workflow → main, review 9-commit diff, merge.

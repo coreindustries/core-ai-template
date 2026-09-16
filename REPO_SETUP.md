@@ -35,9 +35,18 @@ Go to **Settings → Secrets and variables → Actions** and add:
 | Secret | Required by | Description |
 |--------|-------------|-------------|
 | `ANTHROPIC_API_KEY` | `auto-fix.yml` | Claude API key for the auto-fix agent |
-| `SLACK_WEBHOOK_CTO` | `send-hook.js`, `auto-fix.yml` | Slack incoming webhook URL for CTO channel |
-| `SLACK_WEBHOOK_EMERGENCY` | `send-hook.js` | Slack incoming webhook URL for emergency channel |
-| `SLACK_WEBHOOK_COS` | `send-hook.js` | Slack incoming webhook URL for COS/chief-of-staff channel (optional) |
+| `SLACK_WEBHOOK_CI_ALERTS` | `send-hook.js`, `auto-fix.yml`, `auto-merge.yml` | Routine CI notifications: auto-fix applied, auto-merge enabled, deploy green |
+| `SLACK_WEBHOOK_EMERGENCY` | `send-hook.js`, `post-deploy-health.sh` | Failures that need someone now: deploy health check failed |
+
+**All notification secrets are optional.** `send-hook.js` resolves `--to <channel>` to
+`SLACK_WEBHOOK_<CHANNEL>` by convention and **skips silently (exit 0) when the variable is
+unset**, so the template and any fork without a Slack workspace stay green. Add a secret only
+for the channels you actually want to receive.
+
+To add a channel of your own, pick a name and set the matching variable — no code change is
+needed. `--to release-alerts` reads `SLACK_WEBHOOK_RELEASE_ALERTS`. For a notification whose
+delivery genuinely matters, pass `--require` so a missing webhook fails the step instead of
+being skipped.
 
 **Creating Slack webhooks:**
 1. Go to your Slack workspace → **Apps → Incoming Webhooks**
@@ -100,14 +109,16 @@ BASE_URL=https://your-staging-url.com \
 bash scripts/post-deploy-health.sh
 ```
 
-Expected: HTTP 200 response from each endpoint, Slack message posted (if `SLACK_WEBHOOK_CTO` is set).
+Expected: HTTP 200 response from each endpoint. A Slack message is posted if
+`SLACK_WEBHOOK_CI_ALERTS` is set; otherwise the script prints a "Skipping notification" line
+and still exits 0.
 
-### Test the CTO agent
+### Optional: a failure-triage agent
 
-```bash
-# In Claude Code, invoke the agent directly
-# claude --agent cto "CI failed with lint errors on PR #42"
-```
+`auto-fix.yml` fixes `lint` and `types` failures itself and routes everything else to the
+alert channel for a human. If you'd rather an agent take that first look, add one under
+`.claude/agents/` in your own repo and invoke it on the alert — this template intentionally
+ships no such agent, because what counts as triage is project-specific.
 
 ---
 
@@ -133,7 +144,7 @@ Track the release at: https://github.com/anthropics/claude-code/releases
 
 - [ ] **GitHub Settings → General**: Allow auto-merge enabled
 - [ ] **GitHub Settings → Branches**: Branch protection + required status checks on `main`
-- [ ] **GitHub Secrets**: `ANTHROPIC_API_KEY`, `SLACK_WEBHOOK_CTO`, `SLACK_WEBHOOK_EMERGENCY` added
+- [ ] **GitHub Secrets**: `ANTHROPIC_API_KEY` added; `SLACK_WEBHOOK_CI_ALERTS` / `SLACK_WEBHOOK_EMERGENCY` added only if you want notifications (both optional — unset channels are skipped)
 - [ ] **Labels**: `auto-merge-tier-0`, `auto-merge-tier-1`, `needs-review` exist in repo (run `labels-sync.yml`)
 - [ ] **CI workflow**: `ci.yml` registered on `main` branch (required by `workflow_run` trigger)
 - [ ] **Smoke test**: Tier-0 PR auto-merges after CI passes

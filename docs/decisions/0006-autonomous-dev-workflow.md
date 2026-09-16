@@ -1,4 +1,4 @@
-# 0006: Autonomous Dev Workflow — Self-Healing CI, Tier-Based Auto-Merge, CTO Agent
+# 0006: Autonomous Dev Workflow — Self-Healing CI, Tier-Based Auto-Merge, Alert Routing
 
 **Status:** Accepted
 **Date:** 2026-05-22
@@ -18,7 +18,7 @@ PRD-05 targets five specific friction points:
 | PR merge for safe changes | Minutes–hours waiting | Tier-based auto-merge policy |
 | Post-deploy health unknown | Manual smoke test | `post-deploy-health.sh` + Slack webhook |
 | Session context lost between agents | Re-read files from scratch | `/handoff` skill writes structured CONTEXT.md |
-| CI failure requires CTO attention | CTO polls status | `cto` agent receives classified failure alerts |
+| CI failure needs a human | Someone polls CI status | Classified failure is pushed to an alert channel |
 
 ## Decision
 
@@ -30,7 +30,7 @@ A slash command that writes structured session context to three places at once: 
 
 ### 2. Auto-fix CI (`auto-fix.yml`)
 
-A `workflow_run`-triggered workflow that fires when CI completes with `conclusion == 'failure'`. `classify-ci-failure.sh` inspects the failed job name and outputs a type (`lint | types | test | flaky | build | unknown`). For `lint` and `types` failures only, Claude Code is invoked with `--dangerously-skip-permissions` on the branch, applies a targeted fix, and pushes. Test, flaky, and build failures are routed to the CTO agent instead.
+A `workflow_run`-triggered workflow that fires when CI completes with `conclusion == 'failure'`. `classify-ci-failure.sh` inspects the failed job name and outputs a type (`lint | types | test | flaky | build | unknown`). For `lint` and `types` failures only, Claude Code is invoked with `--dangerously-skip-permissions` on the branch, applies a targeted fix, and pushes. Test, flaky, and build failures are routed to the alert channel for human triage instead.
 
 **Key security decisions:**
 - Fork PRs are blocked via `github.event.workflow_run.head_repository.full_name == github.repository` guard — no ANTHROPIC_API_KEY exposure on untrusted code.
@@ -52,13 +52,13 @@ Uses `gh pr merge --auto --squash` — GitHub's native feature, not a polling lo
 
 ### 4. Post-deploy observability (`post-deploy-health.sh`, `send-hook.js`)
 
-`post-deploy-health.sh` hits `HEALTH_ENDPOINTS` after deploy (3 retries, 5s backoff) and posts a green/red Slack summary. `send-hook.js` is a zero-dependency Node.js webhook router (built-ins only) that dispatches to `SLACK_WEBHOOK_CTO`, `SLACK_WEBHOOK_EMERGENCY`, or `SLACK_WEBHOOK_COS` based on `--to` flag.
+`post-deploy-health.sh` hits `HEALTH_ENDPOINTS` after deploy (3 retries, 5s backoff) and posts a green/red Slack summary. `send-hook.js` is a zero-dependency Node.js webhook router (built-ins only). `--to <channel>` resolves `SLACK_WEBHOOK_<CHANNEL>` by convention rather than from a hardcoded channel list, so a downstream repo adds channels by setting env vars alone. An unconfigured channel is skipped (exit 0), not failed, so a repo with no Slack workspace still has green CI.
 
 Node.js built-ins only — no `package.json`, no npm install step in any workflow.
 
-### 5. CTO agent (`cto.md`)
+### 5. Alert routing, not a bundled triage agent
 
-A `sonnet`-tier agent that is the first receiver for classified CI/CD failures. Routes per a taxonomy: `lint/types` → remind engineer to check auto-fix; `test` → analyze test output; `flaky` → flakiness pattern investigation; `build` → build environment check; `unknown` → escalate to emergency channel after 3 iterations.
+Classified failures are delivered to a configurable alert channel; the emergency channel is reserved for deploy health failures. This template deliberately ships **no** triage agent: what counts as triage is project-specific, and a generic one would be cruft in every repo that has its own on-call practice. A downstream repo that wants an agent to take the first look adds one under `.claude/agents/` and invokes it on the alert.
 
 ## Consequences
 
@@ -71,7 +71,7 @@ A `sonnet`-tier agent that is the first receiver for classified CI/CD failures. 
 **Negative:**
 - `sleep 1800` for Tier-1 delay holds a GitHub Actions runner for 30 minutes. Acceptable for low-volume repos; high-volume repos should replace with a delay action or scheduled check.
 - `npm install -g @anthropic-ai/claude-code` in auto-fix.yml is unpinned — violates dependency-security rule. Comment in workflow notes to pin when a stable digest is available.
-- Auto-fix only covers lint and type failures. Test and build failures still require human triage (via CTO agent escalation).
+- Auto-fix only covers lint and type failures. Test and build failures still require human triage, reached via the alert channel.
 
 **Neutral:**
 - `workflow_run` is the only trigger that fires after CI completes with full secrets access. No alternatives exist for this use case.
