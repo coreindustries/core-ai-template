@@ -166,8 +166,8 @@ Log: {link or 3-line snippet}
 | `ANTHROPIC_API_KEY` | Claude API key for auto-fix agent | GitHub Secrets |
 | `DEPLOY_URL` | Base URL for health checks | GitHub Env / `.env` |
 | `DEPLOY_SHA` | Injected by deploy workflow | GitHub Actions |
-| `SLACK_WEBHOOK_CI_ALERTS` | Routine CI notifications (optional; unset = skipped) | GitHub Secrets / AWS SSM |
-| `SLACK_WEBHOOK_EMERGENCY` | Deploy-health failures (optional; unset = skipped) | GitHub Secrets / AWS SSM |
+| `SLACK_WEBHOOK_CI_ALERTS` | Routine CI notifications (optional; unset = skipped) | GitHub Secrets / your secret store |
+| `SLACK_WEBHOOK_EMERGENCY` | Deploy-health failures (optional; unset = skipped) | GitHub Secrets / your secret store |
 
 ---
 

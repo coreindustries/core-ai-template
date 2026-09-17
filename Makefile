@@ -16,21 +16,33 @@
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
 # =============================================================================
-# All runtime commands flow through the wrapper. Plaintext secrets never
-# touch disk — they are fetched from AWS SSM / Secrets Manager into the
-# child process's memory by `chamber`, using short-lived AWS credentials
-# obtained by `aws-vault` from the OS keychain (not ~/.aws/credentials).
+# All runtime commands flow through WRAPPER, so plaintext secrets never touch
+# disk. This template names no secret-manager vendor: WRAPPER is the seam your
+# project fills in.
+#
+# THE CONTRACT a wrapper must satisfy:
+#   1. Fetch secrets from your secret store at invocation time.
+#   2. `exec` the child process with them in its environment.
+#   3. Never write them to a file — plaintext must live only in process
+#      memory, and die with the process.
+#
+# Any tool meeting that contract works. It is a prefix, ending in `--` if the
+# tool requires one, e.g.:
+#   WRAPPER ?= <secret-cli> exec <service> --
+#   WRAPPER ?= <secret-cli> run --env-file=.env.tpl --
+#
+# UNSET IS A VALID STATE. With no WRAPPER, commands run without injection and
+# the app's own fail-closed check (secrets-hygiene.md Rule 8) reports which
+# variables are missing. That keeps an uninitialized template runnable.
 #
 # Override per project:
-#   AWS_PROFILE:   your SSO profile name (default: core-dev)
-#   SERVICE_NAME:  chamber service prefix (default: current directory name)
+#   SERVICE_NAME:  logical service name, if your wrapper scopes secrets by one
 #   RUNNER:        your project's run command (e.g. npm run, uv run, go run)
-#   WRAPPER:       fully override the wrapper chain if needed
+#   WRAPPER:       the secret-injection prefix described above
 # =============================================================================
 
-AWS_PROFILE  ?= core-dev
 SERVICE_NAME ?= $(shell basename $(CURDIR))
-WRAPPER      ?= aws-vault exec $(AWS_PROFILE) -- chamber exec $(SERVICE_NAME) --
+WRAPPER      ?=
 RUNNER       ?= {runner_command}
 
 # Default target
@@ -45,16 +57,17 @@ setup: ## First-time project setup (run once)
 	@echo "Setting up project..."
 	@echo ""
 	@echo "NOTE: This project does not use a plaintext .env file."
-	@echo "Secrets are injected at runtime by: $(WRAPPER)"
+	@echo "Secrets are injected into process memory at runtime by WRAPPER."
 	@echo "See .claude/rules/secrets-hygiene.md"
 	@echo ""
 	@echo "First-time setup:"
-	@echo "  1. Install wrapper tools:"
-	@echo "       brew install aws-vault chamber gitleaks supabase/tap/supabase"
-	@echo "  2. Configure SSO:"
-	@echo "       aws configure sso --profile $(AWS_PROFILE)"
-	@echo "  3. Populate SSM with your team's secrets (one-time, by an admin):"
-	@echo "       aws-vault exec $(AWS_PROFILE) -- chamber write $(SERVICE_NAME) database_url '<value>'"
+	@echo "  1. Install tooling:"
+	@echo "       brew install gitleaks supabase/tap/supabase"
+	@echo "  2. Choose a secret manager and set WRAPPER in this Makefile."
+	@echo "       It must exec the child process with secrets in its env,"
+	@echo "       and never write them to disk. Currently: '$(WRAPPER)'"
+	@echo "  3. Load your team's secrets into that store, then list the"
+	@echo "       expected variable names in .env.tpl (references only)."
 	@echo "  4. Fill in prd/00_technology.md, then run:"
 	@echo "       make install"
 	@echo "       make db-start     # start local Supabase"
@@ -74,11 +87,11 @@ install: ## Install dependencies
 # Development
 # =============================================================================
 
-dev:  ## Start dev server with secrets injected from AWS
+dev:  ## Start dev server with secrets injected into process memory
 	$(WRAPPER) $(RUNNER) dev
 
-start:  ## Start production server locally (requires prod SSO profile)
-	@$(MAKE) AWS_PROFILE=core-prod _start-inner
+start:  ## Start production server locally (uses PROD_WRAPPER if set)
+	@$(MAKE) WRAPPER="$(if $(PROD_WRAPPER),$(PROD_WRAPPER),$(WRAPPER))" _start-inner
 
 _start-inner:
 	$(WRAPPER) $(RUNNER) start
@@ -112,8 +125,8 @@ db-types: ## Regenerate types from current local schema
 db-test: ## Run pgTAP tests against local Supabase
 	supabase test db
 
-db-push: ## Push migrations to a remote DB (use with chamber; e.g. make db-push ENV=staging)
-	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL not set — run via: chamber exec <service> -- make db-push" && exit 1)
+db-push: ## Push migrations to a remote DB (run through WRAPPER; e.g. make db-push ENV=staging)
+	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL not set — run it through your secret wrapper, e.g. $(WRAPPER) make db-push" && exit 1)
 	supabase db push --db-url "$(DATABASE_URL)"
 
 db-diff: ## Show schema drift between local migrations and a linked remote
@@ -126,7 +139,7 @@ check-migrations: ## Verify migration conventions
 # Testing
 # =============================================================================
 
-test:  ## Run tests with secrets injected from AWS
+test:  ## Run tests with secrets injected into process memory
 	$(WRAPPER) $(RUNNER) test
 
 test-hermetic:  ## Run unit tests with NO secrets loaded (catches "hit prod by accident" bugs)
@@ -208,14 +221,19 @@ contract-check: ## Dry-run the delivery-contract gate against this PR's body
 doctor:  ## Audit the project for secret-hygiene + dep compliance
 	@echo "Checking for plaintext .env files..."
 	@scripts/assert-no-plaintext-env.sh && echo "  ✓ no plaintext .env files" || exit 1
-	@echo "Checking aws-vault is installed..."
-	@command -v aws-vault >/dev/null 2>&1 && echo "  ✓ aws-vault installed" || (echo "  ✗ aws-vault missing. brew install aws-vault" && exit 1)
-	@echo "Checking chamber is installed..."
-	@command -v chamber >/dev/null 2>&1 && echo "  ✓ chamber installed" || (echo "  ✗ chamber missing. brew install chamber" && exit 1)
+	@echo "Checking secret injection is configured..."
+ifeq ($(strip $(WRAPPER)),)
+	@echo "  ⚠ WRAPPER unset — no secret injection configured."
+	@echo "    Expected on an uninitialized template; set it before handling real secrets."
+	@echo "    See the Secret Injection block at the top of this Makefile."
+else
+	@echo "  ✓ WRAPPER set: $(WRAPPER)"
+	@command -v $(firstword $(WRAPPER)) >/dev/null 2>&1 \
+	  && echo "  ✓ $(firstword $(WRAPPER)) on PATH" \
+	  || (echo "  ✗ $(firstword $(WRAPPER)) not found on PATH" && exit 1)
+endif
 	@echo "Checking gitleaks is installed..."
 	@command -v gitleaks >/dev/null 2>&1 && echo "  ✓ gitleaks installed" || (echo "  ✗ gitleaks missing. brew install gitleaks" && exit 1)
-	@echo "Checking SSO profile is configured..."
-	@aws configure list-profiles | grep -q "^$(AWS_PROFILE)$$" && echo "  ✓ profile $(AWS_PROFILE) configured" || (echo "  ✗ AWS profile $(AWS_PROFILE) not configured. Run: aws configure sso --profile $(AWS_PROFILE)" && exit 1)
 	@echo "Checking supabase CLI is installed..."
 	@command -v supabase >/dev/null 2>&1 && echo "  ✓ supabase installed" || echo "  ⚠ supabase CLI missing (brew install supabase/tap/supabase) — skip if project doesn't use Supabase"
 	@echo "Running gitleaks on working tree..."
@@ -259,8 +277,7 @@ check-env: ## Verify environment setup (no plaintext .env expected)
 	@echo "Checking environment..."
 	@test -f .env.tpl && echo "  ✓ .env.tpl present (reference file)" || echo "  ⚠ .env.tpl missing"
 	@test -f .env && echo "  ✗ .env present — FORBIDDEN (see .claude/rules/secrets-hygiene.md)" || echo "  ✓ no plaintext .env"
-	@command -v aws-vault >/dev/null 2>&1 && echo "  ✓ aws-vault installed" || echo "  ✗ aws-vault missing"
-	@command -v chamber >/dev/null 2>&1 && echo "  ✓ chamber installed" || echo "  ✗ chamber missing"
+	@test -n "$(WRAPPER)" && echo "  ✓ WRAPPER set" || echo "  ✗ WRAPPER unset — no secret injection configured"
 	@command -v {package_manager} >/dev/null 2>&1 && echo "  ✓ {package_manager} installed" || echo "  ⚠ {package_manager} not found"
 	@echo "  Git branch: $$(git branch --show-current)"
 	@echo "  Git status: $$(git status --porcelain | wc -l | tr -d ' ') uncommitted changes"

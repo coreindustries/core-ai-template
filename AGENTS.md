@@ -25,10 +25,10 @@ Security and behavioral standards for all AI coding agents working in this repos
 See `.claude/rules/secrets-hygiene.md` (auto-loaded) and `docs/decisions/0001-no-plaintext-secrets-on-disk.md` for the full directive. Summary:
 
 * **`.env` files on disk are compromised by definition.** Any rogue dependency reads them. Do not write real secrets to `.env`, `.env.local`, or any on-disk file — in any environment, including local dev.
-* **Secrets are injected into process memory at invocation time** by `aws-vault exec <profile> -- chamber exec <service> -- <command>`. Plaintext exists only in the child process's memory and dies with the process.
+* **Secrets are injected into process memory at invocation time** by the wrapper configured as `WRAPPER` in the `Makefile`. Plaintext exists only in the child process's memory and dies with the process. This project names no secret-manager vendor — ask which one is in use.
 * **Committed files:** `.env.tpl` (references only) and `.env.example` (placeholder values only). Both are public-safe. Any other `.env*` is gitignored, pre-commit-blocked, CI-blocked, and runtime-blocked.
-* **Agents must refuse to write resolved secret values to disk,** even when asked. Offer to wire up the SSM reference instead.
-* **If a plaintext secret is found on disk,** stop, notify the user (without including the value in the response), recommend rotation via `docs/runbooks/secret-leak.md`, and offer to help migrate to SSM / Secrets Manager.
+* **Agents must refuse to write resolved secret values to disk,** even when asked. Offer to add the reference to `.env.tpl` instead.
+* **If a plaintext secret is found on disk,** stop, notify the user (without including the value in the response), recommend rotation via `docs/runbooks/secret-leak.md`, and offer to help migrate it into the project's secret store.
 * **Never log secrets, never include them in error messages, never paste them into chat.** Test data uses `user@example.com`, `sk-ant-placeholder-not-a-real-key`.
 * **Never use `dotenv` / `python-dotenv` as a runtime dependency in production code paths.** If used at all, scope to development only and document the exception in an ADR.
 

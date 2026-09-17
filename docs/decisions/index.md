@@ -28,7 +28,7 @@ with two AI-agent-specific additions: every ADR includes an
 
 | # | Title | Status | Date |
 |---|---|---|---|
-| [0001](0001-no-plaintext-secrets-on-disk.md) | No Plaintext Secrets on Disk — AWS SSM/Secrets Manager Injection | Accepted | 2026-04-21 |
+| [0001](0001-no-plaintext-secrets-on-disk.md) | No Plaintext Secrets on Disk — Inject Into Process Memory | Accepted | 2026-04-21 |
 | [0002](0002-pin-dependencies-with-24h-cooldown.md) | Pin Dependencies + 24-Hour Cooldown on New Versions | Accepted | 2026-04-21 |
 | [0003](0003-supabase-migrations.md) | Database Migrations via Supabase CLI (Default) | Accepted | 2026-04-21 |
 | [0004](0004-unified-review-skill-claude-and-cursor.md) | Unified `/review` skill for Claude Code and Cursor | Accepted | 2026-05-13 |

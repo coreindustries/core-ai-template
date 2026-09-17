@@ -143,7 +143,7 @@ Each step ships and soaks before the next. For tables > 10M rows, steps 2 and 5 
 - **Staging**: long-lived Supabase project; `supabase db push --db-url "$STAGING_DB_URL"` on merge to `main`.
 - **Production**: same, with manual gate. Production deploys are always: (1) migration applied, (2) app deploy. Never the reverse, never simultaneous.
 
-**Database URLs come from chamber**: `chamber exec <service> -- supabase db push` — never paste a connection string containing a password into a shell.
+**Database URLs come from the secret wrapper**: `$(WRAPPER) supabase db push` — never paste a connection string containing a password into a shell.
 
 ## Rule 8 — Agent behavior
 

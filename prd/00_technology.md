@@ -49,7 +49,7 @@ supabase migration new <name>                # Create a new migration file
 supabase db reset                            # Apply all migrations to fresh local DB
 supabase gen types typescript --local        # Regenerate types from current schema
 supabase test db                             # Run pgTAP tests in supabase/tests/
-chamber exec <service> -- supabase db push   # Deploy migrations (uses chamber for DB URL)
+$(WRAPPER) supabase db push                 # Deploy migrations (DB URL injected by WRAPPER)
 ```
 
 ## 3. Quality Tooling

@@ -763,7 +763,7 @@ Add a `README.md` setup note: each contributor runs
 ### 2.5 `.env.tpl` and `.env.example`
 
 - **`.env.tpl`** — committed; lists variable names and their secret-manager
-  source (e.g. SSM path, Vault key, 1Password reference). No values, ever.
+  source (e.g. a store path, key, or item reference). No values, ever.
 - **`.env.example`** — committed; obvious placeholder values
   (`sk-ant-placeholder-not-real`, `localhost:5432/dbname`). Documents
   required vars for local dev.
@@ -776,7 +776,7 @@ Pick one mechanism and document it (in `README.md` or `prd/00_technology.md`):
 
 | Mechanism | When |
 |---|---|
-| AWS Secrets Manager + `aws-vault` + `chamber` | AWS-native projects |
+| Your cloud provider's secret store + a keychain-backed credential cache | Projects already on that cloud |
 | HashiCorp Vault + `vault agent` | self-hosted / multi-cloud |
 | 1Password CLI (`op run`) | small teams, dev-only |
 | Doppler / Infisical CLI | SaaS-managed |
@@ -797,7 +797,7 @@ git ls-files | grep -E '^\.env' | grep -vE '\.(tpl|example|sample)$'   # empty
 Spot-checks:
 - Pre-commit blocks staging `.env` (regression check).
 - Pre-commit blocks staged content matching `sk-ant-…` (regression check).
-- Pre-push range-scan blocks a `--no-verify` commit with a fake AWS access key.
+- Pre-push range-scan blocks a `--no-verify` commit with a fake cloud access key.
 
 Commit: `chore(security): adopt secrets hygiene (gitleaks, regex backstop, hooks)`.
 
@@ -1076,10 +1076,10 @@ permissions:
   contents: read
 
 steps:
-  - uses: aws-actions/configure-aws-credentials@<sha>
+  - uses: <your-cloud>/configure-credentials-action@<sha>
     with:
-      role-to-assume: arn:aws:iam::ACCOUNT:role/github-actions-<repo>
-      aws-region: us-west-2
+      role-to-assume: <federated-role-reference-for-this-repo>
+      region: <region>
 ```
 
 Document the trust relationship in `docs/decisions/`.
