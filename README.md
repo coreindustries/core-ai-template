@@ -11,22 +11,22 @@ This template establishes a foundation for projects where AI agents are primary 
 - **Architecture Decision Records** (ADRs) with agent-specific fields to prevent undoing intentional choices
 - **Product requirements documentation** (PRD) for maintaining project context
 - **Task tracking** for long-running features and session recovery
-- **30 reusable skills** (slash commands) for common development workflows
+- **33 reusable skills** (slash commands) for common development workflows
 - **Compound engineering** practices adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) — knowledge capture, requirements discovery, and multi-perspective code review
 
 ## Features
 
 ### Context-Optimized Rules System
-- `.claude/rules/` - 9 universal rules, auto-loaded (~7K tokens)
-- `.claude/rules-available/` - 8 platform rules, opt-in via `make enable-*`
+- `.claude/rules/` - 13 universal rules, auto-loaded (~17K tokens)
+- `.claude/rules-available/` - 9 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
-- Only loads what your project needs — **65-70% less context waste** vs loading everything
+- Only loads what your project needs — a minimal backend stack auto-loads ~18K vs ~45K for every rule, about **59% less context**
 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
-- `.claude/agents/` - 8 specialized agents with authority bounds + standardized template
-- `.claude/skills/` - 30 slash commands for common workflows
-- `.claude/references/` - 7 on-demand references (orchestration patterns, checklists, gitmoji)
+- `.claude/agents/` - 10 specialized agents with authority bounds + standardized template
+- `.claude/skills/` - 33 slash commands for common workflows
+- `.claude/references/` - 9 on-demand references (orchestration patterns, checklists, gitmoji)
 - `.claude/mcp.json` - MCP server configuration template
 - `docs/decisions/` - Architecture Decision Records with agent-guidance fields
 
@@ -578,7 +578,7 @@ core-ai-template/
 │       └── adr-template.md      # Template for new ADRs
 └── .claude/
     ├── mcp.json                 # MCP server configuration template
-    ├── rules/                   # Auto-loaded rules (~7K tokens)
+    ├── rules/                   # Auto-loaded rules (~17K tokens)
     │   ├── code-quality.md      # Code quality standards
     │   ├── testing.md           # Testing requirements
     │   ├── ai-agent-patterns.md # AI agent principles + failure modes
@@ -615,7 +615,7 @@ core-ai-template/
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (31 skills, each <name>/SKILL.md)
+    └── skills/                  # Slash commands (33 skills, each <name>/SKILL.md)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle
@@ -701,15 +701,15 @@ AI agents have limited context windows. This template is designed to minimize wa
 ### Three-Tier Rule System
 
 ```
-.claude/rules/              Always loaded — universal standards (~7K tokens)
+.claude/rules/              Always loaded — universal standards (~17K tokens)
 .claude/rules-available/    Opt-in — symlink to enable per project
 .claude/references/         On-demand — loaded by skills when needed
 ```
 
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
-| **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, AI patterns, task management, guardrails |
-| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, iOS, Android, Docker, web/mobile security, OWASP |
+| **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, secrets hygiene, dependency security, database migrations, delivery contract, AI patterns, quality checks, task management, guardrails |
+| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, TypeScript, Python, iOS, Android, Docker, web/mobile security, OWASP |
 | **`references/`** | Only when a skill reads it | Gitmoji, orchestration patterns, quality/security/SOLID checklists, rules guide |
 
 ### Enabling Platform Rules
@@ -748,12 +748,20 @@ ln -s ../rules-available/nextjs.md .claude/rules/nextjs.md
 
 ### Context Budget by Project Type
 
+Universal rules are ~17K on their own; each row below is that base plus the
+platform rules the matching `make enable-*` symlinks in.
+
 | Project Type | Auto-Loaded | % of 200K Context |
 |--------------|-------------|-------------------|
-| Python / Go API | ~8K tokens | ~4% |
-| Node.js API | ~8K tokens | ~4% |
-| Next.js Web App | ~19K tokens | ~10% |
-| React Native | ~15K tokens | ~8% |
+| Backend API, minimal (`enable-api`) | ~18K tokens | ~9% |
+| Containerized (`enable-docker`) | ~20K tokens | ~10% |
+| Python / Go API (`enable-python`) | ~21K tokens | ~11% |
+| React Native (`enable-mobile`) | ~25K tokens | ~13% |
+| Next.js Web App (`enable-web`) | ~29K tokens | ~15% |
+
+Loading every rule in both directories would be ~45K. Figures are file sizes at
+~4 chars/token — recompute them when rules are added, or they drift silently as
+they did before.
 
 ### Adding Custom Rules
 

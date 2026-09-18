@@ -83,6 +83,12 @@ jobs:
         if: >-
           steps.classify.outputs.failure_class == 'lint' ||
           steps.classify.outputs.failure_class == 'types'
+        # zizmor: ignore[adhoc-packages]
+        # Pinned to an exact version, but installed globally rather than from a
+        # lockfile, so it is not integrity-verified. Accepted: this is a CI-only
+        # CLI that never ships in an artifact, and adding a lockfile for one
+        # global install would be more machinery than the risk warrants.
+        # Dependabot cannot reach an inline install, so bump this by hand.
         run: npm install -g @anthropic-ai/claude-code@2.1.246
 
       - name: Run auto-fix agent

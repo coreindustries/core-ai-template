@@ -38,13 +38,13 @@ jobs:
       - name: Install Zizmor
         run: |
           cat > "${RUNNER_TEMP}/zizmor-requirements.txt" <<'EOF'
-          zizmor==1.6.0 \
-            --hash=sha256:a748f38249286ac53662b0b688feb459fc4c72d7b896f9e3cee6310d9bb0d457 \
-            --hash=sha256:aa22ddebe102c7c9b2e803387bebd07f0224ddb6e6e406b3e4f12fb08a86fa13 \
-            --hash=sha256:741b2cf964080c8b62d68f088f9f0aecac3e06b1ab542ec432d17a1ba0e46176 \
-            --hash=sha256:175d62ddf9e70b4ed5918c31cc9b440c4d30d5f96e656ccb6e0020cbadb45c7d \
-            --hash=sha256:a50e3705adbfc76532b0beade03eea6959c23cb32d32f6e447df95606ed31776 \
-            --hash=sha256:b14cd65ec21ce4020f275a3cb392d5c25cefb92243bc211b8597fd6b2be0e17f
+          zizmor==1.30.1 \
+            --hash=sha256:eee12266b793cb87ad4a7e3af2e72404f8a63e3de5eb099b80bf7b1cfd232a8e \
+            --hash=sha256:92906f448365672ebb657fb50d36f997290a3aaba8cac723214741ea9054845d \
+            --hash=sha256:4a5ef2fa4fbd2984f794cfc2f95790bd03fa0bae801487ed550e044675874e60 \
+            --hash=sha256:15679642e8c4f825ba3f22537c698b1bbbad19ead23640f62ec45ebbe7abc803 \
+            --hash=sha256:17fda74e15fe41a6aa354ea4cf71fc7ff3cd025cda6584bb6d7466b3f1d00fe6 \
+            --hash=sha256:f9eb092f089e35fa9fb3b70aeec0a19eca7dacf2ab161f1d50b18351895f085c
           EOF
           pip install --no-deps --require-hashes -r "${RUNNER_TEMP}/zizmor-requirements.txt"
 

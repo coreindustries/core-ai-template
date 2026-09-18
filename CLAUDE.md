@@ -28,15 +28,15 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 │   ├── decisions/              → ADRs: read before proposing architectural changes
 │   ├── coordination/           → Cross-repo coordination tracking (incoming/outgoing)
 │   └── solutions/              → Knowledge capture from /compound skill
-├── .claude/rules/             → 9 auto-loaded rules (~7K tokens)
-├── .claude/rules-available/   → 8 opt-in rules (symlink to enable)
+├── .claude/rules/             → 13 auto-loaded rules (~17K tokens)
+├── .claude/rules-available/   → 9 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 30 slash commands (invoke with /name)
+├── .claude/skills/            → 33 slash commands (invoke with /name)
 ├── .claude/agents/            → 10 specialized agents (see _template.md for structure)
 └── .claude/mcp.json           → MCP server configuration template
 ```
 
-**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, AI agent patterns, quality checks, task management, guardrails). Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
+**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, secrets hygiene, dependency security, database migrations, delivery contract, AI agent patterns, quality checks, task management, guardrails). Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
 
 ## Commands
 
@@ -120,7 +120,7 @@ Use cases: onboarding an existing repo to the kit's secret-scan / commit / PR-te
 
 ## Skills (Slash Commands)
 
-30 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+33 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 

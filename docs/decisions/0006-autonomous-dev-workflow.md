@@ -70,7 +70,7 @@ Classified failures are delivered to a configurable alert channel; the emergency
 
 **Negative:**
 - `sleep 1800` for Tier-1 delay holds a GitHub Actions runner for 30 minutes. Acceptable for low-volume repos; high-volume repos should replace with a delay action or scheduled check.
-- `npm install -g @anthropic-ai/claude-code` in auto-fix.yml is unpinned — violates dependency-security rule. Comment in workflow notes to pin when a stable digest is available.
+- `npm install -g @anthropic-ai/claude-code` in auto-fix.yml is pinned to an exact version, but installed ad-hoc rather than from a lockfile, so it is not integrity-verified. Dependabot does not reach an inline install in a workflow, so the version is bumped by hand.
 - Auto-fix only covers lint and type failures. Test and build failures still require human triage, reached via the alert channel.
 
 **Neutral:**
