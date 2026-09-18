@@ -1,6 +1,11 @@
 ---
 name: checkpoint
-description: "Update task tracking file with current progress. Essential for preserving context across sessions."
+description: >-
+  Update the feature's task file in prd/tasks/ with current progress, so work survives
+  context compression within an ongoing session. Use every 30-60 minutes during active
+  development on a long-running feature. Do not use at session end when handing to
+  another agent (`/handoff`), and do not use it as a general state snapshot
+  (`/compact`).
 ---
 
 # /checkpoint
@@ -21,7 +26,7 @@ Update task tracking file with current progress. Essential for preserving contex
 
 When this skill is invoked:
 
-### Agent Behavior (Codex-Max Pattern)
+### Agent Behavior
 
 **Autonomy:**
 - Automatically detect the current task file from `prd/00_index.md`

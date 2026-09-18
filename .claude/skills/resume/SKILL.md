@@ -1,6 +1,10 @@
 ---
 name: resume
-description: "Recover context and resume work after a new session or context compression."
+description: >-
+  Recover context after a new session or context compression by reading the task file,
+  recent commits, and open work, then restating where things stand. Use at the start of
+  a session that continues earlier work. Do not use to write the handoff itself
+  (`/handoff`), or to onboard a human contributor (`/onboard`).
 ---
 
 # /resume

@@ -1,6 +1,10 @@
 ---
 name: docs
-description: "Generate and update project documentation."
+description: >-
+  Generate and update project documentation from the current code and configuration. Use
+  when public interfaces changed, or when docs have drifted from what the code does. Do
+  not use for architectural rationale (`/adr`) or for capturing a debugging insight
+  (`/compound`).
 ---
 
 # /docs

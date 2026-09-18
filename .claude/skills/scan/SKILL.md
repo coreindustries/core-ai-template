@@ -1,6 +1,11 @@
 ---
 name: scan
-description: "Run security scans against the codebase."
+description: >-
+  Run security scans over the codebase: secret and PII detection via gitleaks, plus the
+  project's SAST and dependency-vulnerability checks. Use before a PR touching sensitive
+  paths, or when CI's Security job fails. Do not use for dependency version and cooldown
+  policy (`/deps`), and never use it to confirm a real secret's value — rotate it
+  instead, per docs/runbooks/secret-leak.md.
 ---
 
 # /scan
@@ -25,7 +30,7 @@ Run security scans against the codebase.
 
 When this skill is invoked:
 
-### Agent Behavior (Codex-Max Pattern)
+### Agent Behavior
 
 **Autonomy:**
 - Complete all security scans end-to-end

@@ -1,6 +1,10 @@
 ---
 name: debug
-description: "Systematic debugging workflow: reproduce, isolate, fix, and verify."
+description: >-
+  Work a bug systematically: reproduce it, isolate the cause, fix it, and verify the fix
+  actually closes it. Use when behavior is wrong and the cause is not yet known. Do not
+  use when the cause is already understood and only the fix remains, or for an urgent
+  production patch under time pressure (`/hotfix`).
 ---
 
 # /debug

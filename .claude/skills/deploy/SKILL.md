@@ -1,6 +1,10 @@
 ---
 name: deploy
-description: "Deploy the application to target platform."
+description: >-
+  Deploy the application to a target environment using the commands defined in
+  prd/00_technology.md. Use when a release is ready to ship to staging or production. Do
+  not use to cut a version tag or changelog first (`/release`), and do not use it to run
+  post-deploy verification, which scripts/post-deploy-health.sh covers.
 ---
 
 # /deploy

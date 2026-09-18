@@ -1,6 +1,10 @@
 ---
 name: context
-description: "Audit auto-loaded context budget, detect redundancy, and recommend optimizations."
+description: >-
+  Audit the auto-loaded context budget, measure what each rule and reference costs,
+  detect redundancy between them, and recommend what to trim or move to on-demand
+  loading. Use when sessions feel context-starved or after adding rules. Do not use to
+  audit prompt quality or dated instructions — that is `/claude-api prompt-audit`.
 ---
 
 # /context

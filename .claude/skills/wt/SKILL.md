@@ -1,6 +1,10 @@
 ---
 name: wt
-description: "Create or manage a git worktree for isolated parallel development — lets multiple agents work in the repo simultaneously without branch collisions."
+description: >-
+  Create a git worktree branched from origin/main and enter it, so parallel agents work
+  in isolated checkouts without colliding. Use when starting work that will run
+  alongside other active sessions. Do not use when already inside a worktree, and do not
+  use it as a substitute for branching in a single-session workflow.
 ---
 
 # /wt

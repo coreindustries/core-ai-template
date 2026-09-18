@@ -1,6 +1,10 @@
 ---
 name: lint
-description: "Run code quality checks including linting, formatting, and type checking."
+description: >-
+  Run linting, formatting, and type checking using the commands defined in
+  prd/00_technology.md. Use before committing, or when CI's Lint or Type Check job
+  fails. Do not use for running the test suite (`/test`) or for security scanning
+  (`/scan`).
 ---
 
 # /lint

@@ -1,6 +1,11 @@
 ---
 name: compound
-description: "Capture knowledge from solved problems to prevent re-discovery. Creates searchable solution documents after non-trivial debugging, fixes, or investigations."
+description: >-
+  Capture knowledge from a solved problem into a searchable document under
+  docs/solutions/, so the next agent does not re-derive it. Use after debugging
+  something non-obvious, or when a fix depended on context that is not evident from the
+  code. Do not use for routine changes the diff already explains, or for architectural
+  decisions — those are ADRs (`/adr`).
 ---
 
 # /compound

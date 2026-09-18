@@ -1,6 +1,10 @@
 ---
 name: ci
-description: "Generate or update CI/CD pipeline configuration for the current stack."
+description: >-
+  Generate or update CI/CD pipeline configuration for the project's stack, matching the
+  gates already defined in .github/workflows/. Use when standing up CI for a new project
+  or adding a gate to an existing pipeline. Do not use to debug a failing run — that is
+  `/debug` — or to change action version pins, which Dependabot owns.
 ---
 
 # /ci

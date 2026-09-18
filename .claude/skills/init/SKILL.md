@@ -1,6 +1,10 @@
 ---
 name: init
-description: "Initialize a new project with structure, configuration, and boilerplate."
+description: >-
+  Initialize a new project from this template: directory structure, configuration, and
+  boilerplate, plus filling in prd/00_technology.md. Use once, on a fresh clone, before
+  any feature work. Do not use on an initialized project — adding a module later is
+  `/scaffold`.
 ---
 
 # /init

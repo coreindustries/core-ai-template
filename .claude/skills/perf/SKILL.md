@@ -1,6 +1,10 @@
 ---
 name: perf
-description: "Profile, benchmark, and optimize application performance."
+description: >-
+  Profile, benchmark, and optimize performance, measuring before and after so the change
+  is attributable. Use when something is measurably slow or a latency budget is missed.
+  Do not use for speculative optimization without a measurement, and do not use it to
+  scan for known bottleneck patterns statically — that is the `perf-auditor` agent.
 ---
 
 # /perf

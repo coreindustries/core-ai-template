@@ -1,6 +1,12 @@
 ---
 name: adr
-description: "Create an Architecture Decision Record when making a non-obvious architectural call."
+description: >-
+  Record an Architecture Decision Record when making a non-obvious architectural call,
+  capturing the decision, its alternatives, and the constraints a future agent must not
+  silently undo. Use when choosing between viable approaches, adopting or dropping a
+  dependency, or changing a pattern other code depends on. Do not use for routine
+  implementation choices that no future reader would question, or to document a decision
+  already recorded — amend that ADR instead.
 ---
 
 # /adr

@@ -1,6 +1,10 @@
 ---
 name: compact
-description: "Create a token-efficient state snapshot for context preservation during long sessions."
+description: >-
+  Create a token-efficient snapshot of current state — decisions, open threads, next
+  actions — for preservation during a long session. Use when context is filling and work
+  will continue in the same session. Do not use for durable per-feature progress
+  (`/checkpoint`) or for an end-of-session handoff to another agent (`/handoff`).
 ---
 
 # /compact

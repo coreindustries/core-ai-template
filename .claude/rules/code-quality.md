@@ -4,27 +4,22 @@
 
 ## DRY Principle (Don't Repeat Yourself)
 
-All code MUST follow the DRY principle.
+Extract shared behavior rather than duplicating it — duplicated logic drifts, and
+the copies stop agreeing without anyone noticing.
 
 - Extract common functionality into reusable functions or modules
-- Avoid code duplication across files or services
-- Create shared utilities for common patterns
-- Search for existing implementations before creating new code
-- Refactor duplicated code when identified during reviews
+- Search for an existing implementation before writing a new one
+- Refactor duplication when a review surfaces it
 
 ## Static Typing Requirements
 
-Static typing MUST be used for all code.
-
-- All function signatures MUST include type annotations
-- All class attributes MUST be type-annotated
-- All return types MUST be specified
-- Use modern syntax for your language version
-- Type checking MUST pass before code can be merged
+Type everything: function signatures, class attributes, and return types all carry
+annotations, using the modern syntax for the language version. Type checking gates
+the merge — a failing type check is a broken build, not a warning.
 
 ## Naming Conventions
 
-All code MUST follow consistent naming conventions.
+Naming follows the table below, so a reader can infer what a symbol is from how it is written.
 
 | Element             | Convention         | Example                                       |
 | ------------------- | ------------------ | --------------------------------------------- |
@@ -36,12 +31,11 @@ All code MUST follow consistent naming conventions.
 
 ## Code Documentation
 
-All code MUST be documented.
+Document what a reader cannot infer from the code itself.
 
-- All modules MUST have a module-level docstring/comment
-- All classes MUST have a class-level docstring/comment
-- All public functions MUST have docstrings (use project's convention)
-- Complex algorithms MUST include inline comments
+- Modules and classes carry a docstring saying what they are for
+- Public functions carry a docstring covering arguments, return, and what they raise
+- Complex algorithms carry inline comments explaining *why*, not what
 
 **Example structure (language-agnostic):**
 
@@ -71,7 +65,7 @@ All code MUST be documented.
 
 ## Project Organization
 
-The project root MUST be kept clean.
+Keep the project root clean — it is the first thing a new contributor reads.
 
 **Allowed in root:**
 - Configuration files (package manager, linter, type checker)
@@ -88,7 +82,7 @@ The project root MUST be kept clean.
 
 ## Code Review Checklist
 
-All code reviews MUST verify:
+Code review verifies:
 - [ ] Type annotations on all functions and attributes
 - [ ] Docstrings on all public functions and classes
 - [ ] DRY principle followed

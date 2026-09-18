@@ -1,6 +1,10 @@
 ---
 name: onboard
-description: "Onboard a new contributor to the project with a guided walkthrough."
+description: >-
+  Walk a new contributor through the project: architecture, conventions, local setup,
+  and the workflows they will use first. Use when someone joins, or when a returning
+  contributor needs re-orientation. Do not use to recover an agent's own lost context
+  after compression (`/resume`).
 ---
 
 # /onboard

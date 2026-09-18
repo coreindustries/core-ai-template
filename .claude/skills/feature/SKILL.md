@@ -1,6 +1,10 @@
 ---
 name: feature
-description: "Full-cycle feature development: PRD creation, implementation, testing, and PR creation in an isolated worktree."
+description: >-
+  Run a feature end to end in an isolated worktree: PRD, implementation, tests, and pull
+  request. Use for substantial multi-file work that warrants its own branch and PRD. Do
+  not use for a single-file fix (`/commit` directly), for generating one module's
+  boilerplate (`/scaffold`), or before requirements are settled (`/brainstorm`).
 ---
 
 # /feature
@@ -49,7 +53,7 @@ This skill orchestrates the complete feature development lifecycle:
 
 When this skill is invoked:
 
-### Agent Behavior (Codex-Max Pattern)
+### Agent Behavior
 
 **Autonomy:**
 - Complete each phase end-to-end before moving to the next
@@ -316,90 +320,45 @@ Add to database schema:
 
 ## Phase 5: Write Tests
 
-### Step 5.1: Create Unit Tests
+Unit tests go in `tests/unit/test_{feature}`; anything touching a real database,
+an end-to-end workflow, or a live API goes in `tests/integration/test_{feature}`.
+`.claude/rules/testing.md` is auto-loaded and states the coverage bar.
 
-Create `tests/unit/test_{feature}`:
-
-**For CRUD features:**
-- API endpoint tests (all CRUD operations)
-- Service tests (business logic)
-- Model validation tests
-
-**For API clients:**
-1. **Authentication tests** - Valid/invalid credentials
-2. **API response parsing** - Success cases, null handling, date parsing
-3. **Error handling** - HTTP errors (401, 403, 429, 500), network errors
-4. **Retry logic** - Transient vs permanent failures
-5. **Edge cases** - Empty responses, pagination, rate limiting
-
-### Step 5.2: Create Integration Tests (if needed)
-
-Create `tests/integration/test_{feature}` for:
-- Database operations
-- End-to-end workflows
-- Real API calls (with test credentials)
+Cover the happy path *and* the failure modes the feature can actually reach —
+for a CRUD surface that means each operation plus validation and authorization;
+for an API client it means auth failure, error responses, retry behavior, and the
+edge cases that bite in production (empty results, pagination, rate limits). The
+useful question is which of these can fail in a way no existing test would catch.
 
 ---
 
-## Phase 6: Run Tests and Fix Issues
+## Phase 6: Green Tests and Coverage
 
-### Step 6.1: Run Test Suite
+Run the suite, fix what fails, repeat until green and coverage meets the gate.
+Diagnose each failure to its cause before changing anything — a test edited to
+match broken behavior is worse than the failure it silenced.
 
 ```bash
-# Run all tests (see prd/00_technology.md for exact commands)
 {test_command} tests/ -v
+{test_command} tests/unit/test_{feature} -v --tb=long   # narrow to a failing file
 
-# If failures, run specific failing tests
-{test_command} tests/unit/test_{feature} -v --tb=long
-```
-
-### Step 6.2: Fix Failing Tests
-
-For each failure:
-1. Analyze the failure output
-2. Identify root cause
-3. Fix the issue (code or test)
-4. Re-run to verify fix
-
-**Iterate until all tests pass.**
-
-### Step 6.3: Verify Coverage
-
-```bash
 {test_with_coverage} tests/unit/test_{feature} \
   --cov=src/{project}/{feature_path}
 ```
 
 ---
 
-## Phase 7: Run Linting and Security Scans
+## Phase 7: Quality Gate
 
-### Step 7.1: Run Linting
-
-```bash
-{lint_fix} src/ tests/
-{format_command} src/ tests/
-```
-
-### Step 7.2: Run Type Checking
+Everything below has to be green before the PR opens. These are independent
+checks — run them in whatever order suits, or all at once with `make quality`.
 
 ```bash
+{lint_fix} src/ tests/ && {format_command} src/ tests/
 {type_check} src/
-```
-
-### Step 7.3: Run Security Scan
-
-```bash
 {security_scan}
-```
-
-### Step 7.4: Run Pre-commit Hooks
-
-```bash
 {pre_commit} run --all-files
 ```
-
-Fix any issues until all checks pass.
 
 ---
 

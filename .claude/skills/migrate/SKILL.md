@@ -1,6 +1,11 @@
 ---
 name: migrate
-description: "Manage database schema migrations."
+description: >-
+  Create, apply, and verify database schema migrations under the expand/contract
+  discipline in .claude/rules/database-migrations.md. Use when adding or altering
+  tables, columns, indexes, or RLS policies. Do not use for data backfills or ad-hoc
+  queries against a live database, and do not use it to edit a migration already merged
+  — write a new one.
 ---
 
 # /migrate
