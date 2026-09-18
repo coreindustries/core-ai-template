@@ -1,6 +1,11 @@
 ---
 name: env
-description: "Set up, validate, and manage environment variables."
+description: >-
+  Set up, validate, and reconcile environment variables against .env.tpl, verifying that
+  every required variable is declared and injected. Use when onboarding, when startup
+  fails on a missing variable, or after adding a config value. Do not use to store
+  secret values — this project never writes plaintext secrets to disk; see
+  .claude/rules/secrets-hygiene.md.
 ---
 
 # /env

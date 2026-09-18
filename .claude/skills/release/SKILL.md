@@ -1,6 +1,9 @@
 ---
 name: release
-description: "Tag a version, generate changelog, and create a GitHub release."
+description: >-
+  Tag a version, generate the changelog, and create the GitHub release. Use when a set
+  of merged changes is ready to ship as a named version. Do not use to deploy the built
+  artifact (`/deploy`), and do not use it on a branch that has not merged to main.
 ---
 
 # /release

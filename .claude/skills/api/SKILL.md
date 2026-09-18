@@ -1,6 +1,11 @@
 ---
 name: api
-description: "Design REST or GraphQL API endpoints with schemas and validation."
+description: >-
+  Design REST or GraphQL endpoints with request/response schemas and validation rules,
+  following the thin-route, service-layer boundary in CLAUDE.md. Use when adding or
+  reshaping an external interface and the contract needs settling before implementation.
+  Do not use for internal function signatures, or to implement an endpoint whose
+  contract is already agreed — that is `/feature` or `/scaffold`.
 ---
 
 # /api

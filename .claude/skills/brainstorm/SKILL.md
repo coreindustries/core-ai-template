@@ -1,6 +1,11 @@
 ---
 name: brainstorm
-description: "Explore requirements before implementation. Separates WHAT from HOW to ensure the right problem is being solved before any code is written."
+description: >-
+  Explore requirements before implementation, separating WHAT is needed from HOW it will
+  be built so the right problem gets solved. Use at the start of a feature when the goal
+  is still fuzzy, or when stakeholders disagree about scope. Do not use once
+  requirements are settled — go to `/feature` — and do not use it to choose between
+  implementation approaches, which is the `architect` agent's job.
 ---
 
 # /brainstorm

@@ -1,6 +1,10 @@
 ---
 name: pr
-description: "Create pull requests with comprehensive descriptions and test plans."
+description: >-
+  Open a pull request with a description and test plan matching
+  .github/pull_request_template.md, including the delivery-contract sections when the
+  change touches a high-risk surface. Use when a branch is ready for review. Do not use
+  to create the commits themselves (`/commit`), or to cut a release (`/release`).
 ---
 
 # /pr

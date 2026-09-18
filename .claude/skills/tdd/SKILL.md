@@ -1,6 +1,11 @@
 ---
 name: tdd
-description: "Red→green→refactor discipline for new behavior — forces a failing test before implementation and a passing test before any claim of done."
+description: >-
+  Drive new behavior red→green→refactor, requiring a captured failing test before any
+  implementation. Use when adding behavior that does not yet exist, especially where an
+  agent might otherwise write tests after the fact. Do not use when refactoring code
+  whose tests already pass (`/refactor`), or for exploratory spikes you intend to throw
+  away.
 ---
 
 # /tdd

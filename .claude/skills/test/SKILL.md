@@ -1,6 +1,9 @@
 ---
 name: test
-description: "Run tests with coverage reporting and quality gates."
+description: >-
+  Run the test suite with coverage reporting against the project's coverage gate. Use to
+  verify a change, or when CI's Test job fails. Do not use to author new tests for new
+  behavior — that is `/tdd` — and do not use it for linting or type checking (`/lint`).
 ---
 
 # /test
@@ -25,7 +28,7 @@ Run tests with coverage reporting and quality gates.
 
 When this skill is invoked:
 
-### Agent Behavior (Codex-Max Pattern)
+### Agent Behavior
 
 **Autonomy:**
 - Complete test execution and analysis end-to-end

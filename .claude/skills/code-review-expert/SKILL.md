@@ -1,6 +1,11 @@
 ---
 name: code-review-expert
-description: "Expert code review of current git changes with a senior engineer lens: SOLID, security, performance, error handling, boundary conditions."
+description: >-
+  Review the current git changes through a senior-engineer lens: SOLID violations,
+  security exposure, performance, error handling, and boundary conditions. Use for a
+  deep single-reviewer pass on a focused diff. Do not use for multi-specialist review
+  with severity classification (`/review`), or as the final pre-merge gate (the `judge`
+  agent).
 ---
 
 # /code-review-expert

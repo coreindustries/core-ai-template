@@ -1,6 +1,11 @@
 ---
 name: deps
-description: "Audit, update, and manage project dependencies safely."
+description: >-
+  Audit, update, and manage dependencies under the pinning and 24h-cooldown rules in
+  .claude/rules/dependency-security.md. Use when adding a dependency, reviewing a
+  Dependabot PR, or checking for known vulnerabilities. Do not use for secret scanning
+  or SAST (`/scan`), and note it will refuse a version that has not cleared the
+  cooldown.
 ---
 
 # /deps

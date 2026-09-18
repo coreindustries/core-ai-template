@@ -1,6 +1,10 @@
 ---
 name: refactor
-description: "Safely refactor code with test-driven approach."
+description: >-
+  Restructure code without changing behavior, with tests verified green before and after
+  so any behavior change surfaces immediately. Use when structure is impeding work on
+  code that is already covered by tests. Do not use when tests do not yet exist — write
+  them first (`/tdd`) — and do not bundle behavior changes into the same pass.
 ---
 
 # /refactor
@@ -23,7 +27,7 @@ Safely refactor code with test-driven approach.
 
 When this skill is invoked:
 
-### Agent Behavior (Codex-Max Pattern)
+### Agent Behavior
 
 **Autonomy:**
 - Complete the refactoring end-to-end

@@ -1,6 +1,11 @@
 ---
 name: scaffold
-description: "Generate a new module, component, or screen with boilerplate, tests, and wiring."
+description: >-
+  Generate a new module, component, or screen with its boilerplate, tests, and wiring
+  into the existing structure. Use when adding a unit that follows an established
+  pattern in the codebase. Do not use for a full feature with PRD and PR (`/feature`),
+  or when no pattern exists yet to follow — decide the shape first with the `architect`
+  agent.
 ---
 
 # /scaffold

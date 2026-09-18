@@ -1,6 +1,10 @@
 ---
 name: commit
-description: "Create well-formatted git commits following conventional commit standards."
+description: >-
+  Create a git commit following the Gitmoji + Conventional Commits format enforced by
+  the commit-msg hook. Use when staged work is ready to record. Do not use to open a
+  pull request (`/pr`), and do not use it to bypass a failing pre-commit hook — fix what
+  the hook caught.
 ---
 
 # /commit

@@ -607,7 +607,7 @@ core-ai-template/
     │   └── solid-checklist.md   # SOLID principles checklist
     ├── agents/                  # Specialized agents (9 + template)
     │   ├── _template.md         # Standard 5-block agent structure
-    │   ├── codex-style-agent.md # Autonomous code generation
+    │   ├── codex-style-agent.md # Completeness review of AI-assisted work
     │   ├── architect.md         # Architecture & design review
     │   ├── test-writer.md       # Test generation
     │   ├── perf-auditor.md      # Performance auditing

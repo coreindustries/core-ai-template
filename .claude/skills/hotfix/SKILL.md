@@ -1,6 +1,10 @@
 ---
 name: hotfix
-description: "Quick patch workflow for production issues with minimal risk."
+description: >-
+  Patch an urgent production issue on a minimal-risk path, keeping the change as small
+  as the incident allows. Use when something is broken in production and the fix cannot
+  wait for the normal feature cycle. Do not use for non-urgent bugs (`/debug` then
+  `/feature`), and do not let it skip tests for the code path being changed.
 ---
 
 # /hotfix
