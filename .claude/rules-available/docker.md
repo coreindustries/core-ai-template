@@ -179,7 +179,8 @@ services:
       retries: 3
 
   db:
-    image: postgres:16
+    # Canonical image: prd/00_technology.md "Containerization".
+    image: ${DB_IMAGE}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
       interval: 10s
@@ -206,7 +207,7 @@ services:
 ```yaml
 services:
   db:
-    image: postgres:16
+    image: ${DB_IMAGE}
     # Always starts (no profile)
 
   redis:
