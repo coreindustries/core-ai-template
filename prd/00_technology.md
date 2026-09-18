@@ -83,11 +83,26 @@ $(WRAPPER) supabase db push                 # Deploy migrations (DB URL injected
 
 ### Containerization
 
+**This table is the single source of truth for container images.** Docs elsewhere
+reference it rather than restating a version, so there is one place to change.
+The two files that must carry a literal — they execute — are
+`.github/workflows/ci.yml` and `.devcontainer/docker-compose.yml`; update both
+when you change the value here.
+
+Images are pinned by digest, not tag, per `.claude/rules/dependency-security.md`
+Rule 1: tags are mutable, digests are not. A new digest must also clear the 24h
+cooldown in Rule 2 before it is merged.
+
 | Component | Image |
 |-----------|-------|
-| Database | `{db_image}` |
+| Database | `pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a` |
 | Cache | `{cache_image}` |
 | Application | `{app_image}` |
+
+The database image is Postgres 18 with the `pgvector` extension. It is a strict
+superset of stock `postgres:18` — a project that never creates a `vector` column
+is unaffected, while one that does gets the same extension in CI and locally.
+Swap it for stock Postgres if you are certain you will not want vector search.
 
 ### Environment Variables
 

@@ -510,7 +510,8 @@ Both stacks can use a common `docker-compose.yml` for local development:
 ```yaml
 services:
   db:
-    image: postgres:16
+    # Canonical image (digest-pinned): prd/00_technology.md "Containerization"
+    image: ${DB_IMAGE}
     environment:
       POSTGRES_USER: dev
       POSTGRES_PASSWORD: dev

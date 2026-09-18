@@ -75,12 +75,16 @@ go tool cover -func=coverage.out | grep total | awk '{if ($3+0 < 66) exit 1}'
 
 ### 4. Configure Database Service
 
-If using PostgreSQL, the template includes a service. Customize if needed:
+If using PostgreSQL, the template includes a service in `ci.yml`. The image is
+digest-pinned and its canonical value lives in `prd/00_technology.md`
+("Containerization") — change it there and in the two files that execute it
+(`ci.yml` and `.devcontainer/docker-compose.yml`) rather than copying a version
+into new places.
 
 ```yaml
 services:
   postgres:
-    image: postgres:16  # Change version if needed
+    image: <see prd/00_technology.md>
     env:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test

@@ -137,7 +137,10 @@ jobs:
 
     services:
       postgres:
-        image: pgvector/pgvector:pg16
+        # Canonical database image — see prd/00_technology.md "Containerization".
+        # Digest-pinned per .claude/rules/dependency-security.md Rule 1 (tags are
+        # mutable, digests are not). Keep in sync with .devcontainer/docker-compose.yml.
+        image: pgvector/pgvector:0.8.6-pg18@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres  # pragma: allowlist secret
