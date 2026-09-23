@@ -10,6 +10,7 @@
 - **Testing**: pytest with pytest-cov, pytest-asyncio
 - **Python Version**: 3.12+ (use latest stable)
 - **Style**: PEP 8 via ruff, Google-style docstrings, type annotations everywhere
+- **Terminal UI (TUI)**: textual (default) — prefer over raw `curses` for anything beyond trivial terminal I/O; ships with `rich` for rendering
 
 ## 1. Project Setup with uv
 
@@ -414,7 +415,61 @@ uv run bandit -r src/
 uv run safety check
 ```
 
-## 10. Common Anti-Patterns
+## 10. Terminal UIs (TUI)
+
+Prefer **textual** (with **rich** for rendering) for any interactive, multi-pane terminal application. Reach for raw `curses` only for the most trivial single-screen output — anything with layout, color, or more than one focused widget ends up re-implementing what Textual already provides, and `curses`'s event loop is synchronous, so it cannot talk to async code (e.g. an `asyncio` database layer) without wrapping every call in a blocking `asyncio.new_event_loop()` hack.
+
+### Install
+
+```bash
+uv add textual==8.2.8 rich==15.0.0
+```
+
+### Minimal app
+
+```python
+from textual.app import App, ComposeResult
+from textual.widgets import Footer, Header, Static
+from rich.text import Text
+
+class LogViewer(App):
+    BINDINGS = [("q", "quit", "Quit")]  # drives the Footer automatically
+
+    def compose(self) -> ComposeResult:
+        yield Header()
+        yield Static(id="log-pane")
+        yield Footer()
+
+    def show_line(self, raw_log_line: str) -> None:
+        # rich.text.Text, never an f-string: a literal "[" in SQL or tool
+        # output would otherwise be parsed as Rich markup and corrupt the render.
+        self.query_one("#log-pane", Static).update(Text(raw_log_line))
+```
+
+### Async data loading
+
+```python
+from textual import work
+
+class LogViewer(App):
+    @work(exclusive=True)
+    async def load_logs(self, query: str) -> None:
+        rows = await db.fetch_logs(query)  # native asyncio — no sync-wrapper hack
+        ...
+        # exclusive=True cancels a stale in-flight load if the user navigates away
+```
+
+### Testing
+
+```python
+async def test_log_viewer_shows_rows() -> None:
+    app = LogViewer()
+    async with app.run_test() as pilot:   # headless — no real terminal, runs in CI
+        await pilot.press("q")
+        assert app.query_one("#log-pane", Static).renderable
+```
+
+## 11. Common Anti-Patterns
 
 | Anti-Pattern | Fix |
 |-------------|-----|
@@ -427,11 +482,15 @@ uv run safety check
 | `print()` for logging | Use `logging` or `structlog` |
 | `requirements.txt` manually | Use `uv` with `pyproject.toml` + lock file |
 | `setup.py` / `setup.cfg` | Use `pyproject.toml` |
+| Raw `curses` for a TUI | Use `textual` + `rich` — CSS-based layout, native async, headless test harness |
+| f-string into `rich` output | Use `rich.text.Text` — markup injection if the string contains `[` |
 
 ## See Also
 
 - `.claude/rules/security-core.md` - Core security practices (always auto-loaded)
 - `.claude/rules-available/security-owasp.md` - OWASP Top 10 standards
+- [Textual Documentation](https://textual.textualize.io/) - TUI framework (preferred over `curses`)
+- [Rich Documentation](https://rich.readthedocs.io/) - terminal rendering, used by Textual
 - [uv Documentation](https://docs.astral.sh/uv/)
 - [ruff Documentation](https://docs.astral.sh/ruff/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
