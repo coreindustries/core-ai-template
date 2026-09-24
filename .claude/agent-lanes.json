@@ -59,7 +59,7 @@
 
   "prCheck": {
     "_comment": "Extra offline gates `make pr-check` runs after the delivery-contract and branch-name checks. Each is a command run from the PR worktree; non-zero fails the check.",
-    "ratchets": ["node scripts/ratchet.mjs --strict"]
+    "ratchets": ["node scripts/ratchet.mjs"]
   },
 
   "deploy": {

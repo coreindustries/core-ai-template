@@ -14,7 +14,9 @@
 //
 // Config: .claude/ratchets.json (see that file's `_comment` for the full
 // schema — "kind: pattern" / "kind: unreferenced", the declared-runners
-// contract, and why "slack" defaults to a warning).
+// contract, why "slack" defaults to a warning, the check-specific
+// `ratchet-allow(<check-id>):` exemption syntax, and the ReDoS-safety
+// caution for writing pattern regexes).
 //
 // Resolves the repo root via `git rev-parse --show-toplevel`, so it works
 // run from any subdirectory, not just the repo root.
@@ -37,6 +39,15 @@ function findRepoRoot() {
   } catch (e) {
     throw new Error(`not inside a git repository (git rev-parse --show-toplevel failed from ${process.cwd()}): ${e.message}`);
   }
+}
+
+// Whether a wiringFiles glob entry is one resolveWiringFiles can actually
+// resolve: a single `*` confined to the final path segment. `**` and brace
+// expansion are rejected here rather than silently resolving to zero files.
+function isSupportedWiringGlob(pattern) {
+  if (pattern.includes('**') || pattern.includes('{')) return false;
+  if (!pattern.includes('*')) return true;
+  return !dirname(pattern).includes('*');
 }
 
 function validateConfig(cfg) {
@@ -72,12 +83,24 @@ function validateConfig(cfg) {
       if (!Array.isArray(check.wiringFiles) || check.wiringFiles.length === 0) {
         throw new Error(`check "${check.id}": "wiringFiles" must be a non-empty array`);
       }
+      for (const wf of check.wiringFiles) {
+        if (typeof wf !== 'string' || !isSupportedWiringGlob(wf)) {
+          throw new Error(
+            `check "${check.id}": wiringFiles entry ${JSON.stringify(wf)} is not resolvable — only a single "*" confined to the final path segment is supported, not "**" or "{...}"`,
+          );
+        }
+      }
       if (!Array.isArray(check.runners)) {
         throw new Error(`check "${check.id}": "runners" must be an array (can be empty)`);
       }
       for (const r of check.runners) {
         if (!Array.isArray(r.covers) || r.covers.length === 0 || typeof r.by !== 'string' || r.by.length === 0) {
           throw new Error(`check "${check.id}": malformed runner entry ${JSON.stringify(r)}`);
+        }
+        if (r.by.length < 6 || !/[/ ]/.test(r.by)) {
+          throw new Error(
+            `check "${check.id}": runner "by" must be a specific invocation (a path or a command with an argument), not a bare word: ${JSON.stringify(r.by)}`,
+          );
         }
       }
     }
@@ -166,8 +189,24 @@ function commentPrefixFor(file) {
   return /\.(py|sh|bash)$/.test(file) ? '#' : '//';
 }
 
-function allowRegexFor(file) {
-  return new RegExp(`${commentPrefixFor(file)}.*ratchet-allow:`);
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// `ratchet-allow(<check-id>): <reason>` — check-specific, so a marker naming
+// one check never silently exempts a site that belongs to a different check.
+function allowRegexFor(file, checkId) {
+  return new RegExp(`${commentPrefixFor(file)}.*ratchet-allow\\(${escapeRegExp(checkId)}\\):`);
+}
+
+// Strips whole `#`-comment lines (YAML/Makefile/pyproject.toml style) before
+// a wiring file's content is matched against a runner's `by` string, so a
+// `by` mentioned only in a comment doesn't count as actually wired.
+function stripHashCommentLines(content) {
+  return content
+    .split('\n')
+    .filter((l) => !/^\s*#/.test(l))
+    .join('\n');
 }
 
 // Precomputed line index: O(n) once per file instead of O(n) per match
@@ -207,7 +246,7 @@ function runPatternCheck(check) {
       const content = readFileSync(join(repoRoot, file), 'utf8');
       const lines = content.split('\n');
       const lineOf = fileLineNumberer(content);
-      const allowRe = allowRegexFor(file);
+      const allowRe = allowRegexFor(file, check.id);
       re.lastIndex = 0;
       let m;
       while ((m = re.exec(content)) !== null) {
@@ -254,9 +293,13 @@ function runUnreferencedCheck(check) {
   const testFiles = allRootFiles.filter((f) => matchesAnyGlob(f, testGlobs));
 
   // Explicit wiring files only — never arbitrary files under the scanned
-  // roots, so a runner's `by` can't be satisfied by coincidence.
+  // roots, so a runner's `by` can't be satisfied by coincidence. Full-line
+  // `#`-comments are stripped first, so a `by` mentioned only in a comment
+  // doesn't count as wired.
   const wiringFiles = resolveWiringFiles(check.wiringFiles);
-  const wiringContent = wiringFiles.map((f) => readFileSync(join(repoRoot, f), 'utf8')).join('\n');
+  const wiringContent = wiringFiles
+    .map((f) => stripHashCommentLines(readFileSync(join(repoRoot, f), 'utf8')))
+    .join('\n');
 
   const runners = (check.runners ?? []).map((r) => ({
     ...r,
@@ -283,8 +326,11 @@ function runUnreferencedCheck(check) {
     const covered = runners.some((r) => r.wired && matchesAnyGlob(file, r.covers));
     if (!covered) {
       const content = readFileSync(join(repoRoot, file), 'utf8');
-      const allowRe = allowRegexFor(file);
-      const allowed = content.split('\n').some((l) => allowRe.test(l));
+      const allowRe = allowRegexFor(file, check.id);
+      // Only the first 3 lines are checked — an orphan exemption is a
+      // file-level statement, not tied to a specific matched line, so it
+      // must be declared up front rather than found anywhere in the file.
+      const allowed = content.split('\n').slice(0, 3).some((l) => allowRe.test(l));
       sites.push({ file, line: 1, label: 'orphaned test file (no declared runner covers it)', allowed });
     }
   }

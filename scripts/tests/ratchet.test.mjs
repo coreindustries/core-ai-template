@@ -41,9 +41,9 @@ function writeConfig(dir, config) {
   write(dir, '.claude/ratchets.json', JSON.stringify(config, null, 2));
 }
 
-function runRatchet(dir, args = [], cwd = dir) {
+function runRatchet(dir, args = [], cwd = dir, timeout = 10000) {
   try {
-    const out = execFileSync('node', [ratchetScript, ...args], { cwd, encoding: 'utf8' });
+    const out = execFileSync('node', [ratchetScript, ...args], { cwd, encoding: 'utf8', timeout });
     return { status: 0, stdout: out };
   } catch (e) {
     return { status: e.status ?? 1, stdout: (e.stdout ?? '') + (e.stderr ?? '') };
@@ -166,13 +166,13 @@ test('--update refuses to raise a baseline and exits 1 (still regressed)', () =>
   rmSync(dir, { recursive: true, force: true });
 });
 
-test('ratchet-allow comment (on the matched line, in that file type\'s comment syntax) exempts a site', () => {
+test('ratchet-allow(<check-id>) comment (on the matched line, in that file type\'s comment syntax) exempts a site', () => {
   const dir = makeRepo();
   writeConfig(dir, PATTERN_CONFIG_BASE); // baseline 0
   write(
     dir,
     'src/a.py',
-    'try:\n    x()\nexcept Exception:  # ratchet-allow: legacy shim, tracked in TICKET-1\n    pass\n',
+    'try:\n    x()\nexcept Exception:  # ratchet-allow(silent-exception-swallowing): legacy shim, tracked in TICKET-1\n    pass\n',
   );
   gitAdd(dir);
 
@@ -184,13 +184,28 @@ test('ratchet-allow comment (on the matched line, in that file type\'s comment s
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('ratchet-allow naming a DIFFERENT check does not exempt this one', () => {
+  const dir = makeRepo();
+  writeConfig(dir, PATTERN_CONFIG_BASE); // baseline 0, check id "silent-exception-swallowing"
+  write(
+    dir,
+    'src/a.py',
+    'try:\n    x()\nexcept Exception:  # ratchet-allow(orphaned-test-files): wrong check name\n    pass\n',
+  );
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('ratchet-allow must follow a real comment marker, not just appear as text in a string literal', () => {
   const dir = makeRepo();
   writeConfig(dir, PATTERN_CONFIG_BASE); // baseline 0
   write(
     dir,
     'src/a.py',
-    "try:\n    x()\nexcept Exception:\n    pass; msg = 'ratchet-allow: nope, not a comment'\n",
+    "try:\n    x()\nexcept Exception:\n    pass; msg = 'ratchet-allow(silent-exception-swallowing): nope, not a comment'\n",
   );
   gitAdd(dir);
 
@@ -239,11 +254,23 @@ test('python pattern: "..." stub body is counted', () => {
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('python pattern: word boundary — "on_except(" is not mistaken for "except"', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('python');
+  writeConfig(dir, singlePatternConfig(pattern, 0));
+  write(dir, 'src/a.py', 'def on_except(handler):\n    pass\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
 test('js pattern: comment-only catch body is counted', () => {
   const dir = makeRepo();
   const pattern = realPattern('empty (or comment-only) catch');
   writeConfig(dir, singlePatternConfig(pattern, 1));
-  write(dir, 'src/a.js', 'try {\n  x();\n} catch (e) {\n  // ignore\n}\n'); // ratchet-allow: fixture string scanned as this repo's own source, not real code
+  write(dir, 'src/a.js', 'try {\n  x();\n} catch (e) {\n  // ignore\n}\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
   const result = runRatchet(dir);
@@ -255,7 +282,7 @@ test('js pattern: catch-arrow undefined/null bodies are counted', () => {
   const dir = makeRepo();
   const pattern = realPattern('undefined/null');
   writeConfig(dir, singlePatternConfig(pattern, 2));
-  write(dir, 'src/a.js', 'foo().catch(() => undefined);\nbar().catch(() => null);\n'); // ratchet-allow: fixture string scanned as this repo's own source, not real code
+  write(dir, 'src/a.js', 'foo().catch(() => undefined);\nbar().catch(() => null);\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
   const result = runRatchet(dir);
@@ -267,7 +294,7 @@ test('js pattern: async-arrow empty catch body is counted', () => {
   const dir = makeRepo();
   const pattern = realPattern('undefined/null');
   writeConfig(dir, singlePatternConfig(pattern, 1));
-  write(dir, 'src/a.js', 'foo().catch(async () => {});\n'); // ratchet-allow: fixture string scanned as this repo's own source, not real code
+  write(dir, 'src/a.js', 'foo().catch(async () => {});\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
   const result = runRatchet(dir);
@@ -279,10 +306,46 @@ test('js pattern: catch-function empty body is counted', () => {
   const dir = makeRepo();
   const pattern = realPattern('function () {}');
   writeConfig(dir, singlePatternConfig(pattern, 1));
-  write(dir, 'src/a.js', 'foo().catch(function () {});\n'); // ratchet-allow: fixture string scanned as this repo's own source, not real code
+  write(dir, 'src/a.js', 'foo().catch(function () {});\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
   const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('js pattern: TS-typed catch-arrow params are counted, e.g. (e: unknown) => {}', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('undefined/null');
+  writeConfig(dir, singlePatternConfig(pattern, 2));
+  write(
+    dir,
+    'src/a.ts',
+    'foo().catch((e: unknown) => {});\nbar().catch((_e: any) => undefined);\n', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+  );
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ReDoS safety: a long run of "/" inside a non-empty catch body completes in well under a second', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('empty (or comment-only) catch');
+  writeConfig(dir, singlePatternConfig(pattern, 0)); // body is NOT empty -> must not match, must not hang
+  const slashes = '/'.repeat(200);
+  write(
+    dir,
+    'src/a.js',
+    `try {\n  x();\n} catch (e) {\n  ${slashes}\n  doSomethingReal();\n}\n`, // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+  );
+  gitAdd(dir);
+
+  const start = Date.now();
+  const result = runRatchet(dir, [], dir, 5000);
+  const elapsed = Date.now() - start;
+  assert.ok(elapsed < 1000, `expected < 1000ms, took ${elapsed}ms — possible ReDoS regression in the empty-catch pattern`);
   assert.equal(result.status, 0, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
@@ -356,6 +419,81 @@ test('unreferenced: a file covered by a runner whose "by" IS wired is not orphan
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('unreferenced: a "by" string appearing only in a comment line is not wired (comment lines stripped)', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'node --test scripts/tests/' }],
+    }),
+  );
+  write(dir, 'Makefile', '# node --test scripts/tests/\nhelp:\n\techo hi\n');
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stdout, /not invoked/i);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: narrowed covers — real config only wires test_log_triage.py, not a sibling test_*.py', () => {
+  const dir = makeRepo();
+  const cfg = JSON.parse(readFileSync(join(realRepoRoot, '.claude', 'ratchets.json'), 'utf8'));
+  const realCheck = cfg.checks.find((c) => c.kind === 'unreferenced');
+  writeConfig(dir, { roots: ['src', 'tests', 'scripts'], checks: [{ ...realCheck, baseline: 0 }] });
+  write(dir, 'Makefile', 'lanes-test:\n\tscripts/dev/board/tests/run-all.sh\n');
+  write(dir, 'scripts/dev/board/tests/test_log_triage.py', 'def test_x():\n    pass\n');
+  write(dir, 'scripts/dev/board/tests/test_new_thing.py', 'def test_y():\n    pass\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1, result.stdout);
+  assert.doesNotMatch(result.stdout, /test_log_triage\.py/, 'the covered file must not be flagged');
+  assert.match(result.stdout, /test_new_thing\.py/, 'a sibling not in the narrowed covers glob must be orphaned');
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: ratchet-allow(<check-id>) in the first 3 lines exempts an orphaned test file', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({ testGlobs: ['**/test_*.py'], wiringFiles: ['Makefile'], runners: [] }),
+  );
+  write(dir, 'Makefile', 'test:\n\techo hi\n');
+  write(
+    dir,
+    'tests/unit/test_new.py',
+    '# ratchet-allow(orphaned-test-files): intentionally run manually, tracked in TICKET-2\ndef test_x():\n    assert True\n',
+  );
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: ratchet-allow(<check-id>) past the first 3 lines does NOT exempt', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({ testGlobs: ['**/test_*.py'], wiringFiles: ['Makefile'], runners: [] }),
+  );
+  write(dir, 'Makefile', 'test:\n\techo hi\n');
+  write(
+    dir,
+    'tests/unit/test_new.py',
+    '\n\n\n\n# ratchet-allow(orphaned-test-files): too late, past line 3\ndef test_x():\n    assert True\n',
+  );
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
 // ---------------------------------------------------------------------------
 // Config validation
 // ---------------------------------------------------------------------------
@@ -400,6 +538,43 @@ test('config validation: malformed runner entry exits 1 with a clear message', (
   const result = runRatchet(dir);
   assert.equal(result.status, 1);
   assert.match(result.stdout, /runner/i);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('config validation: a runner "by" that is a bare word (too short / no path or space) exits 1', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'test' }],
+    }),
+  );
+  write(dir, 'Makefile', 'test:\n\techo hi\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /"by"/);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('config validation: a wiringFiles glob using ** or braces (unsupported by the resolver) exits 1', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['**/*.yml'],
+      runners: [],
+    }),
+  );
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1);
+  assert.match(result.stdout, /wiringFiles/i);
   rmSync(dir, { recursive: true, force: true });
 });
 
