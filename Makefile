@@ -204,8 +204,8 @@ deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-securit
 	@scripts/audit-dependencies.sh
 	@echo "  ✓ deps pinned + aged + audited"
 
-ratchet: ## Ratchet gates: fail only if a bad-pattern count rises above its baseline (.claude/ratchets.json)
-	@node scripts/ratchet.mjs
+ratchet: ## Ratchet gates: fail on regression AND on stale-baseline slack (.claude/ratchets.json). CI itself runs non-strict; use --update to resync.
+	@node scripts/ratchet.mjs --strict
 
 agent-models: ## Write .claude/agent-models.json pins into agent frontmatter
 	@node scripts/sync-agent-models.mjs
@@ -276,7 +276,7 @@ quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@scripts/scan-secrets.sh --all
 	@echo ""
 	@echo "=== Ratchet gates ==="
-	@node scripts/ratchet.mjs
+	@node scripts/ratchet.mjs --strict
 	@echo ""
 	@echo "=== Tests ==="
 	{test_coverage_command}

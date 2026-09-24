@@ -78,19 +78,40 @@ function getUser(userId: string): User {
 ## Enforcement
 
 "No silent exception swallowing" is checked, not just written policy:
-`node scripts/ratchet.mjs` (`make ratchet`, wired into CI's lint job and
-`make pr-check`) scans for bare `except: pass` (Python) and empty
-`catch {}` / `.catch(() => {})` (JS/TS) under `src/`, `tests/`, `scripts/`.
+`node scripts/ratchet.mjs` (CI's lint job, non-strict; `make ratchet` and
+`make pr-check`, strict) scans `src/`, `tests/`, `scripts/` for Python
+`except: pass` / `except: ...` (same line or next line, CRLF-safe) and
+JS/TS empty or comment-only `catch {}`, `.catch(() => {})`,
+`.catch(() => undefined | null)`, `.catch(async () => {})`, and
+`.catch(function () {})`.
+
 It's a ratchet, not a hard zero: the count can't rise above the baseline
-committed in `.claude/ratchets.json`, and CI fails just the same if the
-count drops below it without the baseline being lowered via `--update` —
-that "slack" check exists so a new silent catch can't hide in headroom
-left by an unrelated fix. A genuine exception gets an inline
-`ratchet-allow: <reason>` comment rather than a baseline bump.
+committed in `.claude/ratchets.json` (always fatal — "regression"). A count
+*below* baseline ("slack") is a warning in CI (two PRs that each
+independently fix one site can otherwise both merge clean and leave the
+baseline stale without turning CI red) and a failure under `--strict`,
+which `make ratchet` and `make pr-check` use — run `--update` to resync
+the baseline once the count has legitimately changed. A genuine exception
+gets an inline `ratchet-allow: <reason>` comment — written as a real
+comment on the matched line, in that file's comment syntax (`#`/`//`), not
+just text anywhere in the file — rather than a baseline bump.
+
+**Known gaps** (regex heuristic, not an AST — false negatives are possible
+on anything below, so don't treat a clean ratchet run as proof there's no
+silent swallowing):
+- Multi-`except` chains that reassign or shadow the exception before
+  discarding it.
+- A `catch`/`except` that logs but never re-raises (a real anti-pattern,
+  but a different one — this check only catches *empty* bodies).
+- Nested or non-trivial parameter destructuring in a `catch(...)` clause
+  can confuse the naive (non-nesting-aware) parenthesis matching.
+- Python exception groups (`except*`) are not specially handled — matched
+  the same as a regular `except`.
+- A semicolon-only body (`catch (e) {;}`) is not recognized as empty.
 
 Once a project picks a linter, prefer its native rule over the pattern
 entry in `.claude/ratchets.json` — Python: `ruff` `S110` (`try-except-pass`);
 JS/TS: `eslint` `no-empty` (catch clause). A linter rule runs the same
-check with a proper AST instead of the ratchet's regex heuristic; the
-ratchet exists for the gap before a linter is configured, or for a
-pattern the chosen linter doesn't cover.
+check with a proper AST instead of the ratchet's regex heuristic, closing
+the gaps above; the ratchet exists for before a linter is configured, or
+for a pattern the chosen linter doesn't cover.

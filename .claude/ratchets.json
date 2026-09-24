@@ -2,31 +2,48 @@
   "_comment": [
     "Ratchet gates: CI fails only when the count of a known-bad pattern rises",
     "above the committed baseline below. Policy and number change in one diff.",
-    "Run: node scripts/ratchet.mjs        (gate — used by CI and make ratchet)",
-    "     node scripts/ratchet.mjs --list  (print every site, incl. allowed)",
+    "Run: node scripts/ratchet.mjs          (gate — used by CI and make ratchet)",
+    "     node scripts/ratchet.mjs --strict  (also fail on 'slack', see below)",
+    "     node scripts/ratchet.mjs --list    (print every site, incl. allowed)",
     "     node scripts/ratchet.mjs --update  (lower baselines to match reality;",
     "                                          refuses to raise them)",
     "",
-    "A count BELOW baseline also fails ('slack') — otherwise a newly introduced",
-    "bad site could hide under headroom left by an unrelated fix. Run --update",
-    "to resync the baseline whenever the count legitimately changes.",
+    "A count BELOW baseline is 'slack': a warning by default (two PRs that each",
+    "independently fix one site can both merge cleanly and leave the baseline",
+    "stale without turning CI red), and a failure with --strict, which is what",
+    "`make ratchet` and pre-merge checks should use once a baseline is meant to",
+    "be kept exact. CI on pull_request runs non-strict for that reason. Run",
+    "--update to resync the baseline whenever the count legitimately changes.",
+    "A count ABOVE baseline ('regression') always fails, strict or not.",
     "",
-    "Exempt a specific line with an inline comment: `ratchet-allow: <reason>`.",
-    "Allowed sites are still counted and listed separately with --list.",
+    "Exempt a specific line with an inline comment: `ratchet-allow: <reason>`,",
+    "written as a comment (not inside a string literal) on one of the matched",
+    "lines, using that file type's comment syntax (# for .py/.sh, // for",
+    "js/ts). Allowed sites are excluded from the count but still listed",
+    "separately with --list.",
     "",
-    "roots: git-tracked file roots ratchet.mjs scans (via `git ls-files -- <roots>`).",
+    "roots: git-tracked file roots ratchet.mjs scans (via `git ls-files -z -- <roots>`,",
+    "NUL-separated so non-ASCII/space-containing paths survive intact).",
     "An empty template (no files under any root) scans 0 files: baseline 0 passes,",
-    "baseline > 0 fails as 'scan roots vanished — refusing to pass'.",
+    "baseline > 0 fails as 'scan roots vanished — refusing to pass' (always fatal,",
+    "not covered by --strict — a vanished root is a different, worse signal than",
+    "ordinary slack).",
     "",
-    "kind: pattern     — whole-file-content regex per extension group.",
-    "kind: unreferenced — heuristic: a testGlobs match is 'orphaned' when neither",
-    "  its full path nor any parent directory appears as a substring in any",
-    "  wiring file (.github/workflows/*.yml, Makefile, package.json,",
-    "  pyproject.toml, or any non-test file under the scanned roots — a",
-    "  'runner script'). A bare directory reference wires everything beneath it.",
-    "  This is a heuristic, not static analysis — auto-discovering test runners",
-    "  (glob-based, like scripts/dev/board/tests/run-all.sh) make true orphans",
-    "  rare, since pointing at the containing directory is enough to wire them.",
+    "kind: pattern      — whole-file-content regex per extension group.",
+    "kind: unreferenced — a testGlobs match is 'orphaned' unless a declared",
+    "  `runners` entry's `covers` glob matches it AND that runner's `by` string",
+    "  appears verbatim in one of `wiringFiles` (explicit list only — never",
+    "  arbitrary files under the scanned roots, so a runner can't be satisfied",
+    "  by coincidence). A runner whose `by` appears in no wiring file is itself",
+    "  reported as a violation ('runner not invoked by any wiring file') so the",
+    "  declaration can't lie about what actually runs it.",
+    "",
+    "  To wire a new test area, add a runner, e.g. for a project using pytest",
+    "  directly with no wrapper script:",
+    "    { \"covers\": [\"tests/**/test_*.py\"], \"by\": \"pytest\" }",
+    "  `by` just needs to be a substring that genuinely appears in one of the",
+    "  wiringFiles (a Makefile recipe, a CI step, a package.json script) —",
+    "  it is not executed by ratchet.mjs itself.",
     "",
     "When a project adopts a linter, prefer its native rule over the pattern",
     "entry below (ruff S110 for Python, eslint no-empty for JS/TS) — see",
@@ -42,19 +59,24 @@
       "baseline": 0,
       "patterns": [
         {
-          "label": "python: bare except swallowed with pass",
+          "label": "python: except swallowed with pass/... (same line or next line, CRLF ok)",
           "ext": [".py"],
-          "regex": "except[^\\n:]*:[ \\t]*(#.*)?\\n[ \\t]*pass\\b"
+          "regex": "except[^\\n:]*:[ \\t]*(#.*)?(\\r?\\n[ \\t]*)?(pass\\b|\\.\\.\\.)"
         },
         {
-          "label": "js/ts: empty catch block",
+          "label": "js/ts: empty (or comment-only) catch block",
           "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
-          "regex": "catch\\s*(\\([^)]*\\))?\\s*\\{\\s*\\}"
+          "regex": "catch\\s*(\\([^)]*\\))?\\s*\\{(?:\\s|//[^\\r\\n]*|/\\*[\\s\\S]*?\\*/)*\\}"
         },
         {
-          "label": "js/ts: promise .catch(() => {})",
+          "label": "js/ts: promise .catch(arrow => {}/undefined/null)",
           "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
-          "regex": "\\.catch\\(\\s*(\\(\\s*[a-zA-Z_$][\\w$]*?\\s*\\)|\\(\\s*\\)|[a-zA-Z_$][\\w$]*)\\s*=>\\s*\\{\\s*\\}\\s*\\)"
+          "regex": "\\.catch\\(\\s*(?:async\\s+)?(\\(\\s*[a-zA-Z_$][\\w$]*?\\s*\\)|\\(\\s*\\)|[a-zA-Z_$][\\w$]*)\\s*=>\\s*(?:\\{\\s*\\}|undefined|null)\\s*\\)"
+        },
+        {
+          "label": "js/ts: promise .catch(function () {})",
+          "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
+          "regex": "\\.catch\\(\\s*(?:async\\s+)?function\\b[^{]*\\{\\s*\\}\\s*\\)"
         }
       ]
     },
@@ -70,14 +92,27 @@
         "**/*.test.tsx",
         "**/*.test.mjs",
         "**/*.test.cjs",
-        "**/test_*.py"
+        "**/*.spec.{ts,js}",
+        "**/test_*.py",
+        "**/*_test.py",
+        "**/*_test.go"
       ],
-      "wiringGlobs": [
+      "wiringFiles": [
         ".github/workflows/*.yml",
         ".github/workflows/*.yaml",
         "Makefile",
         "package.json",
         "pyproject.toml"
+      ],
+      "runners": [
+        {
+          "covers": ["scripts/dev/board/tests/*.test.sh", "scripts/dev/board/tests/test_*.py"],
+          "by": "scripts/dev/board/tests/run-all.sh"
+        },
+        {
+          "covers": ["scripts/tests/*.test.mjs"],
+          "by": "node --test scripts/tests/"
+        }
       ]
     }
   ]
