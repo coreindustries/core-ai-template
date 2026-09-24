@@ -36,6 +36,12 @@ jobs:
           BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
+          # Absent only on the base of the PR that introduces the script;
+          # say so rather than misreport the branch as bare.
+          if [ ! -x scripts/assert-branch-name.sh ]; then
+            echo "::warning title=Branch lint skipped::scripts/assert-branch-name.sh is not on the base commit yet — branch not checked"
+            exit 0
+          fi
           if ! scripts/assert-branch-name.sh "$BRANCH"; then
             echo "::error title=Bare branch name::'$BRANCH' is not namespaced."
             exit 1
