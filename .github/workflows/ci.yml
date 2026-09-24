@@ -56,7 +56,9 @@ jobs:
         run: node scripts/eval/run-eval.mjs --no-judge
 
       - name: Run eval harness unit tests
-        run: node --test scripts/eval/tests/
+        # A quoted glob, not a directory: Node 22 treats `node --test <dir>` as a
+        # file path and fails with MODULE_NOT_FOUND.
+        run: node --test 'scripts/eval/tests/*.test.mjs'
 
       - name: Check project initialized
         id: init
