@@ -125,9 +125,16 @@ db-types: ## Regenerate types from current local schema
 db-test: ## Run pgTAP tests against local Supabase
 	supabase test db
 
-db-push: ## Push migrations to a remote DB (run through WRAPPER; e.g. make db-push ENV=staging)
+db-push: ## Dry-run migrations against a remote DB; APPLY=1 DB_PUSH_AUTHORIZED=1 to push (see guardrails.md)
 	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL not set — run it through your secret wrapper, e.g. $(WRAPPER) make db-push" && exit 1)
+	@[ -z "$(APPLY)" ] || [ "$(APPLY)" = "1" ] || (echo "ERROR: APPLY must be exactly 1 (got '$(APPLY)'). Dry run: make db-push. Push: APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push" && exit 1)
+ifeq ($(APPLY),1)
+	@[ "$$DB_PUSH_AUTHORIZED" = "1" ] || (echo "ERROR: APPLY=1 also needs DB_PUSH_AUTHORIZED=1 — review the dry run (make db-push) first, then: APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push" && exit 1)
 	supabase db push --db-url "$(DATABASE_URL)"
+else
+	@echo "DRY RUN — nothing will be applied. To push: APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push"
+	supabase db push --dry-run --db-url "$(DATABASE_URL)"
+endif
 
 db-diff: ## Show schema drift between local migrations and a linked remote
 	supabase db diff --linked

@@ -1120,7 +1120,7 @@ Document the trust relationship in `docs/decisions/`.
 ## Linked issues / decisions
 
 <!-- - Closes #
-     - ADR: docs/decisions/NNNN-…
+     - ADR: docs/decisions/YYYY-MM-DD-…
      - Coordination: docs/coordination/NNN_… -->
 
 ## Reviewer notes
@@ -1625,13 +1625,16 @@ follow) and a **Do Not Change** list (patterns the agent must preserve).
 
 - `Proposed` — under discussion
 - `Accepted` — active, must be followed
-- `Superseded by NNNN` — replaced
+- `Superseded by <id>` — replaced
 - `Deprecated` — no longer relevant, kept for history
 - `Rejected` — proposed but not adopted
 
 ## Index
 
-| # | Title | Status | Date |
+ADR files are named `YYYY-MM-DD-short-title.md`. Never take "the next
+number": parallel agents doing that collide.
+
+| ID | Title | Status | Date |
 |---|---|---|---|
 | _none yet_ | | | |
 ```
@@ -1639,9 +1642,9 @@ follow) and a **Do Not Change** list (patterns the agent must preserve).
 `docs/decisions/adr-template.md`:
 
 ```markdown
-# NNNN: {Title}
+# {YYYY-MM-DD-slug}: {Title}
 
-**Status:** Proposed | Accepted | Superseded by NNNN | Deprecated
+**Status:** Proposed | Accepted | Superseded by {id} | Deprecated
 **Date:** YYYY-MM-DD
 **Deciders:** {who was involved}
 

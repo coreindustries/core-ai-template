@@ -209,4 +209,36 @@ else
   fail "ratchet failure (rc=$rc out=[$out])"
 fi
 
+# ===========================================================================
+# 7. A new PRD with a sequential number -> fail on the doc-ID gate alone; the
+# same PRD named by date+slug -> pass.
+# ===========================================================================
+git -C "$REPO" checkout -q -b docs/numbered-prd origin/main
+mkdir -p "$REPO/prd"
+echo "# x" > "$REPO/prd/07-next-thing.md"
+git -C "$REPO" add prd/07-next-thing.md
+git -C "$REPO" commit -q -m "add numbered prd"
+
+out="$(run_pr_check "$LANES_FIXTURE" "$FULL_CONTRACT_BODY" 2>&1)"
+rc=$?
+if [ "$rc" != "0" ] && printf '%s' "$out" | grep -q "new PRD/ADR uses a sequential ID"; then
+  pass "a new numbered PRD -> fail on the doc-ID gate"
+else
+  fail "numbered PRD (rc=$rc out=[$out])"
+fi
+
+git -C "$REPO" checkout -q -b docs/dated-prd origin/main
+mkdir -p "$REPO/prd"
+echo "# x" > "$REPO/prd/2026-09-24-next-thing.md"
+git -C "$REPO" add prd/2026-09-24-next-thing.md
+git -C "$REPO" commit -q -m "add dated prd"
+
+out="$(run_pr_check "$LANES_FIXTURE" "$FULL_CONTRACT_BODY" 2>&1)"
+rc=$?
+if [ "$rc" = "0" ] && ! printf '%s' "$out" | grep -q "sequential ID"; then
+  pass "a new date+slug PRD -> pass"
+else
+  fail "dated PRD (rc=$rc out=[$out])"
+fi
+
 print_summary "pr-check.sh"

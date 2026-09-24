@@ -123,7 +123,7 @@ verdicts come back to your context.
 | implementing, research, log trawls, proof checklists, reading >~2 files | `general-purpose` | `models.implementer` from `.claude/agent-lanes.json` |
 | lookups | `codebase-researcher` | pinned |
 | CI failure triage | `ci-triage` | pinned |
-| review of every non-trivial diff before the PR leaves draft, and again after fixes | `judge` | pinned |
+| review of every diff before the PR leaves draft, and again after fixes | `judge` | pinned |
 
 Every brief states:
 - the goal and the invariant;
