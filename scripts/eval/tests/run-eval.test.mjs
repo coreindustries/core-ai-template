@@ -15,7 +15,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -801,4 +801,170 @@ test('command scorer: timeout kills the whole process group so a harness process
   const result = JSON.parse(out);
   assert.equal(result.pass, false);
   assert.match(result.detail, /timed out/);
+});
+
+// ---------------------------------------------------------------------------
+// P2-1: detached:true puts a scorer in its own session, so an ordinary
+// SIGINT/SIGTERM to the harness does NOT reach it on its own. The isMain
+// block must explicitly kill every live scorer process group on those
+// signals before exiting — otherwise Ctrl-C on a real (paid-API) eval run
+// leaves scorers running unattended.
+// ---------------------------------------------------------------------------
+
+test('SIGINT to the harness kills a live scorer process, not just the harness itself (P2-1)', { timeout: 15000 }, async (t) => {
+  // This spawns run-eval.mjs itself as the real OS entry point (not via
+  // main()) because the SIGINT/SIGTERM handlers are only installed in the
+  // isMain block — importing main() would never register them. That means
+  // evalsRoot resolves to the real repo evals/ dir (the CLI path has no
+  // override), so this one test creates its suite there directly instead of
+  // using makeEvalsRoot()'s mkdtemp, and removes it in t.after().
+  const repoRoot = join(here, '..', '..', '..');
+  const suiteName = `tmp-sigint-${Math.random().toString(36).slice(2)}`;
+  const suiteDir = join(repoRoot, 'evals', suiteName);
+  mkdirSync(suiteDir, { recursive: true });
+  t.after(() => rmSync(suiteDir, { recursive: true, force: true }));
+
+  // A plain Node scorer that records its pid once, then ticks an incrementing
+  // heartbeat counter to a file every 100ms. We check "still running" by
+  // whether the heartbeat keeps advancing, not by process.kill(pid, 0) — in
+  // an un-init'd container (no PID-1 reaping), a SIGKILLed process can sit as
+  // a zombie whose pid still answers kill(pid, 0) successfully, which made
+  // this test flaky under `docker run node:22` even though the process had
+  // genuinely been killed and stopped doing any work.
+  const dir = mkdtempSync(join(tmpdir(), 'eval-sigint-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const pidFile = join(dir, 'pid.txt');
+  const heartbeatFile = join(dir, 'heartbeat.txt');
+  writeFileSync(join(suiteDir, 'scorers.json'), JSON.stringify([{
+    id: 's1',
+    type: 'command',
+    command: process.execPath,
+    args: ['-e', `
+      const fs = require('fs');
+      fs.writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));
+      let n = 0;
+      setInterval(() => fs.writeFileSync(${JSON.stringify(heartbeatFile)}, String(n++)), 100);
+    `],
+    timeoutMs: 60000,
+  }]));
+  writeFileSync(join(suiteDir, 'good-1.json'), JSON.stringify({ output: 'fine', provenance: 'test', expect: { shouldFail: [] } }));
+
+  const harness = spawn(process.execPath, [join(here, '..', 'run-eval.mjs'), suiteName, '--no-judge'], {
+    cwd: repoRoot,
+    stdio: ['ignore', 'ignore', 'ignore'],
+  });
+  t.after(() => { try { harness.kill('SIGKILL'); } catch { /* already gone */ } });
+
+  const readHeartbeat = () => (existsSync(heartbeatFile) ? Number(readFileSync(heartbeatFile, 'utf8').trim()) : null);
+
+  const startDeadline = Date.now() + 8000;
+  while (readHeartbeat() === null && Date.now() < startDeadline) {
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  assert.ok(existsSync(pidFile), 'the scorer should have started and recorded its pid');
+  const scorerPid = Number(readFileSync(pidFile, 'utf8').trim());
+  t.after(() => { try { process.kill(scorerPid, 'SIGKILL'); } catch { /* already gone, or fix worked */ } });
+
+  const beforeSignal = readHeartbeat();
+  assert.ok(beforeSignal !== null, 'the scorer should have started ticking its heartbeat before SIGINT');
+
+  harness.kill('SIGINT');
+  await new Promise((resolve) => harness.on('close', resolve));
+
+  const afterClose = readHeartbeat();
+  // Give the heartbeat interval enough slack to have ticked again if the
+  // process were still alive (well over its own 100ms period).
+  await new Promise((r) => setTimeout(r, 1000));
+  const afterWait = readHeartbeat();
+  assert.equal(afterWait, afterClose, `the scorer's heartbeat kept advancing after SIGINT (before=${beforeSignal}, at-close=${afterClose}, after-wait=${afterWait}) — detached:true means it does not die on its own`);
+});
+
+// ---------------------------------------------------------------------------
+// P2-2: escapeForJudge must escape "&" before "<" — otherwise a literal "&lt;"
+// already in the content becomes indistinguishable from our own escaping,
+// and markup/generics-heavy output ("Array<string>", "a && b") gets altered
+// text the judge can no longer trust as a faithful copy of the sample.
+// ---------------------------------------------------------------------------
+
+test('buildJudgePrompt: escapes "&" as well as "<" (markup/generics output)', () => {
+  const markup = 'function f(): Array<string> { return a && b ? "<ok>" : "<bad>"; }';
+  const prompt = buildJudgePrompt('code must compile', markup);
+  // No raw "<" may survive outside our own wrapper tags.
+  const withoutWrapper = prompt.replace(/^.*<output>\n/s, '').replace(/\n<\/output>\s*$/s, '');
+  assert.ok(!withoutWrapper.includes('<'), `raw "<" leaked into the prompt body: ${JSON.stringify(withoutWrapper)}`);
+  assert.match(withoutWrapper, /Array&lt;string>/); // '<' escaped, '>' left as-is (we only escape '<')
+  assert.match(withoutWrapper, /a &amp;&amp; b/);
+  assert.match(withoutWrapper, /&lt;ok>/);
+});
+
+test('escapeForJudge order: "&" is escaped before "<" so a real "&lt;" in content stays distinguishable', () => {
+  // If '<' were escaped first, a content string containing the literal text
+  // "&lt;" would become ambiguous with our own escaping of a real '<'. By
+  // escaping '&' first, real content's "&lt;" becomes "&amp;lt;" — clearly
+  // different from an escaped real '<' ("&lt;").
+  const content = 'the raw text contains the literal string &lt; on purpose';
+  const prompt = buildJudgePrompt('r', content);
+  assert.match(prompt, /&amp;lt;/);
+  assert.ok(!prompt.includes('&lt; on purpose'), 'a literal "&lt;" in the source must not look identical to an escaped real "<"');
+});
+
+test('JUDGE_SYSTEM_PROMPT: explains that &lt;/&amp; inside the tags are not defects', () => {
+  assert.match(JUDGE_SYSTEM_PROMPT, /&lt;/);
+  assert.match(JUDGE_SYSTEM_PROMPT, /&amp;/);
+  assert.match(JUDGE_SYSTEM_PROMPT, /not defects/);
+});
+
+// ---------------------------------------------------------------------------
+// P3: scorer.env must be an array of strings
+// ---------------------------------------------------------------------------
+
+test('main(): scorer.env must be an array of strings', async (t) => {
+  const evalsRoot = makeEvalsRoot(t, {
+    's1': {
+      scorers: [{ id: 's1', type: 'command', command: process.execPath, env: 'PATH' }],
+      fixtures: { 'good-1.json': { output: 'x', provenance: 'test', expect: { shouldFail: [] } } },
+    },
+  });
+  const result = await main(['s1'], { env: {}, evalsRoot });
+  assert.equal(result.code, 2, result.output);
+});
+
+test('main(): scorer.env with a non-string entry is FATAL', async (t) => {
+  const evalsRoot = makeEvalsRoot(t, {
+    's1': {
+      scorers: [{ id: 's1', type: 'command', command: process.execPath, env: [123] }],
+      fixtures: { 'good-1.json': { output: 'x', provenance: 'test', expect: { shouldFail: [] } } },
+    },
+  });
+  const result = await main(['s1'], { env: {}, evalsRoot });
+  assert.equal(result.code, 2, result.output);
+});
+
+// ---------------------------------------------------------------------------
+// P3: --last uses the strict integer pattern, same as the env validators
+// ---------------------------------------------------------------------------
+
+test('parseArgs: --last rejects non-strict-integer values', () => {
+  assert.throws(() => parseArgs(['trend', 's1', '--last=1e1']), /invalid --last/);
+  assert.throws(() => parseArgs(['trend', 's1', '--last=0x5']), /invalid --last/);
+  assert.throws(() => parseArgs(['trend', 's1', '--last=0']), /invalid --last/);
+  assert.throws(() => parseArgs(['trend', 's1', '--last=-1']), /invalid --last/);
+});
+
+test('parseArgs: --last=5 (valid) still works', () => {
+  assert.equal(parseArgs(['trend', 's1', '--last=5']).last, 5);
+});
+
+// ---------------------------------------------------------------------------
+// P3: malformed trend JSONL is a FATAL error naming the line, not an
+// uncaught exception
+// ---------------------------------------------------------------------------
+
+test('main(): a malformed trend history line reports {code:2} with the line number, not a thrown exception', async (t) => {
+  const historyRoot = mkdtempSync(join(tmpdir(), 'eval-history-'));
+  t.after(() => rmSync(historyRoot, { recursive: true, force: true }));
+  writeFileSync(join(historyRoot, 's1.jsonl'), '{"at":"2026-01-01T00:00:00.000Z","aggregate":1,"judge":"x"}\nnot valid json\n');
+  const result = await main(['trend', 's1'], { env: {}, historyRoot });
+  assert.equal(result.code, 2, result.output);
+  assert.match(result.output, /:2\b/); // names line 2, the malformed one
 });
