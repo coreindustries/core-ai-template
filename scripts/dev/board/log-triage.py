@@ -31,6 +31,13 @@ automatic outcome.
 `file` is a dry run unless --apply is passed. State lives under
 $LOG_TRIAGE_STATE (default ~/.local/state/agent-lanes/<repo>/log-triage/<release>/).
 Config path can be overridden with $LANES_CONFIG (default .claude/agent-lanes.json).
+
+A non-zero exit from the configured `logs` command is ALWAYS treated as a failed
+capture — nothing is written to disk for that phase. This matters for pipelines
+like `... | grep ERROR`, which exit 1 when grep finds nothing to match, even
+though "no matching lines" may be a perfectly valid, successful outcome for that
+command. If that's the case for your `logs` command, write it as
+`... | grep ERROR || true` so "no matches" exits 0.
 """
 import argparse
 import hashlib
@@ -70,11 +77,25 @@ _SECRETS = [
     (r"\b[0-9]{8,10}:[A-Za-z0-9_-]{35}\b", "[REDACTED:TELEGRAM_TOKEN]"),
     (r"eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "[REDACTED:JWT]"),
     (r"Bearer [A-Za-z0-9._-]{20,}", "Bearer [REDACTED:BEARER_TOKEN]"),
-    (r"(postgres(?:ql)?://[^:@/\s]+:)[^\s@]+(@)", r"\1[REDACTED:PG_PASSWORD]\2"),
+    # Authorization: <anything> — except "Bearer ..." (handled above, so its
+    # specific label survives) and an already-redacted value. Catches Basic,
+    # Digest, custom schemes, and any other header value verbatim.
+    (r"(?i)(authorization\s*:)(?!\s*bearer\b)(?!\s*\[redacted)\s*.+", r"\1 [REDACTED:AUTH_HEADER]"),
+    # any URL with userinfo, any scheme — mysql://, redis://:pass@, amqp://,
+    # mongodb://, postgres(ql)://, https://, etc. Keeps scheme/user/host,
+    # redacts only the password (the part between ":" and "@").
+    (r"([a-zA-Z][a-zA-Z0-9+.-]*://)([^:@/\s]*):([^@\s]+)@", r"\1\2:[REDACTED:URL_PASSWORD]@"),
     (r"1//[A-Za-z0-9_-]{40,}", "[REDACTED:GOOGLE_REFRESH_TOKEN]"),
-    (r"(?i)(api[_-]?key|apikey|password|passwd|secret|auth[_-]?token|access[_-]?token|"
-     r"refresh[_-]?token|client[_-]?secret)([=:][\"']?)[A-Za-z0-9._/+-]{20,}",
+    # key=value / key: value credentials — no minimum length (a short password
+    # is still a password). Redacts up to the next whitespace/quote/&/,.
+    (r"(?i)(?<![A-Za-z0-9_-])(password|passwd|pwd|secret|api[_-]?key|apikey|"
+     r"access[_-]?token|refresh[_-]?token|client[_-]?secret|auth[_-]?token|auth|"
+     r"private[_-]?key|token)(\s*[:=]\s*[\"']?)[^\s\"'&,]+",
      r"\1\2[REDACTED:CREDENTIAL]"),
+    # standalone "Basic <b64>" not already caught via an "Authorization:" prefix.
+    (r"(?i)\bBasic\s+[A-Za-z0-9+/=]{6,}", "Basic [REDACTED:BASIC_AUTH]"),
+    # "X-Api-Key:", "X-Auth-Token:", "X-Client-Secret:" and similar *-key/-token/-secret headers.
+    (r"(?i)\b([\w-]*-(?:key|token|secret)\s*:\s*)\S+", r"\1[REDACTED:HEADER_CREDENTIAL]"),
     (r"\b[a-f0-9]{32,}\b", "[REDACTED:HEX_TOKEN]"),
 ]
 # Personal data and free-form authored text: what a secret scanner alone misses.
@@ -179,8 +200,12 @@ def classify(line: str):
                 if level is None:
                     level = _level_from_text(str(msg))
                 source = data.get("component") or data.get("logger") or _extract_source(str(msg))
-                return level, str(msg), source
-    return _level_from_text(text), text, _extract_source(text)
+                # source is attacker-controlled log content same as msg — it is stored
+                # and posted to GitHub issues (issue_body's "sources:" line), so it must
+                # be redacted here too, not just the message.
+                return level, str(msg), redact(source) if source else source
+    source = _extract_source(text)
+    return _level_from_text(text), text, redact(source) if source else source
 
 
 def signature(text: str) -> str:
@@ -309,8 +334,17 @@ def run_capture(env_name: str, phase: str, release: str, since_minutes: int) -> 
               f"{redact_secrets(str(err))[:1500]}", file=sys.stderr)
         return 2
     if proc.returncode != 0:
+        # STDOUT is raw, unredacted log output — never print it, even truncated.
+        # Only stderr (the command's own diagnostic output, not log content) is
+        # shown, and it still goes through the full redact() (not just
+        # redact_secrets()): stderr can echo back log lines too (e.g. a shell
+        # trace of the failing pipeline), so personal/free-text content must be
+        # stripped from it exactly as it would be from a successful capture.
         print(f"[log-triage] FAILED capture {phase} {env_name}: logs command exited "
-              f"{proc.returncode}\n{redact_secrets((proc.stderr or proc.stdout or '')[:1500])}",
+              f"{proc.returncode}. A non-zero exit is always treated as a failed capture — "
+              f"e.g. a `... | grep ERROR` pipeline exits 1 when nothing matches, so write "
+              f"`grep ... || true` if \"no matches\" is a valid, successful outcome.\n"
+              f"stderr: {redact(proc.stderr or '')[:1500] or '(empty)'}",
               file=sys.stderr)
         return 2
     items, scanned = build_digest(proc.stdout.splitlines())

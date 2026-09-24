@@ -29,10 +29,39 @@ SECRET_LINES = {
     "xox" + "b-" + "1111111111-2222222222-" + "b" * 24: "SLACK_BOT_TOKEN",
     "Authorization: Bearer " + "c" * 64: "BEARER_TOKEN",
     "gh" + "p_" + "d" * 36: "GITHUB_TOKEN",
-    "postgresql://app_user:hunter2hunter2@db-host:5432/appdb": "PG_PASSWORD",
+    "postgresql://app_user:hunter2hunter2@db-host:5432/appdb": "URL_PASSWORD",
     "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig_part-123": "JWT",
     "AKIA" + "ABCDEFGHIJ0123456": "AWS_KEY_ID",
 }
+
+
+# Common credential-name shapes with SHORT values (well under the old 20-char
+# floor). None of these are pre-commit-blocked literal prefixes.
+# (full URL, scheme, secret, host-and-rest) — kept explicit rather than parsed
+# back out of the URL, since ":" and "@" appear in more than one place.
+URL_CREDENTIAL_LINES = [
+    ("mysql://dbuser:" + "s3cr3t" + "@dbhost:3306/app", "mysql", "s3cr3t", "dbhost:3306/app"),
+    ("redis://:" + "hunter2" + "@redis-host:6379", "redis", "hunter2", "redis-host:6379"),
+    ("amqp://guest:" + "guestpw" + "@rabbit:5672/", "amqp", "guestpw", "rabbit:5672/"),
+    ("mongodb://appuser:" + "m0ngoPW" + "@cluster0.example.net", "mongodb", "m0ngoPW", "cluster0.example.net"),
+    ("https://svc-user:" + "httpsecret" + "@example.com/path", "https", "httpsecret", "example.com/path"),
+]
+
+SHORT_KV_CREDENTIAL_LINES = [
+    "password=" + "hunter2",
+    "password: " + "hunter2",
+    "passwd=" + "abc123",
+    "pwd=" + "abc123",
+    "secret=" + "abc123",
+    "token=" + "abc123",
+    "api_key=" + "abc123",
+    "apikey=" + "abc123",
+    "access_token=" + "abc123",
+    "refresh_token=" + "abc123",
+    "client_secret=" + "abc123",
+    "auth=" + "abc123",
+    "private_key=" + "abc123",
+]
 
 
 class RedactTest(unittest.TestCase):
@@ -40,6 +69,46 @@ class RedactTest(unittest.TestCase):
         for line, label in SECRET_LINES.items():
             out = lt.redact(f"prefix {line} suffix")
             self.assertIn(f"[REDACTED:{label}]", out, line[:20])
+
+    def test_url_userinfo_password_redacted_for_any_scheme(self):
+        for line, scheme, secret, host in URL_CREDENTIAL_LINES:
+            out = lt.redact(f"connecting to {line} now")
+            self.assertNotIn(secret, out, line)
+            self.assertIn(scheme + "://", out, line)
+            self.assertIn(host, out, line)
+            self.assertIn("[REDACTED", out, line)
+
+    def test_short_key_value_credentials_are_redacted(self):
+        for line in SHORT_KV_CREDENTIAL_LINES:
+            key, _, value = line.partition("=") if "=" in line else line.partition(": ")
+            out = lt.redact(f"config dump {line} trailing")
+            self.assertNotIn(value.strip(), out, line)
+            self.assertIn("[REDACTED", out, line)
+
+    def test_authorization_basic_header_is_redacted(self):
+        out = lt.redact("Authorization: Basic " + "dXNlcjpwYXNzd29yZA==")
+        self.assertNotIn("dXNlcjpwYXNzd29yZA==", out)
+        self.assertIn("[REDACTED", out)
+
+    def test_authorization_any_value_is_redacted(self):
+        out = lt.redact("Authorization: CustomScheme " + "opaque-value-123")
+        self.assertNotIn("opaque-value-123", out)
+        self.assertIn("[REDACTED", out)
+
+    def test_standalone_basic_auth_value_is_redacted(self):
+        out = lt.redact("saw header value Basic " + "dXNlcjpwYXNzd29yZA==" + " in request")
+        self.assertNotIn("dXNlcjpwYXNzd29yZA==", out)
+        self.assertIn("[REDACTED", out)
+
+    def test_dash_style_credential_headers_are_redacted(self):
+        for line, secret in (
+            ("X-Api-Key: " + "9f8e7d6c5b4a", "9f8e7d6c5b4a"),
+            ("X-Auth-Token: " + "abc123", "abc123"),
+            ("X-Client-Secret: " + "xyz789", "xyz789"),
+        ):
+            out = lt.redact(line)
+            self.assertNotIn(secret, out, line)
+            self.assertIn("[REDACTED", out, line)
 
     def test_redact_secrets_only_handles_secret_shapes(self):
         out = lt.redact_secrets("token=" + "sk-" + "ant-" + "Z" * 40)
@@ -134,6 +203,18 @@ class ClassifyAndSignatureTest(unittest.TestCase):
     def test_ipv4_is_normalized(self):
         sig = lt.signature("connect to 10.0.0.42 failed")
         self.assertIn("<ip>", sig)
+
+    def test_json_source_field_is_redacted(self):
+        line = json.dumps({"level": "error", "msg": "boom", "component": "jane.doe@example.com"})
+        _, _, source = lt.classify(line)
+        self.assertNotIn("jane.doe", source or "")
+
+    def test_build_digest_never_stores_raw_source(self):
+        line = json.dumps({"level": "warn", "msg": "slow query", "logger": "token=" + "abc123xyz"})
+        items, _ = lt.build_digest([line])
+        self.assertTrue(items)
+        for src in items[0]["sources"]:
+            self.assertNotIn("abc123xyz", src)
 
 
 def cap(env, phase, items, window):
@@ -265,6 +346,34 @@ class CaptureNeverStoresRawTest(unittest.TestCase):
             self.assertIn("FAILED capture", out.stderr)
             self.assertFalse((state / "abc1234").exists() and
                              any((state / "abc1234").iterdir()) if (state / "abc1234").exists() else False)
+
+    def test_failure_message_prints_only_stderr_not_raw_stdout(self):
+        with tempfile.TemporaryDirectory() as t:
+            root = pathlib.Path(t)
+            logs_cmd = "printf '%s\\n' 'RAW-LOG-LINE-SHOULD-NOT-LEAK' >&1; printf boom-stderr >&2; exit 3"
+            cfg = write_config(root, logs_cmd)
+            state = root / "state"
+            env = dict(os.environ, LANES_CONFIG=str(cfg), LOG_TRIAGE_STATE=str(state))
+            out = subprocess.run(
+                [sys.executable, str(TOOL), "capture", "before", "staging", "--release", "abc1234"],
+                env=env, capture_output=True, text=True)
+            self.assertEqual(out.returncode, 2)
+            self.assertNotIn("RAW-LOG-LINE-SHOULD-NOT-LEAK", out.stderr)
+            self.assertIn("boom-stderr", out.stderr)
+
+    def test_failure_message_stderr_is_fully_redacted(self):
+        with tempfile.TemporaryDirectory() as t:
+            root = pathlib.Path(t)
+            logs_cmd = "printf 'contact jane.doe@example.com token=%s' 'abc123xyz' >&2; exit 5"
+            cfg = write_config(root, logs_cmd)
+            state = root / "state"
+            env = dict(os.environ, LANES_CONFIG=str(cfg), LOG_TRIAGE_STATE=str(state))
+            out = subprocess.run(
+                [sys.executable, str(TOOL), "capture", "before", "staging", "--release", "abc1234"],
+                env=env, capture_output=True, text=True)
+            self.assertEqual(out.returncode, 2)
+            self.assertNotIn("jane.doe@example.com", out.stderr)
+            self.assertNotIn("abc123xyz", out.stderr)
 
     def test_empty_logs_command_exits_2_naming_the_field(self):
         with tempfile.TemporaryDirectory() as t:

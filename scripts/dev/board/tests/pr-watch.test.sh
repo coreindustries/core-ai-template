@@ -206,7 +206,7 @@ fi
 
 # A CANCELLED conclusion is not a plain "check-failed" — but it is not a pass
 # either. A check name (grouped by workflowName+name) whose only run on this
-# head is CANCELLED, with no SUCCESS/NEUTRAL/SKIPPED run for that same name,
+# head is CANCELLED, with no SUCCESS/NEUTRAL run for that same name,
 # is its own event: check-cancelled.
 reset_env
 checks='[{"__typename":"CheckRun","status":"COMPLETED","conclusion":"SUCCESS","name":"CI","workflowName":"CI"},{"__typename":"CheckRun","status":"COMPLETED","conclusion":"CANCELLED","name":"Classify and auto-merge","workflowName":"Merge Automation"}]'
@@ -233,6 +233,18 @@ if [ "$rc" = "10" ] && printf '%s' "$out" | grep -q 'event=ready' \
   pass "classify: a CANCELLED run followed by a SUCCESS run of the same name -> event=ready (the gate eventually passed)"
 else
   fail "classify: cancelled-then-success (rc=$rc out=[$out])"
+fi
+
+# A SKIPPED run of the same name (a job gated by `if:` on another event) is
+# not a pass: it must not hide the real CANCELLED run.
+reset_env
+checks='[{"__typename":"CheckRun","status":"COMPLETED","conclusion":"SUCCESS","name":"CI","workflowName":"CI"},{"__typename":"CheckRun","status":"COMPLETED","conclusion":"CANCELLED","name":"Delivery contract","workflowName":"Gates"},{"__typename":"CheckRun","status":"COMPLETED","conclusion":"SKIPPED","name":"Delivery contract","workflowName":"Gates"}]'
+export FAKE_PR_VIEW_115="$(pr_json 115 OPEN false MERGEABLE CLEAN e5e5e5e5 "$checks")"
+out="$($PRWATCH --once 115 2>/dev/null)"; rc=$?
+if [ "$rc" = "10" ] && printf '%s' "$out" | grep -q 'event=check-cancelled'; then
+  pass "classify: CANCELLED + SKIPPED of the same name -> still check-cancelled (SKIPPED does not supersede)"
+else
+  fail "classify: skipped-hides-cancelled (rc=$rc out=[$out])"
 fi
 
 # A check name listed in config .checks.cancelledOk is exempt from

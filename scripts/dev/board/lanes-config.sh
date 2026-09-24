@@ -57,7 +57,7 @@ lanes_check() {
       case "$field" in
         deploy|rollback)
           # make -n still runs $(MAKE) recipe lines — a dry run that deploys.
-          if printf '%s' "$cmd" | grep -Eq '(^|[[:space:];&|])make([[:space:]].*)?[[:space:]](-n|--dry-run|--just-print|--recon)([[:space:]]|$)'; then
+          if printf '%s' "$cmd" | grep -Eq '(^|[[:space:];&|/])g?make([[:space:]].*)?[[:space:]](-[A-Za-z]*n[A-Za-z]*|--dry-run|--just-print|--recon)([[:space:]]|$)|MAKEFLAGS=["'"'"']?-?[A-Za-z]*n'; then
             echo "FAIL $name.$field uses a make dry-run flag; make still executes \$(MAKE) lines under -n"
             problems=$((problems + 1))
           fi

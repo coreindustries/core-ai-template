@@ -773,7 +773,7 @@ cmd_project_sync() {
   [ -n "$owner" ] || owner="$(gh repo view --json owner --jq '.owner.login' 2>/dev/null || true)"
   [ -n "$owner" ] || die "project-sync: no owner — pass --owner, set projectBoard.owner in .claude/agent-lanes.json, or run inside a repo gh can identify"
   [ -n "$number" ] || number="${BOARD_PROJECT_NUMBER:-}"
-  [ -n "$title" ] || title="$(lanes_cfg '.projectBoard.title' 'Agent Work Board')"
+  [ -n "$title" ] || title="$(lanes_cfg '.boardTitle' 'Agent Work Board')"
 
   # ---- resolve project number/id ---------------------------------------
   local project_id=""
@@ -1069,9 +1069,10 @@ prd_id_for() {
   printf '%s' "$id"
 }
 
-# FR ids are normalized to FR<N>: FR-6 and FR6 name the same requirement.
+# Requirement ids are normalized by dropping the dash between prefix and
+# number: FR-6 and FR6 (or REQ-6 and REQ6) name the same requirement.
 prd_fr_ids() {
-  grep -Eo "$(lanes_cfg '.prd.frPattern' 'FR-?[0-9]+')" "$1" 2>/dev/null | sed -E 's/FR-?/FR/' | sort -u
+  grep -Eo "$(lanes_cfg '.prd.frPattern' 'FR-?[0-9]+')" "$1" 2>/dev/null | sed -E 's/^([A-Za-z]+)-?([0-9]+)$/\1\2/' | sort -u
 }
 
 # ---------------------------------------------------------------------------
@@ -1184,7 +1185,7 @@ cmd_file_feature() {
 
   local prd_id fr_norm token existing
   prd_id="$(prd_id_for "$prd")"
-  fr_norm="$(printf '%s' "$fr" | sed -E 's/^FR-?/FR/')"
+  fr_norm="$(printf '%s' "$fr" | sed -E 's/^([A-Za-z]+)-?([0-9]+)$/\1\2/')"
   token="[${prd_id} ${fr_norm}]"
 
   existing="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 5 --json number,title,url)"

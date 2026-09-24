@@ -65,7 +65,7 @@
 #                   StatusContext state in PENDING, EXPECTED
 #   check-cancelled
 #                 a CheckRun name (per workflowName+name) has a CANCELLED run
-#                 and NO SUCCESS/NEUTRAL/SKIPPED run on this head. A body edit
+#                 and NO SUCCESS/NEUTRAL run on this head. A body edit
 #                 re-triggers body-reading gates and cancels the superseded
 #                 run; if nothing re-ran, that gate never passed on this head.
 #                 Names in checks.cancelledOk (.claude/agent-lanes.json) are
@@ -250,7 +250,7 @@ classify_pr_json() {
          c: (.conclusion // "")} ]
     | group_by(.k)
     | map(select((map(.c) | index("CANCELLED")) != null
-                 and ([.[] | select(.c == "SUCCESS" or .c == "NEUTRAL" or .c == "SKIPPED")] | length) == 0))
+                 and ([.[] | select(.c == "SUCCESS" or .c == "NEUTRAL")] | length) == 0))
     | map(.[0].name)
     | map(select(. as $n | ($ok | index($n)) == null))
     | unique | join(",")

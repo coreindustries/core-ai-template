@@ -9,8 +9,8 @@
 #      the BOARD_PROJECT_TOKEN secret.
 #   2. `board.sh project-sync --create` once locally with that token.
 #   3. The printed project number as the BOARD_PROJECT_NUMBER repo variable.
-# Until both exist, every run no-ops with a visible warning — never red, never
-# silent.
+# Until BOARD_PROJECT_NUMBER is set no job starts. With the number set but no
+# token, each run no-ops with a visible warning — never red, never silent.
 #
 # Two delivery defects this avoids:
 #   - A single shared concurrency group lets a burst of label events cancel
@@ -41,10 +41,15 @@ jobs:
     name: Sync GitHub Project board from issue labels
     # Issue events only matter when the issue (or the label just changed) is
     # part of the lane taxonomy. schedule/workflow_dispatch always reconcile.
+    # Gated on BOARD_PROJECT_NUMBER so a repo that never enabled the board
+    # starts no runner at all (the hourly schedule would otherwise cost a
+    # billable no-op run every hour).
     if: >-
-      github.event_name != 'issues' ||
-      contains(join(github.event.issue.labels.*.name, ','), 'lane:') ||
-      startsWith(github.event.label.name, 'lane:')
+      vars.BOARD_PROJECT_NUMBER != '' && (
+        github.event_name != 'issues' ||
+        contains(join(github.event.issue.labels.*.name, ','), 'lane:') ||
+        startsWith(github.event.label.name, 'lane:')
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -98,7 +103,8 @@ jobs:
 
   reconcile-health:
     name: Scheduled reconcile is firing
-    if: vars.BOARD_PROJECT_NUMBER != ''
+    # Once per full reconcile (schedule / manual), not on every issue event.
+    if: vars.BOARD_PROJECT_NUMBER != '' && github.event_name != 'issues'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

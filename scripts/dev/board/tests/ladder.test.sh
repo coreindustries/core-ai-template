@@ -62,6 +62,16 @@ STATE_MISMATCH="$WORK/state-mismatch.json"
 WRONG_SHA="ffffffffffffffffffffffffffffffffffffff00"
 WRONG_SHA="${WRONG_SHA:0:40}"
 
+# "slow" rung: rollout completes only on the 3rd health poll after deploy.
+SLOW_TARGET="$WORK/slow-target"
+SLOW_COUNT="$WORK/slow-count"
+cat > "$WORK/slow-health.sh" <<SLOW
+#!/usr/bin/env bash
+n=\$(cat '$SLOW_COUNT' 2>/dev/null || echo 0); n=\$((n + 1)); echo "\$n" > '$SLOW_COUNT'
+if [ "\$n" -ge 3 ]; then printf '%s' "\$(cat '$SLOW_TARGET')"; else echo '{}'; fi
+SLOW
+chmod +x "$WORK/slow-health.sh"
+
 LANES_CONFIG="$WORK/agent-lanes.json"
 cat > "$LANES_CONFIG" <<CFG
 {
@@ -85,6 +95,20 @@ cat > "$LANES_CONFIG" <<CFG
         "name": "mismatch",
         "deploy": "echo '{\\"git_commit\\":\\"$WRONG_SHA\\"}' > '$STATE_MISMATCH'",
         "health": "cat '$STATE_MISMATCH' 2>/dev/null || echo '{}'",
+        "rollback": ""
+      },
+      {
+        "name": "slow",
+        "deploy": "printf '%s' '{sha}' > '$SLOW_TARGET'; echo 0 > '$SLOW_COUNT'",
+        "health": "'$WORK/slow-health.sh'",
+        "rollback": "",
+        "verifyTimeoutSeconds": 5,
+        "verifyIntervalSeconds": 1
+      },
+      {
+        "name": "slownowait",
+        "deploy": "printf '%s' '{sha}' > '$SLOW_TARGET'; echo 0 > '$SLOW_COUNT'",
+        "health": "'$WORK/slow-health.sh'",
         "rollback": ""
       },
       {
@@ -268,6 +292,24 @@ if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q "^OK "; then
   pass "lanes-config.sh check: this test's own fixture config passes"
 else
   fail "lanes-config.sh check: clean fixture (rc=$rc out=[$out])"
+fi
+
+# Rollout that finishes after the deploy command returns: with a verify
+# window, health is polled until it reports the SHA; without one, a single
+# check reports MISMATCH (the old behavior, kept as the default).
+out="$("$LADDER" deploy slow --sha "$COMMIT1" 2>&1)"; rc=$?
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -qF "VERIFIED slow running ${COMMIT1:0:8}" \
+   && [ "$(cat "$SLOW_COUNT")" = "3" ]; then
+  pass "deploy: polls health through verifyTimeoutSeconds until the rollout reports the SHA"
+else
+  fail "deploy slow rollout (rc=$rc out=[$out] polls=$(cat "$SLOW_COUNT" 2>/dev/null))"
+fi
+
+out="$("$LADDER" deploy slownowait --sha "$COMMIT1" 2>&1)"; rc=$?
+if [ "$rc" = "1" ] && printf '%s' "$out" | grep -q "MISMATCH slownowait"; then
+  pass "deploy: with no verify window a not-yet-rolled-out deploy is MISMATCH"
+else
+  fail "deploy slownowait (rc=$rc out=[$out])"
 fi
 
 print_summary "ladder.sh"

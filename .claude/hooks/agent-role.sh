@@ -42,7 +42,6 @@ prompt="$(hook_json_field "$input" prompt)"
 command -v python3 >/dev/null 2>&1 || { hook_err "python3 not found — cannot match role patterns"; exit 0; }
 
 STATE_DIR="$(agent_state_dir)"
-mkdir -p "$STATE_DIR" 2>/dev/null || { hook_err "could not create state dir $STATE_DIR"; exit 0; }
 
 # `python3 -c`, not a heredoc: a heredoc on `python3 -` feeds the SCRIPT through
 # stdin, and the piped prompt would never arrive (a silent no-op).
@@ -77,6 +76,7 @@ if match is None:
     sys.exit(0)
 role, skill, num_pattern = match
 
+os.makedirs(state_dir, exist_ok=True)  # only once a role matched
 path = os.path.join(state_dir, "%s.json" % session_id)
 existing = None
 if os.path.exists(path):

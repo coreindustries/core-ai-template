@@ -144,10 +144,26 @@ run_and_verify() {
   local rc=$?
   [ "$rc" = "0" ] || die "${name} ${field} command exited ${rc}" 1
 
-  local running
-  running="$(running_sha "$name")" || die "${name}: health check failed after ${field} — deploy NOT verified" 1
+  # Deploy commands can return before rollout finishes, so poll health until
+  # it reports the SHA or the window closes. The window is per environment:
+  # verifyTimeoutSeconds (default 0 = a single check), verifyIntervalSeconds (10).
+  local window interval waited=0 running="" hrc=0
+  window="$(env_field "$name" verifyTimeoutSeconds)"; window="${window:-0}"
+  interval="$(env_field "$name" verifyIntervalSeconds)"; interval="${interval:-10}"
+  case "$window$interval" in *[!0-9]*) die "${name}: verifyTimeoutSeconds / verifyIntervalSeconds must be whole numbers" ;; esac
+  [ "$interval" -gt 0 ] || interval=10
+  while :; do
+    running="$(running_sha "$name")"; hrc=$?
+    [ "$hrc" = "0" ] && [ "$running" = "$sha" ] && break
+    [ "$waited" -ge "$window" ] && break
+    sleep "$interval"
+    waited=$((waited + interval))
+  done
+  if [ "$hrc" != "0" ]; then
+    die "${name}: health check failed after ${field} (waited ${waited}s) — deploy NOT verified" 1
+  fi
   if [ "$running" != "$sha" ]; then
-    echo "MISMATCH ${name}: health reports ${running:-nothing}, expected ${sha}" >&2
+    echo "MISMATCH ${name}: health reports ${running:-nothing}, expected ${sha} (waited ${waited}s)" >&2
     exit 1
   fi
   echo "VERIFIED ${name} running ${sha:0:8}"

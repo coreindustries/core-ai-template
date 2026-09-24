@@ -12,6 +12,9 @@
     "",
     "health must print JSON with a git_commit field (or a bare 40-char SHA) naming the SHA",
     "that is actually running — the ladder verifies deploys by content, never by label.",
+    "After a deploy, health is polled every verifyIntervalSeconds for up to",
+    "verifyTimeoutSeconds (0 = one check), for deploys that return before rollout ends.",
+    "logs exits non-zero = failed capture; write `... | grep x || true` if no match is valid.",
     "logs must print raw log lines to stdout; scripts/dev/board/log-triage.py redacts them",
     "in code before anything is stored or printed. No model reads raw logs.",
     "",
@@ -71,7 +74,9 @@
         "logs": "",
         "rollback": "",
         "logWindowBeforeMinutes": 1440,
-        "logWindowAfterMinutes": 30
+        "logWindowAfterMinutes": 30,
+        "verifyTimeoutSeconds": 300,
+        "verifyIntervalSeconds": 10
       },
       {
         "name": "production",
@@ -80,7 +85,9 @@
         "logs": "",
         "rollback": "",
         "logWindowBeforeMinutes": 1440,
-        "logWindowAfterMinutes": 30
+        "logWindowAfterMinutes": 30,
+        "verifyTimeoutSeconds": 300,
+        "verifyIntervalSeconds": 10
       }
     ]
   },
@@ -91,8 +98,7 @@
   },
 
   "projectBoard": {
-    "_comment": "Optional GitHub Projects (v2) mirror of the labels. Empty owner = this repo's owner.",
-    "owner": "",
-    "title": "Agent Work Board"
+    "_comment": "Optional GitHub Projects (v2) mirror of the labels, titled boardTitle. Empty owner = this repo's owner.",
+    "owner": ""
   }
 }

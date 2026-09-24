@@ -23,8 +23,11 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      # The base commit, not the PR head: a PR must not be able to edit the
+      # lint script to pass itself.
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
 
       # One regex, shared with `make pr-check`: scripts/assert-branch-name.sh
