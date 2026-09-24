@@ -54,7 +54,7 @@ Evidence from an actual run. Acceptable:
 
 Not acceptable: "tests pass", "should work", "verified locally" with nothing attached, or a description of what you would expect to see.
 
-For the LLM/prompt surface specifically, "tests pass" never counts — unit tests can't catch an output-quality regression. Acceptable proof is a `make eval ARGS=--require-judge` summary from before and after the change, showing `judge: ran N call(s)` (not `SKIPPED`) on both runs (see `.claude/references/llm-evals.md`).
+For the LLM/prompt surface specifically, "tests pass" never counts — unit tests can't catch an output-quality regression. Acceptable proof is a `make eval ARGS="<suite> --require-judge"` summary from before and after the change, showing `judge: ran N call(s)` with zero errored (not `SKIPPED`, not `(E errored)`, and not "no judge scorers in this run") on both runs (see `.claude/references/llm-evals.md`).
 
 ---
 
