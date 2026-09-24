@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts
+.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test
 
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
@@ -212,6 +212,20 @@ agent-models-check: ## Verify agent frontmatter matches .claude/agent-models.jso
 
 deps-vuln: ## Audit only the dependency manifests this branch changed
 	@scripts/audit-dependencies.sh --changed-only
+
+pr-check: ## Run the PR gates locally before a push (usage: make -C <pr-worktree> pr-check BODY=body.md [BASE=main])
+	@test -n "$(BODY)" || (echo "usage: make -C <pr-worktree> pr-check BODY=body.md [BASE=main]" && exit 1)
+	@scripts/dev/board/pr-check.sh "$(abspath $(BODY))" $(BASE)
+
+lanes-init: ## Agent lanes: validate .claude/agent-lanes.json and create the lane labels in this repo
+	@scripts/dev/board/lanes-config.sh check
+	@scripts/dev/board/board.sh init-labels
+
+lanes-check: ## Agent lanes: validate .claude/agent-lanes.json
+	@scripts/dev/board/lanes-config.sh check
+
+lanes-test: ## Agent lanes: run the board tooling + hook tests (no network)
+	@scripts/dev/board/tests/run-all.sh
 
 contract-check: ## Dry-run the delivery-contract gate against this PR's body
 	@gh pr view --json body -q .body 2>/dev/null \

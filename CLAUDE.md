@@ -31,8 +31,9 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 13 auto-loaded rules (~17K tokens)
 ├── .claude/rules-available/   → 9 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 33 slash commands (invoke with /name)
-├── .claude/agents/            → 10 specialized agents (see _template.md for structure)
+├── .claude/skills/            → 36 slash commands (invoke with /name)
+├── .claude/agents/            → 11 specialized agents (see _template.md for structure)
+├── .claude/agent-lanes.json   → Agent lanes config (environment ladder, PRD layout, name prefix)
 └── .claude/mcp.json           → MCP server configuration template
 ```
 
@@ -106,6 +107,10 @@ When opening a PR, apply at minimum:
 
 The PR template includes a Labels checklist.
 
+## Agent Lanes
+
+A session whose first prompt is "You are the Release Manager", "You are the Feature manager" or "You handle bug fixes" becomes a standing lane agent (hook: `.claude/hooks/agent-role.sh`). It follows `.claude/skills/_shared/agent-protocol.md` plus its lane skill, coordinates only through GitHub Issues via `scripts/dev/board/board.sh`, and reads every project-specific value from `.claude/agent-lanes.json`. Setup and launch: README.md, "Running the agent lanes".
+
 ## Cross-Repo Coordination
 
 When work crosses a repository boundary (a schema change in another repo blocks shipping here, an ops task another team must complete first, etc.), open a coordination doc under `docs/coordination/` rather than rely on chat. See `docs/coordination/README.md` for the lifecycle and frontmatter schema, and `_template.md` for the blank.
@@ -120,7 +125,7 @@ Use cases: onboarding an existing repo to the kit's secret-scan / commit / PR-te
 
 ## Skills (Slash Commands)
 
-33 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+36 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 

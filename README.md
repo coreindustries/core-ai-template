@@ -24,7 +24,7 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
-- `.claude/agents/` - 10 specialized agents with authority bounds + standardized template
+- `.claude/agents/` - 11 specialized agents with authority bounds + standardized template
 - `.claude/skills/` - 33 slash commands for common workflows
 - `.claude/references/` - 9 on-demand references (orchestration patterns, checklists, gitmoji)
 - `.claude/mcp.json` - MCP server configuration template
@@ -302,6 +302,37 @@ git checkout -b feat/my-feature
 ```
 
 **Total Setup Time:** ~15 minutes
+
+## Running the agent lanes
+
+A standing team of Claude Code sessions that coordinate through GitHub Issues: one **Release
+Manager** and any number of parallel **Feature** and **Bugfix** agents. Every task is an issue with
+one `lane:*`, one `P0`–`P3`, exactly one `state:*` (`backlog → implementing → built → deployed →
+verifying → done`, or `blocked` / `dropped`) and, while claimed, `agent:<NAME>`. Nobody self-merges —
+you click merge. Only the Release Manager deploys.
+
+**Set up once per repo:**
+
+1. Fill in `.claude/agent-lanes.json`: the environment ladder (`deploy.environments`, first rung
+   first, each with `deploy`, `health`, `logs` and `rollback` commands), the PRD location and
+   requirement-id pattern, test commands per area, and the name prefix.
+2. `make lanes-init` — validates the config and creates the lane labels.
+3. Optional: the live GitHub Projects board (`scripts/dev/board/README.md`, "Live board").
+
+**Launch a lane:** open `claude` in the main checkout and start the first prompt with one of:
+
+| Say | Becomes |
+|---|---|
+| `You are the Release Manager` | `C-RELEASE` — walks merged `needs-deploy` PRs up the ladder, reads logs before and after every deploy, files redacted `lane:bug` issues for new errors |
+| `You are the Feature manager` (or `You are feature agent 2`) | `C-FEATURE-<id>` — finds unbuilt PRD requirements, files and claims them, architect → planner → implement → judge → PR |
+| `You handle bug fixes` (or `You are bugfix agent 3`) | `C-BUGFIX-<id>` — takes the highest-priority `lane:bug`, reproduces it, fixes the class, same review and PR loop |
+
+A hook records the role and re-injects it after every compaction, so a lane survives long sessions
+(`CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude` compacts early). Each agent babysits its own PRs to
+merged — red checks, conflicts, stale branches — and asks you only for the merge click.
+
+The workflow: `.claude/skills/_shared/agent-protocol.md`. The tools: `scripts/dev/board/README.md`.
+Tests: `make lanes-test`.
 
 ## Adopting Into An Existing Repo
 
@@ -615,7 +646,7 @@ core-ai-template/
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (33 skills, each <name>/SKILL.md)
+    └── skills/                  # Slash commands (36 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle

@@ -23,45 +23,17 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      # One regex, shared with `make pr-check`: scripts/assert-branch-name.sh
       - name: Validate branch name is namespaced
         env:
           BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
-
-          # Accepted shapes:
-          #   <type>/<slug>        feat/oauth-login, fix/null-session,
-          #                        dependabot/npm_and_yarn/left-pad-1.3.0
-          #   worktree-<slug>      created by `make wt`
-          #   revert-<n>-<slug>    GitHub's auto-generated revert branches
-          PATTERN='^(worktree-[A-Za-z0-9._+-]+|revert-[0-9]+-[A-Za-z0-9._/+-]+|[a-z][a-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/+-]*)$'
-
-          if printf '%s' "$BRANCH" | grep -qE "$PATTERN"; then
-            echo "OK: '$BRANCH' is namespaced."
-            exit 0
+          if ! scripts/assert-branch-name.sh "$BRANCH"; then
+            echo "::error title=Bare branch name::'$BRANCH' is not namespaced."
+            exit 1
           fi
-
-          echo "::error title=Bare branch name::'$BRANCH' is not namespaced."
-          cat >&2 <<'ERR'
-
-          Branch names must be namespaced so parallel agents don't collide.
-
-            Expected: <type>/<slug>
-            Types:    feat | fix | docs | style | refactor | perf | test |
-                      chore | ci | build | revert
-
-            Good:  feat/oauth-login
-                   fix/null-session-on-logout
-                   ci/pin-action-shas
-            Bad:   fix-login          (no namespace)
-                   my-changes         (no namespace)
-                   Feat/OAuth         (type must be lowercase)
-
-          Rename with:
-            git branch -m <new-name>
-            git push origin -u <new-name>
-            git push origin --delete <old-name>
-
-          See .claude/rules/git-workflow.md
-          ERR
-          exit 1

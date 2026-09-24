@@ -1,0 +1,124 @@
+# Board Project sync — OPTIONAL. Mirrors the lane label taxonomy (lane:*,
+# state:*, P0-P3, agent:*) into a GitHub Projects (v2) board via
+# `board.sh project-sync`, so the same state `board.sh render` snapshots is
+# live and filterable in GitHub's UI. Issues stay the source of truth; the
+# project is a view.
+#
+# One-time setup (scripts/dev/board/README.md, "Live board"):
+#   1. A token with Projects read/write + this repo's Issues read, stored as
+#      the BOARD_PROJECT_TOKEN secret.
+#   2. `board.sh project-sync --create` once locally with that token.
+#   3. The printed project number as the BOARD_PROJECT_NUMBER repo variable.
+# Until both exist, every run no-ops with a visible warning — never red, never
+# silent.
+#
+# Two delivery defects this avoids:
+#   - A single shared concurrency group lets a burst of label events cancel
+#     every queued sync but the last, so most label changes never reach the
+#     board. Groups are per issue; full reconciles never cancel.
+#   - A scheduled reconcile that stops firing is invisible (nothing runs, so
+#     nothing fails). The reconcile-health job reports the age of the last
+#     successful scheduled run on every run and warns when it is stale.
+
+name: Board Project sync
+
+on:
+  issues:
+    types: [opened, reopened, closed, labeled, unlabeled]
+  schedule:
+    - cron: '17 * * * *' # hourly full reconcile — repairs anything the events missed
+  workflow_dispatch:
+
+concurrency:
+  group: board-project-sync-${{ github.event_name == 'issues' && github.event.issue.number || 'full' }}
+  cancel-in-progress: ${{ github.event_name == 'issues' }}
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Sync GitHub Project board from issue labels
+    # Issue events only matter when the issue (or the label just changed) is
+    # part of the lane taxonomy. schedule/workflow_dispatch always reconcile.
+    if: >-
+      github.event_name != 'issues' ||
+      contains(join(github.event.issue.labels.*.name, ','), 'lane:') ||
+      startsWith(github.event.label.name, 'lane:')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Guard missing BOARD_PROJECT_TOKEN or BOARD_PROJECT_NUMBER
+        id: guard
+        env:
+          HAS_TOKEN: ${{ secrets.BOARD_PROJECT_TOKEN != '' }}
+          HAS_NUMBER: ${{ vars.BOARD_PROJECT_NUMBER != '' }}
+        run: |
+          set -euo pipefail
+          msg=""
+          if [ "$HAS_TOKEN" != "true" ]; then
+            msg="BOARD_PROJECT_TOKEN secret not set — project board not synced (see scripts/dev/board/README.md, 'Live board')"
+          elif [ "$HAS_NUMBER" != "true" ]; then
+            msg="BOARD_PROJECT_NUMBER repo variable not set — run 'board.sh project-sync --create' once, then set it (see scripts/dev/board/README.md, 'Live board')"
+          fi
+          if [ -n "$msg" ]; then
+            echo "::warning::${msg}"
+            echo "${msg}" >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Debounce issue-event bursts
+        # Hold the run so the rest of a same-issue burst can cancel it first.
+        if: github.event_name == 'issues' && steps.guard.outputs.skip != 'true'
+        run: sleep 20
+
+      - name: Sync project board
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.BOARD_PROJECT_TOKEN }}
+          BOARD_PROJECT_NUMBER: ${{ vars.BOARD_PROJECT_NUMBER }}
+          EVENT_NAME: ${{ github.event_name }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "issues" ] && [ -n "${ISSUE_NUMBER:-}" ]; then
+            scripts/dev/board/board.sh project-sync --issue "$ISSUE_NUMBER"
+          else
+            scripts/dev/board/board.sh project-sync
+          fi
+
+  reconcile-health:
+    name: Scheduled reconcile is firing
+    if: vars.BOARD_PROJECT_NUMBER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Check the age of the last successful scheduled run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          # A schedule stops firing silently: GitHub disables schedules after
+          # 60 days without repo activity. Re-enable in the Actions tab.
+          if out="$(scripts/dev/board/board.sh reconcile-age --workflow board-project-sync.yml --max-hours 3)"; then
+            echo "$out"
+          else
+            echo "::warning title=Board reconcile not firing::${out}"
+            echo "${out}" >> "$GITHUB_STEP_SUMMARY"
+          fi

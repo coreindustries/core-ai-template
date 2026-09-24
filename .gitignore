@@ -53,6 +53,11 @@ Thumbs.db
 # Go
 # vendor/
 
+# Agent lanes: per-issue worktrees (worktreeDir in .claude/agent-lanes.json)
+# and the hook fallback state dir used only when git cannot answer.
+.worktrees/
+.claude/state/
+
 # Build outputs
 # dist/
 # build/
