@@ -30,6 +30,7 @@
     "planner":             { "model": "opus" },
     "judge":               { "model": "opus" },
     "codebase-researcher": { "model": "haiku" },
+    "ci-triage":           { "model": "haiku" },
     "perf-auditor":        { "model": "haiku" }
   }
 }

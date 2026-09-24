@@ -119,21 +119,23 @@
   description: Dependency manifests, lockfiles, version bumps
 
 # ---------- Priority ----------
-- name: priority/p0
+# One priority set for PRs and issues, including agent-lane issues
+# (board.sh orders work by these). Also bootstrapped by `board.sh init-labels`.
+- name: P0
   color: "B60205"
-  description: Drop everything (production outage, data loss, security)
+  description: "Drop everything: data loss, security, or down for users"
 
-- name: priority/p1
+- name: P1
   color: "D93F0B"
-  description: High — current sprint
+  description: "High: user-visible or silent failure; MVP blocker; current sprint"
 
-- name: priority/p2
+- name: P2
   color: "FBCA04"
-  description: Medium — next sprint or scheduled
+  description: "Medium: degraded; completes a PRD; next sprint"
 
-- name: priority/p3
-  color: "0E8A16"
-  description: Low — nice-to-have, backlog
+- name: P3
+  color: "C5DEF5"
+  description: "Low: cosmetic, polish, backlog"
 
 # ---------- Status ----------
 - name: status/needs-review
@@ -213,3 +215,68 @@
 - name: needs-review
   color: "e4e669"
   description: "Requires human review before merge"
+
+# ---------- Agent lanes ----------
+# Read by `scripts/dev/board/board.sh init-labels` together with the Priority
+# section, so a fresh repo gets them before labels-sync runs.
+# agent:<NAME> labels are created on demand by `board.sh claim` / `pr-own`.
+- name: lane:bug
+  color: "d73a4a"
+  description: "Bugfix lane"
+
+- name: lane:feature
+  color: "0e8a16"
+  description: "Feature lane"
+
+- name: lane:release
+  color: "5319e7"
+  description: "Release-manager lane"
+
+- name: state:backlog
+  color: "ededed"
+  description: "Lane state: filed, not started"
+
+- name: state:implementing
+  color: "1d76db"
+  description: "Lane state: claimed and being built"
+
+- name: state:built
+  color: "0e8a16"
+  description: "Lane state: PR merged, not yet deployed"
+
+- name: state:deployed
+  color: "5319e7"
+  description: "Lane state: on every environment in the ladder"
+
+- name: state:verifying
+  color: "c2e0c6"
+  description: "Lane state: post-deploy proof running"
+
+- name: state:done
+  color: "0e8a16"
+  description: "Lane state: proven on the deployed target"
+
+- name: state:blocked
+  color: "b60205"
+  description: "Lane state: blocked; the issue names the one unblocking action"
+
+- name: state:dropped
+  color: "cccccc"
+  description: "Lane state: will not be done; reason in the issue"
+
+- name: needs-deploy
+  color: "fbca04"
+  description: "Merged PR not yet deployed to every environment"
+
+- name: in-progress
+  color: "1d76db"
+  description: "Claimed: an agent is working it"
+
+- name: reclaimable
+  color: "e4e669"
+  description: "Claim went idle; another agent may take it over"
+
+- name: log-triage
+  color: "bfd4f2"
+  description: "Filed by scripts/dev/board/log-triage.py"
+# ---------- end agent lanes ----------

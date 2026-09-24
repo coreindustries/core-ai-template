@@ -1,0 +1,104 @@
+{
+  "_comment": [
+    "Project configuration for the agent lanes (Release Manager + Feature + Bugfix).",
+    "Everything project-specific lives here; the scripts, hooks and skills read it.",
+    "See .claude/skills/_shared/agent-protocol.md and the README section 'Running the agent lanes'.",
+    "",
+    "Commands are run with `bash -c` from the repo root. Placeholders substituted before running:",
+    "  {sha}  full 40-char commit SHA being deployed (validated as hex first)",
+    "  {env}  environment name from environments[].name",
+    "  {since_minutes}  log window, for logs commands",
+    "Placeholders are only ever replaced with validated values, never with free text.",
+    "",
+    "health must print JSON with a git_commit field (or a bare 40-char SHA) naming the SHA",
+    "that is actually running — the ladder verifies deploys by content, never by label.",
+    "After a deploy, health is polled every verifyIntervalSeconds for up to",
+    "verifyTimeoutSeconds (0 = one check), for deploys that return before rollout ends.",
+    "logs exits non-zero = failed capture; write `... | grep x || true` if no match is valid.",
+    "logs must print raw log lines to stdout; scripts/dev/board/log-triage.py redacts them",
+    "in code before anything is stored or printed. No model reads raw logs.",
+    "",
+    "Never put `make -n` / `--dry-run` / `--just-print` in a deploy or rollback command:",
+    "make still executes $(MAKE) recipe lines under -n. `lanes-config.sh check` refuses it.",
+    "",
+    "Review-agent model pins (architect, planner, judge, ci-triage...) live in",
+    ".claude/agent-models.json, not here. `models` below is what the lane sessions pass as",
+    "`model:` when they spawn general-purpose subagents."
+  ],
+
+  "namePrefix": "C",
+  "defaultBranch": "main",
+  "worktreeDir": ".worktrees",
+  "boardTitle": "Agent Work Board",
+
+  "prd": {
+    "glob": "prd/[0-9]*.md",
+    "frPattern": "FR-?[0-9]+",
+    "idField": "prd_id"
+  },
+
+  "models": {
+    "implementer": "sonnet",
+    "lookup": "haiku"
+  },
+
+  "tests": [
+    { "area": "board tools", "paths": ["scripts/dev/board/"], "command": "make lanes-test" },
+    { "area": "unit", "paths": ["src/"], "command": "make test-unit" }
+  ],
+
+  "intake": {
+    "_comment": "Issues carrying any of these labels are never announced as NEW-ISSUE work (locks, meta or tracking issues).",
+    "excludeLabels": []
+  },
+
+  "checks": {
+    "_comment": "Check names whose latest run on the head may be CANCELLED by design (e.g. a job that cancels itself). Any other CANCELLED latest run is NOT a pass.",
+    "cancelledOk": []
+  },
+
+  "prCheck": {
+    "_comment": "Extra offline gates `make pr-check` runs after the delivery-contract and branch-name checks. Each is a command run from the PR worktree; non-zero fails the check.",
+    "ratchets": []
+  },
+
+  "deploy": {
+    "journalDir": "docs/deployments",
+    "_boundComment": "Path prefixes whose change needs a deploy to take effect. A merged PR touching one gets the needs-deploy label.",
+    "boundPaths": ["src/", "Dockerfile", "docker-compose", "supabase/migrations/"],
+    "environments": [
+      {
+        "name": "staging",
+        "deploy": "",
+        "health": "",
+        "logs": "",
+        "rollback": "",
+        "logWindowBeforeMinutes": 1440,
+        "logWindowAfterMinutes": 30,
+        "verifyTimeoutSeconds": 300,
+        "verifyIntervalSeconds": 10
+      },
+      {
+        "name": "production",
+        "deploy": "",
+        "health": "",
+        "logs": "",
+        "rollback": "",
+        "logWindowBeforeMinutes": 1440,
+        "logWindowAfterMinutes": 30,
+        "verifyTimeoutSeconds": 300,
+        "verifyIntervalSeconds": 10
+      }
+    ]
+  },
+
+  "logTriage": {
+    "baselineFile": ".claude/log-baseline.json",
+    "emitterPaths": ["src", "scripts"]
+  },
+
+  "projectBoard": {
+    "_comment": "Optional GitHub Projects (v2) mirror of the labels, titled boardTitle. Empty owner = this repo's owner.",
+    "owner": ""
+  }
+}

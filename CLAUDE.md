@@ -31,8 +31,9 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 13 auto-loaded rules (~17K tokens)
 ├── .claude/rules-available/   → 9 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 33 slash commands (invoke with /name)
-├── .claude/agents/            → 10 specialized agents (see _template.md for structure)
+├── .claude/skills/            → 36 slash commands (invoke with /name)
+├── .claude/agents/            → 11 specialized agents (see _template.md for structure)
+├── .claude/agent-lanes.json   → Agent lanes config (environment ladder, PRD layout, name prefix)
 └── .claude/mcp.json           → MCP server configuration template
 ```
 
@@ -48,6 +49,9 @@ make dev            # Start development server
 make test           # Run all tests
 make quality        # Full pipeline: lint + typecheck + security + secrets + tests
 make scan-secrets   # Secret & PII scanning (gitleaks)
+make pr-check BODY=body.md  # PR gates locally, before a push (run with -C <pr-worktree>)
+make lanes-init     # Agent lanes: validate .claude/agent-lanes.json, create labels
+make lanes-test     # Agent lanes: tooling + hook tests (no network)
 ```
 
 For individual commands (`{lint_fix}`, `{test_unit}`, etc.), see `prd/00_technology.md`.
@@ -101,10 +105,14 @@ The canonical label set lives in `.github/labels.yml` and is reconciled with the
 
 When opening a PR, apply at minimum:
 - One **type** label (`feature`, `bug`, `docs`, `chore`, `refactor`, `test`, `performance`, `security`, `breaking`).
-- One **priority** label if not P3 default.
+- One **priority** label (`P0`–`P3`) if not P3 default. The same four labels prioritize issues, including agent-lane issues; there is no `priority/*` set.
 - `codex` if requesting cross-model review.
 
-The PR template includes a Labels checklist.
+The PR template includes a Labels checklist. Agent-lane labels (`lane:*`, `state:*`, `agent:*`, `needs-deploy`) are defined in the "Agent lanes" section of `labels.yml`; `make lanes-init` creates them plus `P0`–`P3` in a fresh repo before labels-sync has run.
+
+## Agent Lanes
+
+A session whose first prompt is "You are the Release Manager", "You are the Feature manager" or "You handle bug fixes" becomes a standing lane agent (hook: `.claude/hooks/agent-role.sh`). It follows `.claude/skills/_shared/agent-protocol.md` plus its lane skill, coordinates only through GitHub Issues via `scripts/dev/board/board.sh`, and reads every project-specific value from `.claude/agent-lanes.json`. Setup and launch: README.md, "Running the agent lanes".
 
 ## Cross-Repo Coordination
 
@@ -120,11 +128,11 @@ Use cases: onboarding an existing repo to the kit's secret-scan / commit / PR-te
 
 ## Skills (Slash Commands)
 
-33 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+36 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 
-The active pipeline (`.github/workflows/ci.yml`) runs on push/PR to main with 5 gates: **Lint → Type Check → Test (66% coverage min) → Security → Build**. A generic template exists at `ci.yml.example`. See `.github/README.md` for customization.
+The active pipeline (`.github/workflows/ci.yml`) runs on push/PR to main with 5 gates: **Lint → Type Check → Test (66% coverage min) → Security → Build**. A generic template exists at `ci.yml.example`. See `.github/README.md` for customization. `.github/workflows/agent-lanes.yml` runs the agent-lanes tooling tests when those paths change; `board-project-sync.yml` stays idle until `BOARD_PROJECT_NUMBER` is set.
 
 ## Context Recovery
 
@@ -139,10 +147,10 @@ See README.md "Getting Started" for the full 7-step setup. Key steps: fill in `p
 
 ## Current State
 <!-- MACHINE UPDATED — do not edit manually -->
-<!-- Last updated by: claude on 2026-05-22 -->
+<!-- Last updated by: claude on 2026-09-24 -->
 
-**Active feature:** none — PRD-05 implementation complete
-**Last action:** implemented all 5 phases of PRD-05 autonomous dev workflow
+**Active feature:** agent lanes (issue #52) — implementation complete, PR #53 open as draft
+**Last action:** ported the agent-lanes workflow generically; single priority set P0–P3
 **Blockers:** none
-**Next action:** review and merge PR for PRD-05
-**Worktree:** worktree-feat+prd-05-autonomous-dev-workflow
+**Next action:** review and merge PR #53; after merge, run labels-sync and retag `priority/pN` → `PN`
+**Worktree:** worktree-agent-lanes (branch feat/agent-lanes)

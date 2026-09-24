@@ -24,7 +24,7 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
-- `.claude/agents/` - 10 specialized agents with authority bounds + standardized template
+- `.claude/agents/` - 11 specialized agents with authority bounds + standardized template
 - `.claude/skills/` - 33 slash commands for common workflows
 - `.claude/references/` - 9 on-demand references (orchestration patterns, checklists, gitmoji)
 - `.claude/mcp.json` - MCP server configuration template
@@ -41,11 +41,12 @@ This template establishes a foundation for projects where AI agents are primary 
 - `/resume` skill - Automated session recovery after context compression
 
 ### PR / Issue Labels
-- `.github/labels.yml` - Canonical label set (type, area, priority, status, process)
+- `.github/labels.yml` - Canonical label set (type, area, priority `P0`–`P3`, status, process, agent lanes)
 - `.github/labeler.yml` - Path-based auto-labeling rules (e.g. `*.py` → `area/python`)
 - `.github/workflows/labeler.yml` - Auto-applies `area/*` labels on PR open / sync
 - `.github/workflows/labels-sync.yml` - Reconciles repo labels with `labels.yml` on push to main
-- PR template includes a labels checklist (type + priority + `codex` opt-in)
+- PR template includes a labels checklist (type + priority `P0`–`P3` + `codex` opt-in)
+- One priority set, `P0`–`P3`, for PRs and issues alike (agent lanes order their queues by it)
 
 ### Cross-Repo Coordination
 - `docs/coordination/` - Track work that crosses a repository boundary (schema changes, ops handoffs, contract negotiations between services)
@@ -63,6 +64,10 @@ Reduces human-in-the-loop overhead by automating the three most common interrupt
 - **`send-hook.js`** — zero-dependency Slack notifier. `--to <channel>` resolves `SLACK_WEBHOOK_<CHANNEL>` by convention, so adding a channel needs no code change, and an unconfigured channel is skipped rather than failing the build. The template ships no channels configured.
 
 See `REPO_SETUP.md` for one-time GitHub configuration (auto-merge setting, branch protection, secrets).
+
+### Agent Lanes
+
+A standing team of Claude Code sessions — one Release Manager plus parallel Feature and Bugfix agents — coordinating through GitHub Issues, configured by one file (`.claude/agent-lanes.json`). Deploys are verified by the SHA actually running, logs are redacted by the tool before any model or issue sees them, and every agent babysits its own PRs to merged. See [Running the agent lanes](#running-the-agent-lanes).
 
 ### Adopt Into Any Existing Repo
 - `docs/adopt-best-practices.md` - **Self-contained** markdown file you can hand to any Claude Code (or compatible) agent in another repo to land this template's tooling discipline (secret scanning, Conventional Commits, PR template, ADR/PRD/coordination workflows) in a single PR
@@ -117,6 +122,13 @@ See `REPO_SETUP.md` for one-time GitHub configuration (auto-merge setting, branc
 | `/docs` | Generate documentation |
 | `/onboard` | Guided walkthrough for new contributors |
 | `/resume` | Recover context and resume work after session break |
+
+**Agent Lanes** (see [Running the agent lanes](#running-the-agent-lanes))
+| Skill | Purpose |
+|-------|---------|
+| `/release-manager` | Walk merged `needs-deploy` PRs up the environment ladder, triage logs before/after, file redacted bugs |
+| `/feature-agent` | Find unbuilt PRD requirements, file and claim them, build through architect → judge → PR |
+| `/bugfix-agent` | Take the highest-priority `lane:bug`, reproduce, fix the class, babysit the PR to merged |
 
 **Knowledge & Discovery**
 | Skill | Purpose |
@@ -302,6 +314,37 @@ git checkout -b feat/my-feature
 ```
 
 **Total Setup Time:** ~15 minutes
+
+## Running the agent lanes
+
+A standing team of Claude Code sessions that coordinate through GitHub Issues: one **Release
+Manager** and any number of parallel **Feature** and **Bugfix** agents. Every task is an issue with
+one `lane:*`, one `P0`–`P3`, exactly one `state:*` (`backlog → implementing → built → deployed →
+verifying → done`, or `blocked` / `dropped`) and, while claimed, `agent:<NAME>`. Nobody self-merges —
+you click merge. Only the Release Manager deploys.
+
+**Set up once per repo:**
+
+1. Fill in `.claude/agent-lanes.json`: the environment ladder (`deploy.environments`, first rung
+   first, each with `deploy`, `health`, `logs` and `rollback` commands), the PRD location and
+   requirement-id pattern, test commands per area, and the name prefix.
+2. `make lanes-init` — validates the config and creates the lane labels.
+3. Optional: the live GitHub Projects board (`scripts/dev/board/README.md`, "Live board").
+
+**Launch a lane:** open `claude` in the main checkout and start the first prompt with one of:
+
+| Say | Becomes |
+|---|---|
+| `You are the Release Manager` | `C-RELEASE` — walks merged `needs-deploy` PRs up the ladder, reads logs before and after every deploy, files redacted `lane:bug` issues for new errors |
+| `You are the Feature manager` (or `You are feature agent 2`) | `C-FEATURE-<id>` — finds unbuilt PRD requirements, files and claims them, architect → planner → implement → judge → PR |
+| `You handle bug fixes` (or `You are bugfix agent 3`) | `C-BUGFIX-<id>` — takes the highest-priority `lane:bug`, reproduces it, fixes the class, same review and PR loop |
+
+A hook records the role and re-injects it after every compaction, so a lane survives long sessions
+(`CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude` compacts early). Each agent babysits its own PRs to
+merged — red checks, conflicts, stale branches — and asks you only for the merge click.
+
+The workflow: `.claude/skills/_shared/agent-protocol.md`. The tools: `scripts/dev/board/README.md`.
+Tests: `make lanes-test`.
 
 ## Adopting Into An Existing Repo
 
@@ -561,7 +604,9 @@ core-ai-template/
 ├── scripts/
 │   ├── scan-secrets.sh          # Secret & PII scanner wrapper (gitleaks)
 │   ├── classify-ci-failure.sh   # CI failure classifier (lint/types/test/flaky/build)
-│   └── post-deploy-health.sh    # Post-deploy health check with Slack notification
+│   ├── post-deploy-health.sh    # Post-deploy health check with Slack notification
+│   ├── assert-branch-name.sh    # Namespaced-branch check (CI + make pr-check)
+│   └── dev/board/               # Agent-lanes tooling: board.sh, pr-watch, ladder, log-triage (see its README)
 ├── tools/
 │   └── comms/
 │       └── send-hook.js         # Zero-dependency Slack webhook router (Node.js built-ins)
@@ -605,7 +650,9 @@ core-ai-template/
     │   ├── rules-guide.md       # How the rules system works
     │   ├── security-checklist.md # Security review checklist
     │   └── solid-checklist.md   # SOLID principles checklist
-    ├── agents/                  # Specialized agents (9 + template)
+    ├── agent-lanes.json         # Agent lanes config (environment ladder, PRD layout, name prefix)
+    ├── hooks/                   # protect-secrets, agent-role + agent-compact (lane role hooks)
+    ├── agents/                  # Specialized agents (11 + template)
     │   ├── _template.md         # Standard 5-block agent structure
     │   ├── codex-style-agent.md # Completeness review of AI-assisted work
     │   ├── architect.md         # Architecture & design review
@@ -614,8 +661,9 @@ core-ai-template/
     │   ├── security-reviewer.md # Security review (STRIDE)
     │   ├── simplicity-reviewer.md # Over-engineering detection
     │   ├── data-integrity-reviewer.md # Data consistency & validation
-    │   └── codebase-researcher.md # Deep codebase analysis
-    └── skills/                  # Slash commands (33 skills, each <name>/SKILL.md)
+    │   ├── codebase-researcher.md # Deep codebase analysis
+    │   └── ci-triage.md         # Failing check → class / cause / fix (agent lanes)
+    └── skills/                  # Slash commands (36 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle

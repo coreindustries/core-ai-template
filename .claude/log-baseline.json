@@ -1,0 +1,4 @@
+{
+  "_comment": "Log signatures proven benign, keyed by the 12-char id log-triage.py prints. Each value says why it is benign. Adding one is a reviewed PR; the tool never baselines anything itself.",
+  "known": {}
+}

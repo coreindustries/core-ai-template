@@ -23,45 +23,26 @@ jobs:
     timeout-minutes: 5
 
     steps:
+      # The base commit, not the PR head: a PR must not be able to edit the
+      # lint script to pass itself.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      # One regex, shared with `make pr-check`: scripts/assert-branch-name.sh
       - name: Validate branch name is namespaced
         env:
           BRANCH: ${{ github.head_ref }}
         run: |
           set -euo pipefail
-
-          # Accepted shapes:
-          #   <type>/<slug>        feat/oauth-login, fix/null-session,
-          #                        dependabot/npm_and_yarn/left-pad-1.3.0
-          #   worktree-<slug>      created by `make wt`
-          #   revert-<n>-<slug>    GitHub's auto-generated revert branches
-          PATTERN='^(worktree-[A-Za-z0-9._+-]+|revert-[0-9]+-[A-Za-z0-9._/+-]+|[a-z][a-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._/+-]*)$'
-
-          if printf '%s' "$BRANCH" | grep -qE "$PATTERN"; then
-            echo "OK: '$BRANCH' is namespaced."
+          # Absent only on the base of the PR that introduces the script;
+          # say so rather than misreport the branch as bare.
+          if [ ! -x scripts/assert-branch-name.sh ]; then
+            echo "::warning title=Branch lint skipped::scripts/assert-branch-name.sh is not on the base commit yet — branch not checked"
             exit 0
           fi
-
-          echo "::error title=Bare branch name::'$BRANCH' is not namespaced."
-          cat >&2 <<'ERR'
-
-          Branch names must be namespaced so parallel agents don't collide.
-
-            Expected: <type>/<slug>
-            Types:    feat | fix | docs | style | refactor | perf | test |
-                      chore | ci | build | revert
-
-            Good:  feat/oauth-login
-                   fix/null-session-on-logout
-                   ci/pin-action-shas
-            Bad:   fix-login          (no namespace)
-                   my-changes         (no namespace)
-                   Feat/OAuth         (type must be lowercase)
-
-          Rename with:
-            git branch -m <new-name>
-            git push origin -u <new-name>
-            git push origin --delete <old-name>
-
-          See .claude/rules/git-workflow.md
-          ERR
-          exit 1
+          if ! scripts/assert-branch-name.sh "$BRANCH"; then
+            echo "::error title=Bare branch name::'$BRANCH' is not namespaced."
+            exit 1
+          fi
