@@ -11,8 +11,11 @@ with two AI-agent-specific additions: every ADR includes an
 - **Before proposing architectural changes**, read relevant ADRs to
   understand why current patterns exist.
 - **After making a non-obvious decision**, run `/adr` to capture it.
-- ADR files are stored in this directory as
-  `NNNN-short-title.md` (zero-padded, strictly increasing).
+- New ADR files are named `YYYY-MM-DD-short-title.md`: the date the
+  ADR was written, plus a slug. Do not take "the next number". Parallel
+  agents doing that pick the same one. The numbered ADRs below keep
+  their IDs, and `scripts/assert-doc-ids.sh` (CI + `make pr-check`)
+  rejects any *new* numbered ADR.
 - **Don't rewrite an accepted ADR.** Supersede it by creating a new
   ADR that references the old one.
 
@@ -20,13 +23,13 @@ with two AI-agent-specific additions: every ADR includes an
 
 - `Proposed` — under discussion, not yet binding
 - `Accepted` — active, must be followed
-- `Superseded by NNNN` — replaced by a newer ADR
+- `Superseded by <id>` — replaced by a newer ADR
 - `Deprecated` — no longer relevant, kept for history
 - `Rejected` — proposed but not adopted (kept for the record)
 
 ## Index
 
-| # | Title | Status | Date |
+| ID | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-no-plaintext-secrets-on-disk.md) | No Plaintext Secrets on Disk — Inject Into Process Memory | Accepted | 2026-04-21 |
 | [0002](0002-pin-dependencies-with-24h-cooldown.md) | Pin Dependencies + 24-Hour Cooldown on New Versions | Accepted | 2026-04-21 |
@@ -38,8 +41,8 @@ with two AI-agent-specific additions: every ADR includes an
 ## Template
 
 See [adr-template.md](adr-template.md) for the blank template. The
-`/adr` skill creates new ADRs from this template, picks the next
-number, and prepends an entry to the index above.
+`/adr` skill creates new ADRs from this template, names them by date
+and slug, and adds an entry to the index above.
 
 ## When an ADR is required
 

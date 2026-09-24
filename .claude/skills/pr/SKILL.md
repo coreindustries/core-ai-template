@@ -55,17 +55,19 @@ When this skill is invoked:
    git log main..HEAD --pretty=format:"%h %s"
    ```
 
-3. **Check CI readiness**:
+3. **Run the `judge` agent** on `git diff main...HEAD` — every PR, whatever its size. Fix every P1 and P2, then run it again until the verdict is SHIP or SHIP WITH FIXES with only P3s left. Put the final verdict line and "What I attacked" in the PR body under Test Plan. If the user explicitly waived the judge, say so there instead; never leave it blank.
+
+4. **Check CI readiness**:
    - Verify tests pass locally
    - Verify linting passes
    - Check for uncommitted changes
 
-4. **Push branch** if needed:
+5. **Push branch** if needed:
    ```bash
    git push -u origin $(git branch --show-current)
    ```
 
-5. **Generate PR description** following template:
+6. **Generate PR description** following template:
 
    ```markdown
    ## Summary
@@ -95,6 +97,7 @@ When this skill is invoked:
 
    - [ ] Code follows project style guidelines
    - [ ] Self-review completed
+   - [ ] `judge` verdict recorded (SHIP / SHIP WITH FIXES, P1/P2 fixed)
    - [ ] Documentation updated (if needed)
    - [ ] Tests pass locally
 
@@ -102,7 +105,7 @@ When this skill is invoked:
    Generated with [Claude Code](https://claude.com/claude-code)
    ```
 
-6. **Create PR**:
+7. **Create PR**:
    ```bash
    gh pr create \
      --title "type(scope): description" \
@@ -113,7 +116,7 @@ When this skill is invoked:
      --base main
    ```
 
-7. **Post-creation**:
+8. **Post-creation**:
    - Display PR URL
    - Show CI status link
    - Suggest reviewers if not specified

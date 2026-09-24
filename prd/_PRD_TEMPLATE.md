@@ -4,11 +4,13 @@ status: "Draft" # Draft | Active | Deprecated
 priority: "P1" # P0 (Critical) | P1 (High) | P2 (Medium) | P3 (Low)
 last_updated: "YYYY-MM-DD"
 owner: "@github-handle"
-depends_on: [] # e.g., ["PRD-01", "PRD-03"]
+depends_on: [] # e.g., ["PRD-2026-09-01-auth", "PRD-03"] (legacy numbered IDs stay valid)
 estimated_effort: "S" # S (<1 day) | M (1-3 days) | L (3-5 days) | XL (1-2 weeks)
 ---
 
-# PRD-{XX} – {Feature Name}
+# PRD-YYYY-MM-DD-{slug} – {Feature Name}
+
+<!-- ID = creation date + slug, filename prd/YYYY-MM-DD-{slug}.md. Never take the next number: parallel agents collide. See scripts/assert-doc-ids.sh. -->
 
 ## 1. Purpose
 

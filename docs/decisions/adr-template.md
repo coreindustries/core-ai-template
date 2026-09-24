@@ -1,6 +1,6 @@
-# NNNN: {Title}
+# {YYYY-MM-DD-slug}: {Title}
 
-**Status:** Proposed | Accepted | Superseded by NNNN | Deprecated
+**Status:** Proposed | Accepted | Superseded by {id} | Deprecated
 **Date:** YYYY-MM-DD
 **Deciders:** {who was involved}
 

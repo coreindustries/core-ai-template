@@ -12,7 +12,8 @@
 #   3. delivery contract                    scripts/pr-delivery-contract-check.sh
 #   4. proof lines use full https:// URLs   bare github.com/... links are ambiguous
 #                                           and some awk parsers split on them
-#   5. configured ratchets                  prCheck.ratchets in .claude/agent-lanes.json
+#   5. new PRD/ADR files use date+slug IDs  scripts/assert-doc-ids.sh
+#   6. configured ratchets                  prCheck.ratchets in .claude/agent-lanes.json
 # Plus a NOTE (not a failure) when local commits are not pushed yet: a PR whose
 # commits exist only locally looks empty to reviewers — push before claiming ready.
 set -uo pipefail
@@ -61,6 +62,11 @@ if [ -n "$bare_links" ]; then
   printf '%s\n' "$bare_links"
 else
   echo "OK"
+fi
+
+step "doc IDs"
+if [ -n "$CHANGED" ]; then
+  "$LANES_REPO_ROOT/scripts/assert-doc-ids.sh" "origin/${BASE}" HEAD || bad "new PRD/ADR uses a sequential ID"
 fi
 
 step "ratchets"

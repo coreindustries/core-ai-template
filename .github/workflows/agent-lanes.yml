@@ -9,6 +9,7 @@ on:
     paths:
       - scripts/dev/board/**
       - scripts/assert-branch-name.sh
+      - scripts/assert-doc-ids.sh
       - scripts/pr-delivery-contract-check.sh
       - .claude/hooks/**
       - .claude/agent-lanes.json
@@ -18,6 +19,7 @@ on:
     paths:
       - scripts/dev/board/**
       - scripts/assert-branch-name.sh
+      - scripts/assert-doc-ids.sh
       - scripts/pr-delivery-contract-check.sh
       - .claude/hooks/**
       - .claude/agent-lanes.json

@@ -137,17 +137,17 @@ Before writing the PRD, understand the project context. Read these files in para
 - Related PRDs (search for similar features)
 - `CLAUDE.md` - Code standards
 
-### Step 2.2: Assign PRD Number
+### Step 2.2: Assign PRD ID
+
+The ID is today's date plus a slug: `PRD-YYYY-MM-DD-<slug>`. Do **not** find the highest existing number and add one. Two agents running that at the same time pick the same number, and neither finds out until merge. A date plus a slug needs no shared counter. Existing numbered PRDs keep their numbers; `scripts/assert-doc-ids.sh` (run in CI and `make pr-check`) rejects any *new* numbered one.
 
 ```bash
-# Find next available PRD number
-ls prd/*.md | grep -E "^prd/[0-9]{2}_" | sort -r | head -1
-# Increment by 1 for new PRD
+echo "PRD-$(date -u +%F)-<kebab-slug>"   # e.g. PRD-2026-09-24-oauth-login
 ```
 
 ### Step 2.3: Create PRD File
 
-Create `prd/{number}_{Feature_name}.md` following the template:
+Create `prd/YYYY-MM-DD-<slug>.md` following the template:
 
 ```markdown
 ---
@@ -157,7 +157,7 @@ last_updated: "YYYY-MM-DD"
 owner: "@owner"
 ---
 
-# {PRD_NUMBER} - {Feature Name}
+# PRD-YYYY-MM-DD-<slug> – {Feature Name}
 
 ## 1. Purpose
 
@@ -359,6 +359,8 @@ checks — run them in whatever order suits, or all at once with `make quality`.
 {security_scan}
 {pre_commit} run --all-files
 ```
+
+Then run the `judge` agent on the branch diff. Fix every P1 and P2 and run it again; the final verdict goes in the PR body. This is not optional and has no size exemption. See CLAUDE.md → Agent Routing.
 
 ---
 

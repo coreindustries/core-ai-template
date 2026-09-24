@@ -77,6 +77,6 @@ related_pr:                   # optional: list of PR URLs on either side
      docs. Don't paste content — just link. -->
 
 - PRD: `prd/PRD-NNN.md`
-- ADR: `docs/decisions/NNNN-<slug>.md`
+- ADR: `docs/decisions/<YYYY-MM-DD-slug>.md`
 - Related PR: https://github.com/...
 - Slack thread: <permalink>
