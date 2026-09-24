@@ -71,7 +71,7 @@ Refs:
 
   - **Type** (one): bug | feature | enhancement | docs | chore | refactor |
     test | performance | security | breaking
-  - **Priority** (one, if relevant): priority/p0 | p1 | p2 | p3
+  - **Priority** (one, if not P3): P0 | P1 | P2 | P3
   - **Status** (as needed): status/wip | needs-review | needs-test |
     needs-info | blocked | do-not-merge | ready-to-merge
   - **Process** (as needed): codex (request cross-model review),

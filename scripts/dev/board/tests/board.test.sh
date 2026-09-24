@@ -332,9 +332,9 @@ else
 fi
 
 # ===========================================================================
-# 7. init-labels: reads the "Agent lanes" section of a labels.yml fixture,
-# stopping at the next "# ----------" marker, and dry-runs the create calls
-# in the documented output shape.
+# 7. init-labels: reads the "Priority" and "Agent lanes" sections of a
+# labels.yml fixture, each stopping at the next "# ----------" marker, and
+# dry-runs the create calls in the documented output shape.
 # ===========================================================================
 reset_env
 LABELS_FIXTURE="$WORK/labels.yml"
@@ -343,6 +343,20 @@ cat > "$LABELS_FIXTURE" <<'YAML'
 - name: bug
   color: "d73a4a"
   description: "Something isn't working"
+
+# ---------- Priority ----------
+- name: P0
+  color: "b60205"
+  description: "Drop everything"
+
+- name: P3
+  color: "c5def5"
+  description: "Low"
+
+# ---------- Status ----------
+- name: status/wip
+  color: "ededed"
+  description: "Work in progress"
 
 # ---------- Agent lanes ----------
 # Read by `scripts/dev/board/board.sh init-labels`.
@@ -370,9 +384,12 @@ rc=$?
 if [ "$rc" = "0" ] \
    && printf '%s' "$out" | grep -qF 'exists: lane:bug' \
    && printf '%s' "$out" | grep -qF 'gh label create "lane:feature" --color "0e8a16" --description "Feature lane"' \
+   && printf '%s' "$out" | grep -qF 'gh label create "P0" --color "b60205" --description "Drop everything"' \
+   && printf '%s' "$out" | grep -qF 'gh label create "P3"' \
+   && ! printf '%s' "$out" | grep -q 'status/wip' \
    && ! printf '%s' "$out" | grep -q 'area:api' \
    && ! printf '%s' "$out" | grep -qF '"bug"'; then
-  pass "init-labels: reads only the Agent-lanes section of labels.yml (stops before Area), skips an existing label, dry-runs the rest"
+  pass "init-labels: reads only the Priority and Agent-lanes sections (not Type/Status/Area), skips an existing label, dry-runs the rest"
 else
   fail "init-labels: section scoping (rc=$rc out=[$out] err=[$(cat "$WORK/init-labels.err")])"
 fi
@@ -381,11 +398,11 @@ fi
 # — the Area label leaks into the output, proving the scoping assertion above
 # is load-bearing.
 mutant="$WORK/board.init-labels-mutant.sh"
-sed 's/on && \/\^# -+\/ { if (name != "") print name "|" color "|" desc; exit }/on \&\& 0 { exit }/' "$BOARD" > "$mutant"
+sed 's/\/\^# -+\/ { flush(); on = 0; next }/\/^# -+\/ { flush(); next }/' "$BOARD" > "$mutant"
 chmod +x "$mutant"
 if ! diff -q "$BOARD" "$mutant" >/dev/null 2>&1; then
   mut_out="$(BOARD_LABELS_FILE="$LABELS_FIXTURE" bash "$mutant" init-labels --dry-run 2>/dev/null)"
-  if printf '%s' "$mut_out" | grep -q 'area:api'; then
+  if printf '%s' "$mut_out" | grep -q 'area:api' && printf '%s' "$mut_out" | grep -q 'status/wip'; then
     pass "init-labels: MUTATION CHECK — removing the section-end guard lets the Area section leak in (scoping assertion is load-bearing)"
   else
     fail "init-labels: MUTATION CHECK — removing the section-end guard should have leaked area:api into the output, but it did not"

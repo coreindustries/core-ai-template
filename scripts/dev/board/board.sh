@@ -55,25 +55,31 @@ cmd_init_labels() {
   local existing
   existing="$(gh label list --limit 200 --json name --jq '.[].name')"
 
-  # The taxonomy has one source: the "Agent lanes" section of .github/labels.yml
-  # (labels-sync keeps it current after merge; this bootstraps a fresh repo).
-  # Emitted as name|color|description — '|' because label names contain ':'.
-  # agent:<NAME> labels are created on demand by `claim` / `pr-own`.
+  # The taxonomy has one source: the "Priority" and "Agent lanes" sections of
+  # .github/labels.yml (labels-sync keeps them current after merge; this
+  # bootstraps a fresh repo). Emitted as name|color|description — '|' because
+  # label names contain ':'. agent:<NAME> labels are created on demand by
+  # `claim` / `pr-own`.
   local labels_file="${BOARD_LABELS_FILE:-$LANES_REPO_ROOT/.github/labels.yml}"
   [ -f "$labels_file" ] || die "init-labels: $labels_file not found"
   local defs
   defs="$(awk '
-    /^# -+ Agent lanes -+$/ { on = 1; next }
-    on && /^# -+/ { if (name != "") print name "|" color "|" desc; exit }
+    function flush() { if (name != "") print name "|" color "|" desc; name = "" }
+    /^# -+ (Priority|Agent lanes) -+$/ { flush(); on = 1; next }
+    /^# -+/ { flush(); on = 0; next }
     !on { next }
     /^- name:/ {
-      if (name != "") print name "|" color "|" desc
+      flush()
       name = $0; sub(/^- name:[ \t]*/, "", name); gsub(/"/, "", name); color = ""; desc = ""
     }
     /^  color:/ { color = $0; sub(/^  color:[ \t]*/, "", color); gsub(/"/, "", color) }
     /^  description:/ { desc = $0; sub(/^  description:[ \t]*/, "", desc); gsub(/^"|"$/, "", desc) }
+    END { flush() }
   ' "$labels_file")"
-  [ -n "$defs" ] || die "init-labels: no '# ---------- Agent lanes ----------' section in $labels_file"
+  printf '%s\n' "$defs" | grep -q '^lane:' \
+    || die "init-labels: no '# ---------- Agent lanes ----------' section in $labels_file"
+  printf '%s\n' "$defs" | grep -q '^P0|' \
+    || die "init-labels: no P0-P3 labels in the '# ---------- Priority ----------' section of $labels_file"
 
   local line name color desc
   while IFS= read -r line; do

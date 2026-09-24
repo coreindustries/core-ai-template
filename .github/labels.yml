@@ -119,21 +119,23 @@
   description: Dependency manifests, lockfiles, version bumps
 
 # ---------- Priority ----------
-- name: priority/p0
+# One priority set for PRs and issues, including agent-lane issues
+# (board.sh orders work by these). Also bootstrapped by `board.sh init-labels`.
+- name: P0
   color: "B60205"
-  description: Drop everything (production outage, data loss, security)
+  description: "Drop everything: data loss, security, or down for users"
 
-- name: priority/p1
+- name: P1
   color: "D93F0B"
-  description: High — current sprint
+  description: "High: user-visible or silent failure; MVP blocker; current sprint"
 
-- name: priority/p2
+- name: P2
   color: "FBCA04"
-  description: Medium — next sprint or scheduled
+  description: "Medium: degraded; completes a PRD; next sprint"
 
-- name: priority/p3
-  color: "0E8A16"
-  description: Low — nice-to-have, backlog
+- name: P3
+  color: "C5DEF5"
+  description: "Low: cosmetic, polish, backlog"
 
 # ---------- Status ----------
 - name: status/needs-review
@@ -215,8 +217,8 @@
   description: "Requires human review before merge"
 
 # ---------- Agent lanes ----------
-# Read by `scripts/dev/board/board.sh init-labels` (between this marker and the
-# next "# ----------" marker), so a fresh repo gets them before labels-sync runs.
+# Read by `scripts/dev/board/board.sh init-labels` together with the Priority
+# section, so a fresh repo gets them before labels-sync runs.
 # agent:<NAME> labels are created on demand by `board.sh claim` / `pr-own`.
 - name: lane:bug
   color: "d73a4a"
@@ -229,22 +231,6 @@
 - name: lane:release
   color: "5319e7"
   description: "Release-manager lane"
-
-- name: P0
-  color: "b60205"
-  description: "Lane priority 0: data loss, security, or down for users"
-
-- name: P1
-  color: "d93f0b"
-  description: "Lane priority 1: user-visible or silent failure; MVP blocker"
-
-- name: P2
-  color: "fbca04"
-  description: "Lane priority 2: degraded; completes a PRD"
-
-- name: P3
-  color: "c5def5"
-  description: "Lane priority 3: cosmetic or polish"
 
 - name: state:backlog
   color: "ededed"

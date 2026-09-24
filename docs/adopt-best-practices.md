@@ -1133,7 +1133,7 @@ Document the trust relationship in `docs/decisions/`.
      You apply:
      - Type (one): bug | feature | enhancement | docs | chore | refactor |
        test | performance | security | breaking
-     - Priority (one if not P3): priority/p0 | p1 | p2 | p3
+     - Priority (one if not P3): P0 | P1 | P2 | P3
      - Process (as needed): codex (cross-model review),
        dependencies (Dependabot or manual dep PR),
        security-hotfix-24h-waiver (sub-24h dep bump with linked GHSA/CVE)
@@ -1184,10 +1184,10 @@ Four orthogonal axes:
 - {name: area/dependencies, color: 0366D6, description: Dependency manifests, lockfiles}
 
 # Priority
-- {name: priority/p0, color: B60205, description: Drop everything (outage, data loss)}
-- {name: priority/p1, color: D93F0B, description: High — current sprint}
-- {name: priority/p2, color: FBCA04, description: Medium — next sprint or scheduled}
-- {name: priority/p3, color: 0E8A16, description: Low — nice-to-have, backlog}
+- {name: P0, color: B60205, description: "Drop everything: data loss, security, or down for users"}
+- {name: P1, color: D93F0B, description: "High: user-visible or silent failure; current sprint"}
+- {name: P2, color: FBCA04, description: "Medium: degraded; next sprint"}
+- {name: P3, color: C5DEF5, description: "Low: cosmetic, polish, backlog"}
 
 # Status
 - {name: status/needs-review,    color: FBCA04, description: Awaiting code review}
