@@ -182,9 +182,9 @@ function matchesAnyGlob(relPath, globs) {
   return globs.some((g) => globToRegExp(g).test(relPath));
 }
 
-// A file-type-aware comment marker, used so `ratchet-allow:` only counts when
-// it follows a real comment marker on the line — not text sitting inside a
-// string literal elsewhere on that same line.
+// A file-type-aware comment marker, used so `ratchet-allow(<check-id>):`
+// only counts when it follows a real comment marker on the line — not text
+// sitting inside a string literal elsewhere on that same line.
 function commentPrefixFor(file) {
   return /\.(py|sh|bash)$/.test(file) ? '#' : '//';
 }
@@ -207,6 +207,29 @@ function stripHashCommentLines(content) {
     .split('\n')
     .filter((l) => !/^\s*#/.test(l))
     .join('\n');
+}
+
+// Normalizes one wiring line down to its individual command(s) and checks
+// whether `by` equals one of them exactly — not merely appears as a
+// substring/prefix of a longer command. See ratchets.json's `_comment` for
+// the full rationale and residual limits (trailing comments, echo strings).
+function commandSegmentsOf(rawLine) {
+  const isMakefileRecipe = rawLine.startsWith('\t');
+  let line = isMakefileRecipe ? rawLine.slice(1) : rawLine;
+  if (isMakefileRecipe) {
+    while (line[0] === '@' || line[0] === '-' || line[0] === '+') line = line.slice(1);
+  }
+  line = line.trim();
+  if (line.startsWith('- ')) line = line.slice(2).trim(); // YAML list item
+  if (line.startsWith('run:')) line = line.slice(4).trim(); // YAML `run:` step
+  return line
+    .split(/&&|;|\|/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function isWiredAnywhere(wiringContent, by) {
+  return wiringContent.split('\n').some((line) => commandSegmentsOf(line).includes(by));
 }
 
 // Precomputed line index: O(n) once per file instead of O(n) per match
@@ -304,7 +327,7 @@ function runUnreferencedCheck(check) {
   const runners = (check.runners ?? []).map((r) => ({
     ...r,
     covers: expandGlobs(r.covers),
-    wired: wiringContent.includes(r.by),
+    wired: isWiredAnywhere(wiringContent, r.by),
   }));
 
   const sites = [];

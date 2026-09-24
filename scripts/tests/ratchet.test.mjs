@@ -350,6 +350,141 @@ test('ReDoS safety: a long run of "/" inside a non-empty catch body completes in
   rmSync(dir, { recursive: true, force: true });
 });
 
+test('ReDoS safety: many /* step */ block comments inside a non-empty catch body completes quickly', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('empty (or comment-only) catch');
+  writeConfig(dir, singlePatternConfig(pattern, 0));
+  const comments = '/* step */\n'.repeat(200); // judge's repro: ~26 lines took 13s pre-fix
+  write(
+    dir,
+    'src/a.js',
+    `try {\n  x();\n} catch (e) {\n  ${comments}  doSomethingReal();\n}\n`, // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+  );
+  gitAdd(dir);
+
+  const start = Date.now();
+  const result = runRatchet(dir, [], dir, 5000);
+  const elapsed = Date.now() - start;
+  assert.ok(elapsed < 1000, `expected < 1000ms, took ${elapsed}ms — possible ReDoS regression in the block-comment alternative`);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('ReDoS safety: a TS-typed catch param with many interior spaces completes quickly', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('undefined/null');
+  writeConfig(dir, singlePatternConfig(pattern, 0));
+  const spaces = ' '.repeat(5000);
+  write(
+    dir,
+    'src/a.ts',
+    `foo().catch((e:${spaces}unknown) => doSomethingReal());\n`, // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+  );
+  gitAdd(dir);
+
+  const start = Date.now();
+  const result = runRatchet(dir, [], dir, 5000);
+  const elapsed = Date.now() - start;
+  assert.ok(elapsed < 1000, `expected < 1000ms, took ${elapsed}ms — possible ReDoS regression in the TS-typed param group`);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('js pattern: block-comment variants still match — { /* ignore */ }, {/***/}, and mixed // + /* */ bodies', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('empty (or comment-only) catch');
+  writeConfig(dir, singlePatternConfig(pattern, 3));
+  write(
+    dir,
+    'src/a.js',
+    [
+      'try { a(); } catch (e) { /* ignore */ }', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+      'try { b(); } catch (e) {/***/}', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+      'try { c(); } catch (e) {\n  // note\n  /* and also */\n}', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+      '',
+    ].join('\n'),
+  );
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------
+// Structural ReDoS safety net (P2): fuzz EVERY pattern in the real config
+// against a generated adversarial corpus, so a future pattern added to
+// ratchets.json is covered automatically instead of needing its own
+// hand-written repro after the fact.
+// ---------------------------------------------------------------------------
+
+const FUZZ_SIZES = [5000, 20000];
+const FUZZ_BUDGET_MS = 1000;
+
+const FUZZ_FRAGMENTS = {
+  slashes: (n) => '/'.repeat(n),
+  starComments: (n) => '/**/'.repeat(Math.ceil(n / 4)),
+  starCommentLines: (n) => '/* x */\n'.repeat(Math.ceil(n / 8)),
+  lineComments: (n) => '//\n'.repeat(Math.ceil(n / 3)),
+  spaces: (n) => ' '.repeat(n),
+  colonSpaces: (n) => ':' + ' '.repeat(n),
+  crlfMix: (n) =>
+    Array.from({ length: Math.ceil(n / 4) }, (_, i) => (i % 2 === 0 ? '//\r\n' : '//\n')).join(''),
+};
+
+function wrapForPattern(pattern, fragment) {
+  if (pattern.ext.includes('.py')) return `except ${fragment}:\n    pass\n`;
+  return `catch (e) {${fragment}x }\n`;
+}
+
+// One node subprocess per case: exec()'s the exact shipped regex against
+// generated content, wall-clock budgeted. Isolated per case so one runaway
+// pattern can't stall or crash the whole fuzz test.
+function execRegexBudgeted(regexSource, content, budgetMs) {
+  const script = `
+    const re = new RegExp(process.argv[1], 'g');
+    const fs = require('node:fs');
+    const content = fs.readFileSync(process.argv[2], 'utf8');
+    re.exec(content);
+  `;
+  const contentFile = join(mkdtempSync(join(tmpdir(), 'ratchet-fuzz-')), 'case.txt');
+  writeFileSync(contentFile, content);
+  const start = Date.now();
+  try {
+    execFileSync('node', ['-e', script, regexSource, contentFile], { timeout: budgetMs });
+    return Date.now() - start;
+  } finally {
+    rmSync(dirname(contentFile), { recursive: true, force: true });
+  }
+}
+
+test('ReDoS fuzz budget: every pattern check in ratchets.json stays under budget on adversarial input', () => {
+  const cfg = JSON.parse(readFileSync(join(realRepoRoot, '.claude', 'ratchets.json'), 'utf8'));
+  const patternChecks = cfg.checks.filter((c) => c.kind === 'pattern');
+  assert.ok(patternChecks.length > 0, 'expected at least one pattern check in the real config');
+
+  const slow = [];
+  for (const check of patternChecks) {
+    for (const pattern of check.patterns) {
+      for (const [fragName, fragFn] of Object.entries(FUZZ_FRAGMENTS)) {
+        for (const size of FUZZ_SIZES) {
+          const content = wrapForPattern(pattern, fragFn(size));
+          const label = `${pattern.label} / ${fragName} / ${size}`;
+          let elapsed;
+          try {
+            elapsed = execRegexBudgeted(pattern.regex, content, FUZZ_BUDGET_MS);
+          } catch (e) {
+            slow.push(`${label}: killed at budget (${FUZZ_BUDGET_MS}ms) — ${e.message}`);
+            continue;
+          }
+          if (elapsed >= FUZZ_BUDGET_MS) slow.push(`${label}: ${elapsed}ms`);
+        }
+      }
+    }
+  }
+  assert.equal(slow.length, 0, `ReDoS-suspect pattern/fragment combinations:\n${slow.join('\n')}`);
+});
+
 // ---------------------------------------------------------------------------
 // P1 — unreferenced check: explicit declared runners, not substring heuristics
 // ---------------------------------------------------------------------------
@@ -436,6 +571,45 @@ test('unreferenced: a "by" string appearing only in a comment line is not wired 
   const result = runRatchet(dir);
   assert.equal(result.status, 1, result.stdout);
   assert.match(result.stdout, /not invoked/i);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: "by" must equal a whole command — a prefix like "node --test" is NOT wired by "node --test scripts/tests/"', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'node --test' }],
+    }),
+  );
+  write(dir, 'Makefile', 'test:\n\tnode --test scripts/tests/\n');
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stdout, /not invoked/i);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: "by" matching the exact whole command IS wired (Makefile recipe with @ silent-prefix)', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'node --test scripts/tests/' }],
+    }),
+  );
+  write(dir, 'Makefile', 'test:\n\t@node --test scripts/tests/\n'); // Makefile "@" (silent) prefix
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
