@@ -15,6 +15,10 @@
 # carry an encrypted exception file in-repo, use sops (*.enc.yaml), not this.
 .env.local.exception
 
+# LLM eval trend history (make eval ARGS=--record) — local/CI-machine only.
+# Cross-machine trend needs a store the project chooses (see .claude/references/llm-evals.md).
+.eval-history/
+
 # IDE
 .idea/
 .vscode/

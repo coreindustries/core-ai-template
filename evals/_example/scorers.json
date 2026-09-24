@@ -1,0 +1,19 @@
+[
+  {
+    "id": "no-lorem-ipsum",
+    "type": "regex",
+    "mustNotMatch": "lorem ipsum",
+    "flags": "i"
+  },
+  {
+    "id": "min-length",
+    "type": "length",
+    "min": 20
+  },
+  {
+    "id": "no-trailing-whitespace",
+    "type": "command",
+    "command": "node",
+    "args": ["evals/_example/scorers/no-trailing-whitespace.mjs"]
+  }
+]

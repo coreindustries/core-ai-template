@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test
+.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test eval eval-trend
 
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
@@ -226,6 +226,12 @@ lanes-check: ## Agent lanes: validate .claude/agent-lanes.json
 
 lanes-test: ## Agent lanes: run the board tooling + hook tests (no network)
 	@scripts/dev/board/tests/run-all.sh
+
+eval: ## Score LLM output fixtures against golden-fixture scorers (usage: make eval ARGS="<suite> --require-judge")
+	@$(WRAPPER) node scripts/eval/run-eval.mjs $(ARGS)
+
+eval-trend: ## Show recent eval score history for a suite (usage: make eval-trend ARGS="<suite>")
+	@node scripts/eval/run-eval.mjs trend $(ARGS)
 
 contract-check: ## Dry-run the delivery-contract gate against this PR's body
 	@gh pr view --json body -q .body 2>/dev/null \

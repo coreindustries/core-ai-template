@@ -46,6 +46,18 @@ jobs:
       - name: Check agent model pins match agent-models.json
         run: node scripts/sync-agent-models.mjs --check
 
+      # Unconditional: the eval harness scores fixture artifacts, not app code
+      # (scripts/eval/run-eval.mjs), so it runs even on an uninitialized
+      # template. --no-judge here means only deterministic scorers run in CI
+      # by default — no ANTHROPIC_API_KEY is available on a key-less runner,
+      # and a skipped judge is excluded from the aggregate rather than
+      # silently failing the gate (see .claude/references/llm-evals.md).
+      - name: Run LLM output quality evals (deterministic scorers)
+        run: node scripts/eval/run-eval.mjs --no-judge
+
+      - name: Run eval harness unit tests
+        run: node --test scripts/eval/tests/
+
       - name: Check project initialized
         id: init
         run: |
