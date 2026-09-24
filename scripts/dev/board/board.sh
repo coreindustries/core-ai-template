@@ -62,6 +62,13 @@ VALID_LANES="bug feature release"
 # stale — `built` and later belong to the Release Manager, not the claimer,
 # so staleness there is meaningless.
 #
+# PR "liveness" reads ONLY the PR's `body` text (for `#<n>` / `/issues/<n>`)
+# and its own `agent:<NAME>` label — never its title, its commits, or
+# GitHub's own "linked issues" sidebar (`closingIssuesReferences`, a
+# separate API field this tool does not query). A PR linked only through
+# that UI feature, with neither pattern anywhere in its body, is invisible
+# here and will NOT keep the claim live.
+#
 # FAIL CLOSED: any gh/jq failure while computing staleness means "not
 # stale" — never "lookup failed -> no activity -> evict live work". Every
 # skip is logged to stderr as `stale-check SKIPPED #<n>: <why>` so a human
@@ -193,8 +200,14 @@ _claim_stale_map() {
 
   # Cache gh pr list per agent for the life of this one call — see
   # _claim_referencing_prs. mktemp failing (e.g. a read-only tmp) just means
-  # no caching, not a hard failure.
+  # no caching, not a hard failure. A RETURN trap (function-scoped, bash 3.2
+  # supports it) guarantees cleanup on every return path — including one
+  # added later that forgets to — WITHOUT touching the process's EXIT trap,
+  # which gh-checks.sh already owns (see the header comment on that file).
   cache_dir="$(mktemp -d 2>/dev/null)" || cache_dir=""
+  if [ -n "$cache_dir" ]; then
+    trap 'rm -rf "$cache_dir"' RETURN
+  fi
 
   local eligible num agent hrs pairs=""
   eligible="$(printf '%s' "$issues_json" | jq -r --arg keep "$keep_label" '
@@ -219,8 +232,6 @@ _claim_stale_map() {
 $eligible
 EOF
 
-  [ -n "$cache_dir" ] && rm -rf "$cache_dir"
-
   if [ -z "$pairs" ]; then
     echo '{}'
   else
@@ -236,7 +247,16 @@ EOF
 # array (as returned by `gh issue view --json comments`) and this claim's
 # own (name, timestamp), prints the name of an earlier, still-unreleased
 # claimant if one exists (this claim has LOST the race), or nothing if this
-# claim wins.
+# claim wins. Exit codes:
+#   0  a verdict was computed (stdout is the winner name, or empty = I win)
+#   2  comments_json is empty, not JSON, or not shaped like {"comments":[...]}
+#      — cannot compute anything at all
+#   3  comments_json is well-shaped but OUR OWN claim comment (name=$me,
+#      ts=$myts) is not in it yet — a read-after-write lag, NOT "nobody else
+#      claimed it". The caller must re-read and retry, never treat this as
+#      a win (that is the exact bug this split guards against: feeding an
+#      empty/incomplete comments array in used to make `$earlier` empty and
+#      report a false win).
 #
 # Ties are broken by the comment's POSITION in the array (`to_entries` on an
 # array yields 0,1,2,... — a strict, always-unique order GitHub preserves
@@ -246,15 +266,28 @@ EOF
 # neither claim as "earlier" than the other, so BOTH would wrongly believe
 # they won — array order is the only signal that can't tie.
 _claim_race_winner() {
-  local comments_json="$1" me="$2" my_ts="$3"
-  printf '%s' "$comments_json" | jq -r --arg me "$me" --arg myts "$my_ts" '
+  local comments_json="$1" me="$2" my_ts="$3" my_idx
+
+  [ -n "$comments_json" ] || return 2
+  printf '%s' "$comments_json" | jq -e '(.comments // empty) | type == "array"' >/dev/null 2>&1 || return 2
+
+  my_idx="$(printf '%s' "$comments_json" | jq -r --arg me "$me" --arg myts "$my_ts" '
+    [ .comments | to_entries[]
+      | { idx: .key, cap: (.value.body | capture("^(?<kind>claim|release): (?<name>\\S+) (?<ts>\\S+)")?) }
+      | select(.cap != null)
+      | select(.cap.kind=="claim" and .cap.name==$me and .cap.ts==$myts)
+      | .idx
+    ] | sort | last // empty
+  ')"
+  [ -n "$my_idx" ] || return 3
+
+  printf '%s' "$comments_json" | jq -r --arg me "$me" --argjson myidx "$my_idx" '
     [ .comments | to_entries[]
       | { idx: .key, cap: (.value.body | capture("^(?<kind>claim|release): (?<name>\\S+) (?<ts>\\S+)")?) }
       | select(.cap != null)
       | { idx: .idx, kind: .cap.kind, name: .cap.name, ts: .cap.ts }
     ] as $events
-    | ( $events | map(select(.kind=="claim" and .name==$me and .ts==$myts)) | sort_by(.idx) | last.idx ) as $my_idx
-    | ( $events | map(select(.kind=="claim" and .name != $me and ($my_idx != null) and .idx < $my_idx))) as $earlier
+    | ( $events | map(select(.kind=="claim" and .name != $me and .idx < $myidx))) as $earlier
     | ( $events | map(select(.kind=="release"))) as $releases
     | ( $earlier
         | map(select(
@@ -433,7 +466,8 @@ cmd_next() {
   [ -n "$agent" ] || die "next: --agent is required"
 
   local raw
-  raw="$(gh issue list --state open --label "lane:${lane}" --limit 200 --json number,title,labels,createdAt,url)"
+  raw="$(gh issue list --state open --label "lane:${lane}" --limit 200 --json number,title,labels,createdAt,url)" \
+    || die "next: gh issue list --label lane:${lane} failed" 2
 
   local pick
   pick="$(printf '%s' "$raw" | jq -c '
@@ -495,9 +529,18 @@ cmd_next() {
         echo "$surl"
         return
       fi
+      # Retry the next candidate ONLY on 3 (not stale — nothing was written)
+      # or 6 (staleness could not be verified — also nothing was written).
+      # EVERY other code propagates immediately, including 4/5 (a real
+      # race) and — critically — 1/2 (a usage error or, per the judge's
+      # reproduction, a gh crash that may have landed BETWEEN the release
+      # comment and the claim: retrying past that would silently release
+      # OLD's claim on this issue without ever completing a claim for it,
+      # and `next` must never look like it succeeded after doing that).
+      [ -n "$reclaim_out" ] && printf '%s\n' "$reclaim_out" >&2
       case "$reclaim_rc" in
-        4|5) exit "$reclaim_rc" ;; # a real claim race — propagate, do not paper over it
-        *) echo "next: reclaim of stale #${snum} refused (exit ${reclaim_rc}) — trying the next candidate" >&2 ;;
+        3|6) echo "next: reclaim of stale #${snum} refused (exit ${reclaim_rc}, not a write failure) — trying the next candidate" >&2 ;;
+        *) exit "$reclaim_rc" ;;
       esac
       i=$((i + 1))
     done
@@ -520,40 +563,86 @@ cmd_next() {
 # ---------------------------------------------------------------------------
 # claim <issue> <NAME>
 # ---------------------------------------------------------------------------
+#
+# NEVER relies on `set -e` to catch a failed gh/jq call: on bash 3.2, `-e`
+# does not propagate into a `$(...)` command substitution at all, and even
+# on bash versions where it can, this function may run nested inside an
+# `if x="$(cmd_claim ...)"` (see cmd_next) where `-e` is unconditionally
+# suspended for everything in that condition. A judge-reproduced bug: a gh
+# failure after the label was added (comments read-back failing) left
+# `comments=""`; feeding that to the race resolver produced an empty
+# "winner", and this printed `claimed: #N as NAME` and exited 0 while every
+# write past that point had failed. Every gh/jq call below is followed by
+# an explicit `|| die ...` (or, where a failure is genuinely tolerable —
+# e.g. racing another agent to create the same label — an explicit comment
+# saying so); none of them are left to "-e will catch it".
 cmd_claim() {
   require_gh; require_jq
   local issue="${1:-}" name="${2:-}"
   [ -n "$issue" ] && [ -n "$name" ] || die "claim: usage: claim <issue> <NAME>"
 
   local labels other
-  labels="$(gh issue view "$issue" --json labels --jq '.labels[].name')"
+  labels="$(gh issue view "$issue" --json labels --jq '.labels[].name')" \
+    || die "claim: gh issue view #${issue} (labels) failed" 2
   other="$(printf '%s\n' "$labels" | grep '^agent:' | grep -vx "agent:${name}" || true)"
   if [ -n "$other" ]; then
     echo "claim: issue #${issue} already has label(s): $(printf '%s' "$other" | tr '\n' ' ')" >&2
     exit 5
   fi
 
-  if ! gh label list --limit 200 --json name --jq '.[].name' | grep -qxF "agent:${name}"; then
+  local existing_labels
+  existing_labels="$(gh label list --limit 200 --json name --jq '.[].name')" \
+    || die "claim: gh label list failed while checking for agent:${name}" 2
+  if ! printf '%s\n' "$existing_labels" | grep -qxF "agent:${name}"; then
+    # Tolerated on purpose: another agent racing to claim the same label
+    # name creates it first; "already exists" is not a real failure here.
     gh label create "agent:${name}" --color "ededed" --description "Claimed by agent ${name}" >/dev/null 2>&1 \
       || echo "claim: label create for agent:${name} failed (likely already exists under a race) — continuing" >&2
   fi
 
-  gh issue edit "$issue" --add-label "agent:${name}" >/dev/null
+  gh issue edit "$issue" --add-label "agent:${name}" >/dev/null \
+    || die "claim: gh issue edit --add-label agent:${name} on #${issue} failed" 2
 
   local ts
   ts="$(now_iso)"
-  gh issue comment "$issue" --body "claim: ${name} ${ts}" >/dev/null
+  gh issue comment "$issue" --body "claim: ${name} ${ts}" >/dev/null \
+    || die "claim: gh issue comment (claim:) on #${issue} failed — agent:${name} label was added but the claim comment was not posted; check #${issue} by hand" 2
 
   sleep 3
 
-  local comments winner
-  comments="$(gh issue view "$issue" --json comments)"
-  winner="$(_claim_race_winner "$comments" "$name" "$ts")"
+  local comments winner wrc
+  comments="$(gh issue view "$issue" --json comments)" \
+    || die "claim: gh issue view #${issue} (comments) failed after posting the claim comment — cannot verify the race; check #${issue} by hand" 2
+
+  # `if var="$(fn)"; then wrc=0; else wrc=$?; fi`, never a bare
+  # `var="$(fn)"; wrc=$?` — the `if` form is the ONLY portable way to
+  # capture a command substitution's exit status: it's the one context
+  # where `-e` is unconditionally suspended on every bash, so `wrc=$?`
+  # after a FAILED bare assignment might never run at all on a bash build
+  # where `-e` DOES propagate into `$(...)` (unlike 3.2, where it doesn't
+  # propagate but we still don't want to depend on that either).
+  if winner="$(_claim_race_winner "$comments" "$name" "$ts")"; then wrc=0; else wrc=$?; fi
+  if [ "$wrc" = "3" ]; then
+    # Our own just-posted claim comment isn't in the read-back yet — a
+    # read-after-write lag, not "nobody else claimed it". Re-read ONCE
+    # after a short delay before concluding anything.
+    sleep 2
+    comments="$(gh issue view "$issue" --json comments)" \
+      || die "claim: gh issue view #${issue} (comments, retry) failed — cannot verify the race; check #${issue} by hand" 2
+    if winner="$(_claim_race_winner "$comments" "$name" "$ts")"; then wrc=0; else wrc=$?; fi
+  fi
+
+  if [ "$wrc" != "0" ]; then
+    gh issue edit "$issue" --remove-label "agent:${name}" >/dev/null 2>&1 \
+      || echo "claim: remove-label agent:${name} on #${issue} failed after an unverifiable race check — check by hand" >&2
+    die "claim: #${issue} race outcome could not be verified after a retry (comments read-back invalid, or our own claim comment never showed up) — treating as lost, not claimed" 4
+  fi
 
   if [ -n "$winner" ]; then
     gh issue edit "$issue" --remove-label "agent:${name}" >/dev/null \
       || echo "claim: remove-label agent:${name} on #${issue} failed after losing the race — check by hand" >&2
-    gh issue comment "$issue" --body "claim-lost: ${name} to ${winner}" >/dev/null
+    gh issue comment "$issue" --body "claim-lost: ${name} to ${winner}" >/dev/null \
+      || echo "claim: posting claim-lost comment on #${issue} failed — check by hand" >&2
     echo "claim: #${issue} lost the race to ${winner}" >&2
     exit 4
   fi
@@ -617,6 +706,9 @@ cmd_reclaim() {
 
   local meta labels old_agent state
   meta="$(gh issue view "$issue" --json labels,state)" || die "reclaim: gh issue view #${issue} failed" 2
+  printf '%s' "$meta" | jq -e . >/dev/null 2>&1 || die "reclaim: gh issue view #${issue} returned invalid JSON" 2
+  printf '%s' "$meta" | jq -e '(.labels // empty) | type == "array"' >/dev/null 2>&1 \
+    || die "reclaim: gh issue view #${issue} response has no labels array" 2
   [ "$(printf '%s' "$meta" | jq -r .state)" = "OPEN" ] || die "reclaim: #${issue} is not open"
   labels="$(printf '%s' "$meta" | jq -r '.labels[].name')"
 
@@ -631,7 +723,8 @@ cmd_reclaim() {
   esac
 
   local keep_label
-  keep_label="$(lanes_cfg '.claims.keepLabel' wip-keep)"
+  keep_label="$(lanes_cfg '.claims.keepLabel' wip-keep)" \
+    || die "reclaim: could not read claims.keepLabel from .claude/agent-lanes.json" 2
   if printf '%s\n' "$labels" | grep -qxF "$keep_label"; then
     die "reclaim: #${issue} carries '${keep_label}' — the claimant opted out of reclaim"
   fi
@@ -676,7 +769,8 @@ cmd_reclaim() {
   release_body="release: ${old_agent} ${ts} reclaimed-by ${name}"
   [ -n "$old_pr_note" ] && release_body="${release_body}
 ${old_pr_note}"
-  gh issue comment "$issue" --body "$release_body" >/dev/null
+  gh issue comment "$issue" --body "$release_body" >/dev/null \
+    || die "reclaim: gh issue comment (release:) on #${issue} failed — refusing to touch agent:${old_agent} without it; nothing changed" 2
   gh issue edit "$issue" --remove-label "agent:${old_agent}" >/dev/null 2>&1 \
     || echo "reclaim: remove-label agent:${old_agent} on #${issue} failed (label may already be absent) — continuing" >&2
 

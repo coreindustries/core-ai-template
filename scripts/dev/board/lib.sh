@@ -23,11 +23,18 @@ require_gh() { require_cmd gh; }
 require_jq() { require_cmd jq; }
 
 # now_iso — current UTC time, second resolution, ISO8601 Z-suffixed.
-# BOARD_NOW_ISO overrides it (tests only) so a same-second claim/release
-# race can be constructed deterministically instead of depending on real
-# wall-clock timing.
+# BOARD_NOW_ISO overrides it, but ONLY when BOARD_TEST=1 is also set AND the
+# value matches the exact ISO8601 shape this function itself produces — a
+# stray BOARD_NOW_ISO left set in a real operator's shell (or anything
+# malformed) must never silently freeze a real claim's timestamp; it just
+# falls through to the real clock.
 now_iso() {
-  printf '%s' "${BOARD_NOW_ISO:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
+  if [ "${BOARD_TEST:-0}" = "1" ] \
+     && printf '%s' "${BOARD_NOW_ISO:-}" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; then
+    printf '%s' "$BOARD_NOW_ISO"
+  else
+    date -u +%Y-%m-%dT%H:%M:%SZ
+  fi
 }
 
 # sanitize_id <text> — safe for a file or directory name.
