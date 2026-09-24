@@ -34,6 +34,13 @@
 // it does not make sense applied across every discovered suite.
 // Unknown flags and stray positional arguments are a FATAL usage error (exit 2)
 // rather than being silently ignored.
+//
+// Exit codes: 0 pass, 1 aggregate below threshold, 2 FATAL usage/config error,
+// 3 --require-judge and judge coverage was unverified. See llm-evals.md.
+//
+// A command scorer's child gets a small env allowlist (PATH, HOME, LANG,
+// LC_ALL, TMPDIR, TERM), never the full parent env — see buildScorerEnv().
+// A scorer opts an extra variable in via "env": ["MY_VAR"] in scorers.json.
 
 import { readFileSync, readdirSync, existsSync, mkdirSync, appendFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -96,33 +103,58 @@ export function parseArgs(argv) {
     if (positional.length > 1) throw new Error(`unexpected extra argument(s): ${positional.slice(1).join(' ')}`);
     opts.suite = positional[0] || null;
   }
-  if (opts.dir && !opts.suite) {
+  // opts.dir !== null (not a truthy check): --dir= (empty string) is still an
+  // explicit, deliberate use of --dir and must trip this gate too — a truthy
+  // check would let it silently slip through when no suite is given.
+  if (opts.dir !== null && !opts.suite) {
     throw new Error('--dir requires a suite name: node run-eval.mjs <suite> --dir=<path>');
   }
   return opts;
 }
 
+// Strict regex validation before Number() — Number()'s coercion accepts far
+// more than a config value should: Number(" ") === 0, Number("0x10") === 16,
+// Number("1e1") === 10. Each of those silently produced a wrong-but-valid
+// number instead of the FATAL error a garbled config value deserves.
+const THRESHOLD_PATTERN = /^(0(\.\d+)?|1(\.0+)?)$/;
+const NON_NEGATIVE_INT_PATTERN = /^\d+$/;
+
 function parseThresholdEnv(raw) {
   if (raw === undefined) return 1.0;
-  const n = Number(raw);
-  if (raw === '' || !Number.isFinite(n) || n < 0 || n > 1) {
-    throw new Error(`invalid EVAL_THRESHOLD=${JSON.stringify(raw)} — must be a number in [0, 1]`);
+  if (!THRESHOLD_PATTERN.test(raw)) {
+    throw new Error(`invalid EVAL_THRESHOLD=${JSON.stringify(raw)} — must be a plain decimal number in [0, 1] (e.g. "1", "0.9")`);
   }
-  return n;
+  return Number(raw);
 }
 
 function parseCapEnv(raw) {
   if (raw === undefined) return 20;
-  const n = Number(raw);
-  if (raw === '' || !Number.isFinite(n) || !Number.isInteger(n) || n < 0) {
-    throw new Error(`invalid EVAL_MAX_JUDGE_CALLS=${JSON.stringify(raw)} — must be a non-negative integer`);
+  if (!NON_NEGATIVE_INT_PATTERN.test(raw)) {
+    throw new Error(`invalid EVAL_MAX_JUDGE_CALLS=${JSON.stringify(raw)} — must be a plain non-negative integer (e.g. "20")`);
   }
-  return n;
+  return Number(raw);
 }
 
 // ---------------------------------------------------------------------------
 // Fixture + scorer loading
 // ---------------------------------------------------------------------------
+
+// A malformed scorer definition (e.g. a length scorer with no min/max, so it
+// passes everything unconditionally) is a config error, not something that
+// should surface later as a confusing runtime result. Fail loudly at load time.
+function validateScorerConfig(s, p) {
+  if (s.type === 'length') {
+    if (s.min === undefined && s.max === undefined) throw new Error(`scorer "${s.id}" (length) in ${p} needs "min" and/or "max"`);
+    if (s.min !== undefined && typeof s.min !== 'number') throw new Error(`scorer "${s.id}" (length) in ${p}: "min" must be a number`);
+    if (s.max !== undefined && typeof s.max !== 'number') throw new Error(`scorer "${s.id}" (length) in ${p}: "max" must be a number`);
+  } else if (s.type === 'regex') {
+    if (!s.mustMatch && !s.mustNotMatch) throw new Error(`scorer "${s.id}" (regex) in ${p} needs "mustMatch" and/or "mustNotMatch"`);
+  } else if (s.type === 'command') {
+    if (!s.command || typeof s.command !== 'string') throw new Error(`scorer "${s.id}" (command) in ${p} needs a "command" string`);
+  } else if (s.type === 'judge') {
+    if (!s.rubric || typeof s.rubric !== 'string') throw new Error(`scorer "${s.id}" (judge) in ${p} needs a "rubric" string`);
+  }
+}
 
 function loadScorers(suiteDir) {
   const p = join(suiteDir, 'scorers.json');
@@ -132,8 +164,22 @@ function loadScorers(suiteDir) {
   for (const s of scorers) {
     if (!s.id || !s.type) throw new Error(`scorer missing id/type in ${p}: ${JSON.stringify(s)}`);
     if (!['regex', 'length', 'command', 'judge'].includes(s.type)) throw new Error(`unknown scorer type "${s.type}" (${s.id})`);
+    validateScorerConfig(s, p);
   }
   return scorers;
+}
+
+// A shouldFail id that doesn't name a real scorer in the suite is a typo that
+// silently turns a defect fixture into a no-op — nothing can ever fail an
+// expectation for a scorer that doesn't exist, so the fixture "passes" for
+// the wrong reason forever. Fail loudly instead.
+function validateShouldFailIds(scorers, fixtures, suiteDir) {
+  const ids = new Set(scorers.map((s) => s.id));
+  for (const f of fixtures) {
+    for (const sf of f.shouldFail) {
+      if (!ids.has(sf)) throw new Error(`fixture ${f.file} in ${suiteDir}: shouldFail names unknown scorer "${sf}"`);
+    }
+  }
 }
 
 function loadFixtures(dir) {
@@ -199,6 +245,24 @@ export function scoreLength(scorer, output) {
 
 const DETAIL_CAP_BYTES = 4096;
 
+// A scorer's child gets a small, fixed allowlist of environment variables —
+// never the full parent env. The eval harness's own ANTHROPIC_API_KEY (and
+// anything else in process.env) has no business reaching an arbitrary scorer
+// binary by default. A scorer that genuinely needs another variable opts in
+// explicitly and auditably via scorer.env in scorers.json.
+const ENV_ALLOWLIST = ['PATH', 'HOME', 'LANG', 'LC_ALL', 'TMPDIR', 'TERM'];
+
+function buildScorerEnv(scorer) {
+  const env = {};
+  for (const key of ENV_ALLOWLIST) {
+    if (process.env[key] !== undefined) env[key] = process.env[key];
+  }
+  for (const key of scorer.env ?? []) {
+    if (process.env[key] !== undefined) env[key] = process.env[key];
+  }
+  return env;
+}
+
 // Stack-agnostic extension point: any executable, any language. Output goes on
 // stdin; exit 0 = pass. Spawned without a shell, args as an array — no string
 // interpolation into a shell (security-core.md, no command injection surface).
@@ -210,20 +274,31 @@ const DETAIL_CAP_BYTES = 4096;
 //   kept for the detail message; the rest is discarded, not buffered.
 // - timeoutMs (scorer.timeoutMs, default 30s) kills a hung child with SIGKILL
 //   and resolves with a loud error row instead of hanging the whole run.
-// - ANTHROPIC_API_KEY is stripped from the child's env — a scorer has no
-//   business seeing the eval harness's own judge credential.
+// - spawned with detached:true so the child is its own process-group leader;
+//   on timeout we kill the whole group (process.kill(-pid)), not just the
+//   direct child. A shell scorer that backgrounds work (`sh -c 'long-thing &'`)
+//   would otherwise leave that grandchild running as an orphan, holding the
+//   pipe's write end open and keeping the caller's event loop alive until the
+//   orphan exits on its own. stdout/stderr are also destroyed on timeout so
+//   nothing keeps a handle to that pipe open on our side either.
+// - env is a small allowlist, not the full parent environment (see
+//   buildScorerEnv) — a scorer has no business seeing the eval harness's own
+//   secrets by default.
 // - stdin's 'error' handler is a deliberate no-op: a scorer that exits before
 //   reading stdin raises EPIPE on the write, which is expected and harmless —
 //   the real pass/fail signal is the exit code from the 'close' event.
 export function scoreCommand(scorer, output) {
   const timeoutMs = scorer.timeoutMs ?? DEFAULT_COMMAND_TIMEOUT_MS;
   return new Promise((resolve) => {
-    const childEnv = { ...process.env };
-    delete childEnv.ANTHROPIC_API_KEY;
     // cwd pinned to repoRoot regardless of the caller's cwd, so a scorer's
     // relative script path (e.g. "evals/_example/scorers/x.mjs") resolves the
     // same way whether invoked via `make eval` or `node --test`.
-    const child = spawn(scorer.command, scorer.args ?? [], { stdio: ['pipe', 'pipe', 'pipe'], cwd: repoRoot, env: childEnv });
+    const child = spawn(scorer.command, scorer.args ?? [], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: repoRoot,
+      env: buildScorerEnv(scorer),
+      detached: process.platform !== 'win32',
+    });
 
     let settled = false;
     const finish = (result) => {
@@ -234,7 +309,22 @@ export function scoreCommand(scorer, output) {
     };
 
     const timer = setTimeout(() => {
-      child.kill('SIGKILL');
+      // Kill the whole process group (negative pid), not just the direct
+      // child, so a backgrounded grandchild can't survive the timeout.
+      // Falls back to killing just the child if group-kill isn't available
+      // (Windows, or the group is already gone).
+      if (process.platform !== 'win32' && typeof child.pid === 'number') {
+        try {
+          process.kill(-child.pid, 'SIGKILL');
+        } catch {
+          child.kill('SIGKILL');
+        }
+      } else {
+        child.kill('SIGKILL');
+      }
+      child.stdout.destroy();
+      child.stderr.destroy();
+      child.stdin.destroy();
       finish({ pass: false, error: true, detail: `command timed out after ${timeoutMs}ms` });
     }, timeoutMs);
 
@@ -261,16 +351,18 @@ function parseVerdict(text) {
 }
 
 // Wraps the fixture output in <output> tags so the judge can distinguish DATA
-// from its own instructions (guardrails.md — prompt injection awareness). A
-// literal "</output>" inside the captured sample is neutralized so it can't
-// prematurely close the data block and inject content that reads as being
-// outside it.
-function escapeOutputDelimiter(text) {
-  return text.replaceAll('</output>', '<\\/output>');
+// from its own instructions (guardrails.md — prompt injection awareness).
+// Escaping only the literal string "</output>" is guessable — the delimiter
+// is public (it's right here in this file). Every "<" in the content is
+// escaped instead, which closes off ANY tag-shaped injection — a fake
+// closing tag, a fake second opening tag, an unrelated "<SYSTEM>"-style
+// marker — not just the one exact string we happen to use today.
+function escapeForJudge(text) {
+  return text.replaceAll('<', '&lt;');
 }
 
 export function buildJudgePrompt(rubric, output) {
-  return `RUBRIC:\n${rubric}\n\n<output>\n${escapeOutputDelimiter(output)}\n</output>`;
+  return `RUBRIC:\n${rubric}\n\n<output>\n${escapeForJudge(output)}\n</output>`;
 }
 
 async function defaultJudgeFetch({ prompt, model, apiKey }) {
@@ -378,6 +470,7 @@ async function runSuite(name, dir, judgeState, evalsRoot) {
   const suiteDir = join(evalsRoot, name);
   const scorers = loadScorers(suiteDir);
   const fixtures = loadFixtures(dir ?? suiteDir);
+  validateShouldFailIds(scorers, fixtures, suiteDir);
   const results = [];
   for (const fixture of fixtures) results.push(await evaluateFixture(fixture, scorers, judgeState));
   const total = results.reduce((n, r) => n + r.total, 0);
@@ -432,7 +525,7 @@ function printSuite(suite) {
 
 function runTrend(suite, last, historyRoot) {
   const p = join(historyRoot, `${suite}.jsonl`);
-  if (!existsSync(p)) return { code: 1, output: `no history at ${p} — run with --record first` };
+  if (!existsSync(p)) return { code: 2, output: `no history at ${p} — run with --record first` };
   const lines = readFileSync(p, 'utf8').trim().split('\n').filter(Boolean).slice(-last);
   const out = lines.map((l) => {
     const row = JSON.parse(l);
