@@ -18,31 +18,40 @@ HEAD="${2:-HEAD}"
 
 # Top-level markdown in these directories carries an ID (any case of .md, so
 # `.MD` cannot slip past). Subdirectories (prd/tasks/) do not. Exemptions are
-# exact names, so a slug that merely contains "template" is still checked.
+# exact names or `_*template*.md`, so a slug that merely contains "template",
+# or merely starts with `_` or `00_`, is still checked.
+# Known limitation: day-of-month is range-checked (01-31), not calendar-checked,
+# so 2026-02-31 passes. A bad date cannot cause a collision, which is the point.
 ID_DIRS='^(prd|docs/decisions)/[^/]+\.md$'
-NOT_AN_ID='^(prd/(_[^/]*|00_index\.md|00_technology\.md)|docs/decisions/(_[^/]*|index\.md|README\.md|adr-template\.md))$'
+NOT_AN_ID='^(prd/(_[^/]*[Tt][Ee][Mm][Pp][Ll][Aa][Tt][Ee][^/]*\.md|00_index\.md|00_technology\.md)|docs/decisions/(index\.md|README\.md|adr-template\.md))$'
 DATE_SLUG='/[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])-[a-z0-9][a-z0-9-]*\.md$'
 
 # --no-renames: a rename shows up as an addition of its new name.
-# core.quotePath=false: non-ASCII names come through unquoted, so the
-# directory match sees them.
-added="$(git -c core.quotePath=false diff --no-renames --diff-filter=A --name-only "${BASE}...${HEAD}")" || {
+# -z: names arrive NUL-separated and unquoted, so a tab, quote, newline or
+# non-ASCII character cannot hide a name. Matching uses [[ =~ ]] on the whole
+# name, never line-oriented grep.
+list="$(mktemp)"
+trap 'rm -f "$list"' EXIT
+git diff -z --no-renames --diff-filter=A --name-only "${BASE}...${HEAD}" > "$list" || {
   echo "assert-doc-ids: cannot diff ${BASE}...${HEAD} — is the base fetched?" >&2
   exit 2
 }
 
 bad=0
-while IFS= read -r f; do
+while IFS= read -r -d '' f; do
   [ -n "$f" ] || continue
-  printf '%s\n' "$f" | grep -qiE "$ID_DIRS" || continue
-  printf '%s\n' "$f" | grep -qE "$NOT_AN_ID" && continue
-  printf '%s\n' "$f" | grep -qE "$DATE_SLUG" && continue
+  shopt -s nocasematch
+  in_dir=1
+  [[ "$f" =~ $ID_DIRS ]] && in_dir=0
+  shopt -u nocasematch
+  [ "$in_dir" -eq 0 ] || continue
+  [[ "$f" =~ $NOT_AN_ID ]] && continue
+  [[ "$f" =~ $DATE_SLUG ]] && continue
+  shown="$(printf '%q' "$f")"
   dir="$(dirname "$f")"
-  echo "::error file=${f},title=Doc ID::${f} is not named by date+slug. Rename it to ${dir}/YYYY-MM-DD-<kebab-slug>.md (e.g. ${dir}/$(date -u +%F)-my-change.md). Sequential numbers collide when agents work in parallel." >&2
+  echo "::error title=Doc ID::${shown} is not named by date+slug (renames count as additions). Rename it to ${dir}/YYYY-MM-DD-<kebab-slug>.md (e.g. ${dir}/$(date -u +%F)-my-change.md). Sequential numbers collide when agents work in parallel." >&2
   bad=$((bad + 1))
-done <<EOF
-$added
-EOF
+done < "$list"
 
 if [ "$bad" -gt 0 ]; then
   echo "assert-doc-ids: ${bad} new doc(s) use a sequential ID." >&2

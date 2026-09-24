@@ -73,6 +73,8 @@ case_ "00_ prefix is no exemption"               1 prd/00_new-feature.md
 case_ "uppercase .MD extension still checked"    1 prd/07-thing.MD
 case_ "non-ASCII name still checked"             1 "prd/07-café.md"
 case_ "impossible date fails"                    1 prd/2026-13-40-x.md
+case_ "leading _ is no exemption"                1 prd/_06-next.md
+case_ "tab in a name is still checked"           1 "$(printf 'prd/07\tx.md')"
 
 # Renames are additions of the destination name: renumbering is how a shared
 # counter sneaks back in.

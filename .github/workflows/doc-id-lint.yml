@@ -39,6 +39,11 @@ jobs:
         run: |
           set -euo pipefail
           gate="$RUNNER_TEMP/assert-doc-ids.sh"
+          # A missing base commit is a failure, not a reason to skip.
+          if ! git cat-file -e "${BASE_SHA}^{commit}"; then
+            echo "::error title=Doc ID lint::base commit ${BASE_SHA} is not in the checkout — cannot check IDs"
+            exit 1
+          fi
           # Absent only on the base of the PR that introduces the script.
           if ! git show "${BASE_SHA}:scripts/assert-doc-ids.sh" > "$gate" 2>/dev/null; then
             echo "::warning title=Doc ID lint skipped::scripts/assert-doc-ids.sh is not on the base commit yet — IDs not checked"
