@@ -683,6 +683,9 @@ if (isMain) {
   };
   process.on('SIGINT', () => shutdown(130));
   process.on('SIGTERM', () => shutdown(143));
+  // A dropped terminal or SSH session sends SIGHUP; without a handler Node exits
+  // without firing 'exit', orphaning detached scorer groups.
+  process.on('SIGHUP', () => shutdown(129));
   // Last-resort cleanup: covers any exit path that isn't a caught signal
   // (an uncaught exception, a normal exit with something still tracked).
   // 'exit' handlers must be synchronous — killGroup() already is.
