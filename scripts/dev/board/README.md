@@ -31,10 +31,11 @@ scripts/dev/board/board.sh <subcommand> [args...]      # board.sh help for the f
 | Subcommand | What it does |
 |---|---|
 | `init-labels [--dry-run]` | Creates the lane taxonomy from the "Agent lanes" section of `.github/labels.yml` (the one source). `agent:<NAME>` labels are created on demand. `make lanes-init` runs this. |
-| `list [--lane b\|f\|r] [--state s] [--agent NAME] [--unclaimed] [--json]` | Open `lane:*` issues, P0→P3 then oldest first. |
-| `next --lane b\|f --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. |
+| `list [--lane b\|f\|r] [--state s] [--agent NAME] [--unclaimed] [--stale] [--json]` | Open `lane:*` issues, P0→P3 then oldest first. A `STALE` column shows `stale <N>h` for claims idle past `claims.ttlHours`; `--stale` filters to only those. |
+| `next --lane b\|f --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. Falls back to reclaiming the oldest stale claim (via `reclaim`) when nothing is unclaimed. |
 | `claim <issue> <NAME>` | `agent:<NAME>` + a `claim:` comment, then a race check: an earlier unreleased claim wins and this call backs off (exit 4). Refuses (exit 5) if another agent holds it. |
 | `release <issue> <NAME> [--reason ...]` | Drops the claim with a `release:` comment. |
+| `reclaim <issue> <NAME>` | Takes over a claim idle past `claims.ttlHours`. Re-checks staleness live; refuses if the claim is active, carries `claims.keepLabel` (default `wip-keep`), or is in a state other than `implementing`/`backlog`. Posts `release: OLD ... reclaimed-by NEW`, removes `agent:OLD`, then runs the normal `claim` path (same exit codes 4/5). |
 | `state <issue> <new-state>` | Swaps to exactly one `state:*` label, with a `state: old -> new` comment. |
 | `handoff` / `comment <issue> --file <md>` | A resumable `handoff:` comment / a progress note, always from a file. |
 | `show <issue>` / `watch --agent NAME [--lane l]` | Issue text with downloaded screenshots / new-work events for Monitor. |
@@ -118,6 +119,18 @@ make lanes-test            # scripts/dev/board/tests/run-all.sh
 Every test runs against fake `gh`/`curl`/`sleep` binaries on `PATH` and disposable git repos — no
 network, no token. `.github/workflows/agent-lanes.yml` runs them in CI. The claim-race, ordering and
 redaction tests carry mutation checks: break the guard on a throwaway copy and confirm the test fails.
+
+## Stale-claim reclaim
+
+There is no scheduled sweep — staleness is computed at read time by `list --stale`, `render`, and
+`next`'s fallback, from `.claude/agent-lanes.json`'s `claims.ttlHours` / `claims.keepLabel`. A
+claim's "last activity" is the later of the newest comment on the issue and the newest `updatedAt`
+of an open PR labeled `agent:<NAME>` whose body references `#<issue>` — never the issue's own
+`updatedAt`, which bots (labeler, project-sync) bump without the claimant doing anything. Only
+`state:implementing` and a claimed `state:backlog` issue can be stale; `built` and later belong to
+the Release Manager. `claims.ttlHours: 0` disables the check entirely. Any `gh`/`jq` failure while
+computing staleness fails closed (treated as NOT stale) and logs `stale-check SKIPPED #<n>: <why>`
+to stderr — a lookup failure must never evict live work.
 
 ## Known limitations
 

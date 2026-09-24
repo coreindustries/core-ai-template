@@ -39,6 +39,25 @@ lanes_check() {
     echo "FAIL namePrefix '$prefix' must be 1-12 letters/digits"; problems=$((problems + 1))
   fi
 
+  # claims.ttlHours / claims.keepLabel — stale-claim reclaim (board.sh
+  # list --stale / reclaim). Both have defaults, so a config that omits
+  # "claims" entirely is valid; only an explicit bad value fails.
+  local ttl_hours
+  ttl_hours="$(lanes_cfg '.claims.ttlHours' 24)"
+  case "$ttl_hours" in
+    ''|*[!0-9]*) echo "FAIL claims.ttlHours '$ttl_hours' must be a non-negative integer (0 disables reclaim)"; problems=$((problems + 1)) ;;
+  esac
+
+  # lanes_cfg falls back to the default for an empty string too (matching
+  # every other key read through it), so a genuinely blank keepLabel can
+  # never reach here — the check that IS reachable, and worth catching, is
+  # a label containing whitespace: GitHub label names may not contain it.
+  local keep_label
+  keep_label="$(lanes_cfg '.claims.keepLabel' wip-keep)"
+  case "$keep_label" in
+    *[[:space:]]*) echo "FAIL claims.keepLabel '$keep_label' must not contain whitespace (it is a GitHub label name)"; problems=$((problems + 1)) ;;
+  esac
+
   local n i name cmd field
   n="$(jq '(.deploy.environments // []) | length' "$LANES_CONFIG")"
   [ "$n" -gt 0 ] || { echo "WARN deploy.environments is empty — the Release Manager has no ladder"; }

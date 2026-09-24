@@ -40,6 +40,117 @@ VALID_STATES="backlog implementing built deployed verifying done blocked dropped
 VALID_LANES="bug feature release"
 
 # ---------------------------------------------------------------------------
+# Stale-claim reclaim — shared by `list --stale`, `render` and `reclaim`.
+#
+# Staleness is computed AT READ TIME, from live data, never from a scheduled
+# sweep or a cached label: a claim's "last activity" is the LATER of (a) the
+# newest comment on the issue (any comment — a progress note, a state
+# transition, the claim itself — counts; there is no separate "still alive"
+# marker to post) and (b) the newest `updatedAt` of an OPEN pull request
+# labeled `agent:<NAME>` whose body references `#<issue>`. The issue's own
+# `updatedAt` is deliberately never used: label edits from bots (labeler,
+# project-sync) bump it without the claimant having done anything.
+#
+# Only `state:implementing` and a claimed `state:backlog` issue can go
+# stale — `built` and later belong to the Release Manager, not the claimer,
+# so staleness there is meaningless.
+#
+# FAIL CLOSED: any gh/jq failure while computing staleness means "not
+# stale" — never "lookup failed -> no activity -> evict live work". Every
+# skip is logged to stderr as `stale-check SKIPPED #<n>: <why>` so a human
+# can see why an issue that looks idle isn't offered for reclaim.
+# ---------------------------------------------------------------------------
+
+# _claim_stale_hours <issue> <agent> — prints the whole number of hours
+# since the latest known activity on the claim, or prints nothing and
+# returns 1 (having logged a `stale-check SKIPPED` line to stderr) when it
+# cannot be determined.
+_claim_stale_hours() {
+  local num="$1" agent="$2" comments prs comment_ts pr_ts latest
+
+  comments="$(gh issue view "$num" --json comments 2>&1)" || {
+    echo "stale-check SKIPPED #${num}: gh issue view --json comments failed: ${comments}" >&2
+    return 1 # fail-closed: comments lookup failed
+  }
+  printf '%s' "$comments" | jq -e . >/dev/null 2>&1 || {
+    echo "stale-check SKIPPED #${num}: gh issue view --json comments returned invalid JSON" >&2
+    return 1 # fail-closed: comments invalid JSON
+  }
+  comment_ts="$(printf '%s' "$comments" | jq -r '[ .comments[].createdAt ] | sort | last // empty')"
+
+  prs="$(gh pr list --state open --label "agent:${agent}" --json number,updatedAt,body --limit 100 2>&1)" || {
+    echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} failed: ${prs}" >&2
+    return 1 # fail-closed: pr lookup failed
+  }
+  printf '%s' "$prs" | jq -e . >/dev/null 2>&1 || {
+    echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} returned invalid JSON" >&2
+    return 1 # fail-closed: pr invalid JSON
+  }
+  # "references #<issue>" — a word-boundary match so #4 doesn't match #42.
+  pr_ts="$(printf '%s' "$prs" | jq -r --argjson n "$num" '
+    [ .[] | select((.body // "") | test("(^|[^0-9])#" + ($n|tostring) + "([^0-9]|$)")) | .updatedAt ]
+    | sort | last // empty
+  ')"
+
+  latest="$(printf '%s\n%s\n' "$comment_ts" "$pr_ts" | grep -v '^$' | sort | tail -1)"
+  if [ -z "$latest" ]; then
+    echo "stale-check SKIPPED #${num}: no activity signal found (no comments, no matching open PR)" >&2
+    return 1 # fail-closed: no activity signal
+  fi
+
+  jq -nr --arg t "$latest" '((now - ($t | fromdateiso8601)) / 3600) | floor'
+}
+
+# _claim_stale_map <issues_json> — issues_json is any array of objects
+# shaped like `gh issue list --json number,...,labels` (must have .number
+# and .labels). Prints a JSON object {"<number>": <hours>} containing every
+# issue that is claimed, in an eligible state, does NOT carry the
+# claims.keepLabel opt-out, and whose computed staleness has reached
+# claims.ttlHours. claims.ttlHours == 0 disables the whole check and prints
+# {} without making any gh calls.
+_claim_stale_map() {
+  local issues_json="$1" ttl_hours keep_label
+  ttl_hours="$(lanes_cfg '.claims.ttlHours' 24)"
+  keep_label="$(lanes_cfg '.claims.keepLabel' wip-keep)"
+
+  case "$ttl_hours" in ''|*[!0-9]*) ttl_hours=24 ;; esac
+  [ "$ttl_hours" -gt 0 ] || { echo '{}'; return 0; }
+
+  local eligible num agent hrs pairs=""
+  eligible="$(printf '%s' "$issues_json" | jq -r --arg keep "$keep_label" '
+    .[] | select(
+      ((.labels|map(.name)|map(select(startswith("agent:")))|length) > 0)
+      and (((.labels|map(.name)|map(select(startswith("state:")))|map(sub("^state:";"")))[0] // "") as $s
+           | ($s == "implementing" or $s == "backlog"))
+      and ((.labels|map(.name)) | index($keep) | not)
+    )
+    | "\(.number)\t\((.labels|map(.name)|map(select(startswith("agent:")))|map(sub("^agent:";"")))[0])"
+  ')"
+
+  while IFS=$'\t' read -r num agent; do
+    [ -n "$num" ] || continue
+    hrs="$(_claim_stale_hours "$num" "$agent")" || continue
+    [ -n "$hrs" ] || continue
+    if [ "$hrs" -ge "$ttl_hours" ] 2>/dev/null; then
+      pairs="${pairs}${num}:${hrs}
+"
+    fi
+  done <<EOF
+$eligible
+EOF
+
+  if [ -z "$pairs" ]; then
+    echo '{}'
+  else
+    printf '%s' "$pairs" | jq -R -s '
+      split("\n") | map(select(length > 0))
+      | map(split(":")) | map({(.[0]): (.[1] | tonumber)})
+      | add
+    '
+  fi
+}
+
+# ---------------------------------------------------------------------------
 # init-labels [--dry-run]
 # ---------------------------------------------------------------------------
 cmd_init_labels() {
@@ -116,13 +227,14 @@ EOF
 # ---------------------------------------------------------------------------
 cmd_list() {
   require_gh; require_jq
-  local lane="" state="" agent="" unclaimed=0 as_json=0
+  local lane="" state="" agent="" unclaimed=0 as_json=0 stale_only=0
   while [ $# -gt 0 ]; do
     case "$1" in
       --lane) lane="$2"; shift 2 ;;
       --state) state="$2"; shift 2 ;;
       --agent) agent="$2"; shift 2 ;;
       --unclaimed) unclaimed=1; shift ;;
+      --stale) stale_only=1; shift ;;
       --json) as_json=1; shift ;;
       *) die "list: unknown arg $1" ;;
     esac
@@ -134,7 +246,12 @@ cmd_list() {
   [ -n "$agent" ] && label_args+=(--label "agent:${agent}")
 
   local raw
-  raw="$(gh issue list --state open --limit 200 --json number,title,labels,createdAt,url "${label_args[@]}")"
+  # "${label_args[@]}" alone, with no --lane/--state/--agent given, is an
+  # empty array — under `set -u` on bash 3.2 that expansion is "unbound
+  # variable", not "nothing" (fixed only in bash 4.4+). The
+  # "${arr[@]+"${arr[@]}"}" idiom expands to nothing when empty and to the
+  # quoted elements otherwise, on every bash this repo supports.
+  raw="$(gh issue list --state open --limit 200 --json number,title,labels,createdAt,url "${label_args[@]+"${label_args[@]}"}")"
 
   # Default view is "any lane:* label" — always required client-side. When
   # --lane was passed, gh's own --label filter already guarantees this, so
@@ -150,20 +267,30 @@ cmd_list() {
     ))
   ')"
 
+  local stale_map
+  stale_map="$(_claim_stale_map "$filtered")"
+
+  if [ "$stale_only" = "1" ]; then
+    filtered="$(printf '%s' "$filtered" | jq -c --argjson sm "$stale_map" '
+      map(select(($sm[(.number|tostring)] // null) != null))
+    ')"
+  fi
+
   if [ "$as_json" = "1" ]; then
     printf '%s\n' "$filtered"
     return
   fi
 
-  printf '%s' "$filtered" | jq -r '
+  printf '%s' "$filtered" | jq -r --argjson sm "$stale_map" '
     def prio: (.labels | map(.name) | map(select(test("^P[0-3]$"))))[0] // "-";
     def lanename: (.labels | map(.name) | map(select(startswith("lane:"))) | map(sub("^lane:";"")))[0] // "-";
     def statename: (.labels | map(.name) | map(select(startswith("state:"))) | map(sub("^state:";"")))[0] // "-";
     def claimant: (.labels | map(.name) | map(select(startswith("agent:"))) | map(sub("^agent:";"")))[0] // "-";
     def prioweight: (prio | if . == "-" then 9 else (.[1:] | tonumber) end);
+    def stalecol: ($sm[(.number|tostring)] // null) as $h | if $h == null then "-" else ("stale " + ($h|tostring) + "h") end;
     sort_by(prioweight, .createdAt)
     | .[]
-    | [ ("#" + (.number|tostring)), prio, lanename, statename, claimant,
+    | [ ("#" + (.number|tostring)), prio, lanename, statename, claimant, stalecol,
         (((now - (.createdAt | fromdateiso8601)) / 86400 | floor | tostring) + "d"),
         (.title | if length > 60 then .[0:57] + "..." else . end) ]
     | @tsv
@@ -198,8 +325,34 @@ cmd_next() {
   ')"
 
   if [ -z "$pick" ]; then
-    echo "next: no unclaimed open issue in lane:${lane}" >&2
-    exit 3
+    # Nothing unclaimed — fall back to the oldest, highest-priority STALE
+    # claim in this lane (e.g. a crashed agent's abandoned work) and
+    # reclaim it live. `cmd_reclaim` re-verifies staleness itself, so a
+    # claim that got a comment between this list and the reclaim call is
+    # correctly refused rather than evicted.
+    local stale_map stale_pick
+    stale_map="$(_claim_stale_map "$raw")"
+    stale_pick="$(printf '%s' "$raw" | jq -c --argjson sm "$stale_map" '
+      map(select(($sm[(.number|tostring)] // null) != null))
+      | map(. + { _p: ( ((.labels | map(.name)) | map(select(test("^P[0-3]$"))))[0] // "P9" ) })
+      | sort_by(._p, .createdAt)
+      | .[0] // empty
+    ')"
+    if [ -z "$stale_pick" ]; then
+      echo "next: no unclaimed or stale open issue in lane:${lane}" >&2
+      exit 3
+    fi
+
+    local snum stitle surl
+    snum="$(printf '%s' "$stale_pick" | jq -r '.number')"
+    stitle="$(printf '%s' "$stale_pick" | jq -r '.title')"
+    surl="$(printf '%s' "$stale_pick" | jq -r '.url')"
+    echo "next: no unclaimed issue in lane:${lane} — reclaiming stale #${snum}" >&2
+    cmd_reclaim "$snum" "$agent"
+
+    echo "#${snum}  ${stitle}"
+    echo "$surl"
+    return
   fi
 
   local num title url
@@ -295,6 +448,65 @@ cmd_release() {
   ts="$(now_iso)"
   gh issue comment "$issue" --body "release: ${name} ${ts} ${reason}" >/dev/null
   echo "released: #${issue} by ${name}"
+}
+
+# ---------------------------------------------------------------------------
+# reclaim <issue> <NAME> — take over a claim whose owner has gone quiet past
+# claims.ttlHours. Staleness is RE-CHECKED here, live, against the current
+# issue — never trusted from a caller's earlier `list --stale` snapshot,
+# which may be stale itself by the time this runs. On success this posts
+# `release: OLD <ts> reclaimed-by NEW`, which the existing claim-race
+# resolver in cmd_claim already treats as ending OLD's claim, then removes
+# OLD's agent:<NAME> label and runs the normal claim path — so exit codes
+# 4 (lost a race) and 5 (someone else already holds it) are handled exactly
+# as they are for a fresh claim.
+# ---------------------------------------------------------------------------
+cmd_reclaim() {
+  require_gh; require_jq
+  local issue="${1:-}" name="${2:-}"
+  [ -n "$issue" ] && [ -n "$name" ] || die "reclaim: usage: reclaim <issue> <NAME>"
+
+  local meta labels old_agent state
+  meta="$(gh issue view "$issue" --json labels,state)" || die "reclaim: gh issue view #${issue} failed" 2
+  [ "$(printf '%s' "$meta" | jq -r .state)" = "OPEN" ] || die "reclaim: #${issue} is not open"
+  labels="$(printf '%s' "$meta" | jq -r '.labels[].name')"
+
+  old_agent="$(printf '%s\n' "$labels" | grep '^agent:' | head -1 | sed 's/^agent://')"
+  [ -n "$old_agent" ] || die "reclaim: #${issue} has no agent:* label to reclaim"
+  [ "$old_agent" != "$name" ] || die "reclaim: #${issue} is already claimed by ${name}"
+
+  state="$(printf '%s\n' "$labels" | grep '^state:' | head -1 | sed 's/^state://')"
+  case "$state" in
+    implementing|backlog) : ;;
+    *) die "reclaim: #${issue} is state:${state:-none} — only implementing/backlog claims can be reclaimed (built and later belong to the Release Manager)" ;;
+  esac
+
+  local keep_label
+  keep_label="$(lanes_cfg '.claims.keepLabel' wip-keep)"
+  if printf '%s\n' "$labels" | grep -qxF "$keep_label"; then
+    die "reclaim: #${issue} carries '${keep_label}' — the claimant opted out of reclaim"
+  fi
+
+  local ttl_hours hrs
+  ttl_hours="$(lanes_cfg '.claims.ttlHours' 24)"
+  case "$ttl_hours" in ''|*[!0-9]*) ttl_hours=24 ;; esac
+  [ "$ttl_hours" -gt 0 ] || die "reclaim: claims.ttlHours is 0 — reclaim is disabled for this project"
+
+  hrs="$(_claim_stale_hours "$issue" "$old_agent")" \
+    || die "reclaim: staleness could not be verified for #${issue} — refusing to reclaim live work (see the stale-check SKIPPED line above)" 2
+  [ -n "$hrs" ] || die "reclaim: staleness could not be verified for #${issue} — refusing to reclaim live work" 2
+  if [ "$hrs" -lt "$ttl_hours" ]; then
+    die "reclaim: #${issue} was active ${hrs}h ago, under the ${ttl_hours}h TTL — not stale"
+  fi
+
+  local ts
+  ts="$(now_iso)"
+  gh issue comment "$issue" --body "release: ${old_agent} ${ts} reclaimed-by ${name}" >/dev/null
+  gh issue edit "$issue" --remove-label "agent:${old_agent}" >/dev/null 2>&1 \
+    || echo "reclaim: remove-label agent:${old_agent} on #${issue} failed (label may already be absent) — continuing" >&2
+
+  echo "reclaim: #${issue} was ${hrs}h idle (TTL ${ttl_hours}h) — taking over from ${old_agent}"
+  cmd_claim "$issue" "$name"
 }
 
 # ---------------------------------------------------------------------------
@@ -537,15 +749,17 @@ cmd_render() {
   done
   [ -n "$out" ] || die "render: --out <file.html> is required"
 
-  local raw data_json
+  local raw data_json stale_map
   raw="$(gh issue list --state open --limit 200 --json number,title,labels,url,createdAt)"
-  data_json="$(printf '%s' "$raw" | jq -c '
+  stale_map="$(_claim_stale_map "$raw")"
+  data_json="$(printf '%s' "$raw" | jq -c --argjson sm "$stale_map" '
     map({
       number, title, url, createdAt,
       priority: ((.labels|map(.name)|map(select(test("^P[0-3]$"))))[0] // null),
       lane: ((.labels|map(.name)|map(select(startswith("lane:")))|map(sub("^lane:";"")))[0] // null),
       state: ((.labels|map(.name)|map(select(startswith("state:")))|map(sub("^state:";"")))[0] // null),
-      claimant: ((.labels|map(.name)|map(select(startswith("agent:")))|map(sub("^agent:";"")))[0] // null)
+      claimant: ((.labels|map(.name)|map(select(startswith("agent:")))|map(sub("^agent:";"")))[0] // null),
+      staleHours: ($sm[(.number|tostring)] // null)
     })
     | map(select(.lane != null))
   ')"
@@ -624,7 +838,11 @@ HTML_HEAD
         card.appendChild(t);
         var m = document.createElement('div');
         m.className = 'meta';
-        m.textContent = d.claimant ? ('claimed: ' + d.claimant) : 'unclaimed';
+        var metaText = d.claimant ? ('claimed: ' + d.claimant) : 'unclaimed';
+        if (d.staleHours !== null && d.staleHours !== undefined) {
+          metaText += ' · stale ' + d.staleHours + 'h';
+        }
+        m.textContent = metaText;
         card.appendChild(m);
         col.appendChild(card);
       });
@@ -1404,10 +1622,11 @@ usage() {
 board.sh — deterministic GitHub-Issues coordination CLI
 
   init-labels [--dry-run]
-  list [--lane bug|feature|release] [--state <s>] [--agent <NAME>] [--unclaimed] [--json]
-  next --lane bug|feature --agent <NAME>
+  list [--lane bug|feature|release] [--state <s>] [--agent <NAME>] [--unclaimed] [--stale] [--json]
+  next --lane bug|feature --agent <NAME>       (falls back to reclaiming a stale claim if nothing is unclaimed)
   claim <issue> <NAME>
   release <issue> <NAME> [--reason ...]
+  reclaim <issue> <NAME>                       (take over a claim idle past claims.ttlHours)
   state <issue> <new-state>
   handoff <issue> --file <md>
   comment <issue> --file <md>
@@ -1440,6 +1659,7 @@ main() {
     next) cmd_next "$@" ;;
     claim) cmd_claim "$@" ;;
     release) cmd_release "$@" ;;
+    reclaim) cmd_reclaim "$@" ;;
     state) cmd_state "$@" ;;
     handoff) cmd_handoff "$@" ;;
     comment) cmd_comment "$@" ;;

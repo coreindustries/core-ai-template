@@ -69,7 +69,8 @@ workflow has measured.
 | Transition | Who | Command |
 |---|---|---|
 | filed → `state:backlog` | anyone. Features: `board.sh file-feature`. Bugs: `gh issue create --label lane:bug --label P<n> --label state:backlog`. Adopting an unclaimed issue with no lane: add those three labels — the only raw label edit allowed. | — |
-| claim | the lane agent | `board.sh next --lane <l> --agent <NAME>` (highest P, oldest; exit 3 = nothing, 4/5 = lost a race → run `next` again) |
+| claim | the lane agent | `board.sh next --lane <l> --agent <NAME>` (highest P, oldest; exit 3 = nothing, 4/5 = lost a race → run `next` again). If nothing is unclaimed, `next` falls back to reclaiming the oldest stale claim in the lane. |
+| reclaim a stale claim | any agent, when `next` finds nothing unclaimed | `board.sh reclaim <n> <NAME>` — re-verifies staleness live, ends the old claim, takes it over. Refuses if the claim is active, `wip-keep`, or not `implementing`/`backlog`. |
 | → `implementing` | claimer, at claim | `board.sh state <n> implementing` (or `board.sh checkout <n> <NAME> --worktree`, which claims, sets the state and cuts a worktree) |
 | → `blocked` | claimer | `board.sh state <n> blocked` plus a comment naming the blocker and the ONE unblocking action |
 | → `built` | claimer, when its PR merges | `board.sh state <n> built`; label the PR `needs-deploy` if it touches `deploy.boundPaths` |
@@ -89,6 +90,12 @@ State lives on the issue, not in your context:
   Never `/clear` mid-ticket.
 - **Resuming:** `board.sh list --agent <NAME>` and `board.sh my-prs <NAME>`; read the latest
   `handoff:` comment before re-deriving anything from code.
+- **Claims expire.** A claim with no activity for `claims.ttlHours` (`.claude/agent-lanes.json`,
+  default 24h) becomes reclaimable by another agent via `board.sh reclaim` (or automatically, the
+  next time `board.sh next` finds nothing unclaimed). **Any comment on the issue resets the
+  timer** — a progress note, a `state:` transition, the claim itself — so post one rather than
+  going quiet on genuinely long-running work. `board.sh list --stale` shows what has expired.
+  Opt a specific issue out with the `wip-keep` label.
 - Durable lessons go in `docs/solutions/` (`/compound`) or your lane's SKILL.md, not session memory.
 
 ## 5. Tools — ask a tool before a model, and read narrowly

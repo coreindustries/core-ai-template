@@ -268,13 +268,9 @@
   color: "fbca04"
   description: "Merged PR not yet deployed to every environment"
 
-- name: in-progress
-  color: "1d76db"
-  description: "Claimed: an agent is working it"
-
-- name: reclaimable
-  color: "e4e669"
-  description: "Claim went idle; another agent may take it over"
+- name: wip-keep
+  color: "c5def5"
+  description: "Opt-out: exempt this claim from stale-claim reclaim (board.sh reclaim / claims.ttlHours)"
 
 - name: log-triage
   color: "bfd4f2"

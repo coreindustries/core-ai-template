@@ -109,20 +109,60 @@ case "$sub1" in
       list) emit "${FAKE_ISSUE_LIST_JSON:-[]}" ;;
       view)
         case "$json_arg" in
-          *comments*) emit "${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}" ;;
+          *comments*)
+            # FAKE_COMMENTS_STATE (optional): a file tracking comments posted
+            # by THIS fake within a single test, so a multi-step flow like
+            # `reclaim` (which posts a comment, then re-reads comments inside
+            # cmd_claim's own race check) sees its own writes — a static var
+            # can't represent "the second read differs from the first".
+            # Seeded from FAKE_ISSUE_VIEW_COMMENTS_JSON on first write; reads
+            # before any write fall back to that same static fixture.
+            if [ -n "${FAKE_COMMENTS_STATE:-}" ] && [ -f "$FAKE_COMMENTS_STATE" ]; then
+              cat "$FAKE_COMMENTS_STATE"
+            else
+              emit "${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}"
+            fi
+            ;;
+          # "labels,state" / "title,labels,state" (checkout, reclaim's meta
+          # read) uses a DIFFERENT fixture than the bare "labels" re-read
+          # cmd_claim makes on its own, so a test can simulate a label having
+          # already changed between the two reads. Falls back to
+          # FAKE_ISSUE_VIEW_LABELS_JSON when unset, so existing bare-"labels"
+          # callers (e.g. checkout tests) are unaffected.
+          *labels*state*) emit "${FAKE_ISSUE_VIEW_META_JSON:-${FAKE_ISSUE_VIEW_LABELS_JSON:-$labels_default}}" ;;
           *labels*) emit "${FAKE_ISSUE_VIEW_LABELS_JSON:-$labels_default}" ;;
           *) emit "${FAKE_ISSUE_VIEW_JSON:-$empty_json_default}" ;;
         esac
         ;;
       edit) exit 0 ;;
-      comment) exit 0 ;;
+      comment)
+        if [ -n "${FAKE_COMMENTS_STATE:-}" ]; then
+          body="" prevarg=""
+          for a in "$@"; do
+            if [ "$prevarg" = "--body" ]; then body="$a"; fi
+            prevarg="$a"
+          done
+          base="${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}"
+          [ -f "$FAKE_COMMENTS_STATE" ] && base="$(cat "$FAKE_COMMENTS_STATE")"
+          new_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf '%s' "$base" | jq -c --arg b "$body" --arg t "$new_ts" \
+            '.comments += [{"body":$b,"createdAt":$t}]' > "$FAKE_COMMENTS_STATE"
+        fi
+        exit 0
+        ;;
       create) printf '%s\n' "${FAKE_ISSUE_CREATE_URL:-https://github.com/example-org/example-repo/issues/999}" ;;
       *) echo "fake gh: unhandled issue $sub2" >&2; exit 1 ;;
     esac
     ;;
   pr)
     case "$sub2" in
-      list) emit "${FAKE_PR_LIST_JSON:-[]}" ;;
+      list)
+        if [ "${FAKE_PR_LIST_FAIL:-0}" = "1" ]; then
+          echo "fake gh: pr list forced failure" >&2
+          exit 1
+        fi
+        emit "${FAKE_PR_LIST_JSON:-[]}"
+        ;;
       view) emit "${FAKE_PR_VIEW_JSON:-$empty_json_default}" ;;
       edit) exit 0 ;;
       comment) exit 0 ;;
@@ -172,8 +212,9 @@ chmod +x "$FAKE_BIN/git"
 export PATH="$FAKE_BIN:$PATH"
 
 reset_env() {
-  unset FAKE_ISSUE_LIST_JSON FAKE_ISSUE_VIEW_LABELS_JSON FAKE_ISSUE_VIEW_COMMENTS_JSON \
-        FAKE_LABEL_LIST_JSON FAKE_PR_LIST_JSON FAKE_PR_VIEW_JSON FAKE_API_JSON \
+  unset FAKE_ISSUE_LIST_JSON FAKE_ISSUE_VIEW_LABELS_JSON FAKE_ISSUE_VIEW_META_JSON \
+        FAKE_ISSUE_VIEW_COMMENTS_JSON FAKE_COMMENTS_STATE \
+        FAKE_LABEL_LIST_JSON FAKE_PR_LIST_JSON FAKE_PR_LIST_FAIL FAKE_PR_VIEW_JSON FAKE_API_JSON \
         FAKE_RUN_VIEW_LOG FAKE_ISSUE_CREATE_URL FAKE_GIT_LOG_SUBJECTS
   : > "$FAKE_GH_LOG"
 }
@@ -294,6 +335,196 @@ if [ "$?" != "0" ]; then
   pass "state: rejects an invalid state name"
 else
   fail "state: should reject an invalid state name"
+fi
+
+# ===========================================================================
+# 4a. stale-claim reclaim: `list --stale` and `reclaim` compute claim
+# staleness AT READ TIME from (a) the newest issue comment and (b) the
+# newest updatedAt of an open PR labeled agent:<NAME> whose body references
+# #<issue> — never the issue's own updatedAt. FAIL CLOSED on any lookup
+# failure. See scripts/dev/board/board.sh's `_claim_stale_hours` header.
+# ===========================================================================
+reset_env
+STALE_TS="$(date -u -v-25H -v-10M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '-25 hours -10 minutes' +%Y-%m-%dT%H:%M:%SZ)"
+RECENT_TS="$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '-1 hour' +%Y-%m-%dT%H:%M:%SZ)"
+
+# --- (a) 25h-old claim comment, no PR -> stale; `reclaim` takes it over ---
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":300,"title":"idle claim","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/300"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+
+out="$(bash "$BOARD" list --stale 2>"$WORK/list-stale.err")"
+if printf '%s' "$out" | grep -q '#300' && printf '%s' "$out" | grep -Eq 'stale 2[4-9]h'; then
+  pass "list --stale: a claim idle 25h with no PR activity is reported stale"
+else
+  fail "list --stale: comment-only stale detection (out=[$out] err=[$(cat "$WORK/list-stale.err")])"
+fi
+
+# `list` (no --stale) still shows the same issue, with the STALE column filled in.
+out_all="$(bash "$BOARD" list 2>/dev/null)"
+if printf '%s' "$out_all" | grep -q '#300' && printf '%s' "$out_all" | grep -Eq 'stale 2[4-9]h'; then
+  pass "list: STALE column shows 'stale <N>h' for #300"
+else
+  fail "list: STALE column for #300 (out=[$out_all])"
+fi
+
+# reclaim re-verifies staleness live, then posts release/claim as one flow:
+# release: OLD ... reclaimed-by NEW (ends OLD's claim per the existing
+# claim-race resolver), remove-label agent:OLD, then the normal claim path.
+export FAKE_ISSUE_VIEW_META_JSON='{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}]}'
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"}]}'
+# Stateful comments: reclaim's own `_claim_stale_hours` re-check reads
+# comments BEFORE posting the release comment (must still see it as stale);
+# cmd_claim's internal race check reads comments AFTER (must see the release
+# it just posted, or it would wrongly lose the race to OTHER's old claim).
+export FAKE_COMMENTS_STATE="$WORK/comments-300.json"
+rm -f "$FAKE_COMMENTS_STATE"
+: > "$FAKE_GH_LOG"
+out="$(bash "$BOARD" reclaim 300 NEW 2>"$WORK/reclaim.err")"
+rc=$?
+if [ "$rc" = "0" ] \
+   && grep -q "release: OTHER" "$FAKE_GH_LOG" && grep -q "reclaimed-by NEW" "$FAKE_GH_LOG" \
+   && grep -q -- "remove-label agent:OTHER" "$FAKE_GH_LOG" \
+   && grep -q -- "add-label agent:NEW" "$FAKE_GH_LOG" \
+   && grep -q "claim: NEW" "$FAKE_GH_LOG"; then
+  pass "reclaim: re-verifies staleness live, posts release/claim comment pair, swaps the agent:* label"
+else
+  fail "reclaim: takeover flow (rc=$rc out=[$out] err=[$(cat "$WORK/reclaim.err")] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+fi
+
+# MUTATION CHECK: replacing the PR-lookup fail-closed block with the
+# tempting-looking "just default to no PR data on failure" (`|| prs='[]'`)
+# must make a stale-check that should be SKIPPED instead silently compute a
+# bogus staleness from the stale comment data alone — proving the
+# fail-closed guard is load-bearing, not decorative. A plain
+# `s/return 1/return 0/` does NOT exercise this: `return` unconditionally
+# exits the function regardless of its argument, so that swap only changes
+# the caller's exit code, not whether staleness gets computed at all — a
+# python3 multi-line replacement removes the guard for real. Exercised via
+# the gh-pr-list-failure case further below, against a mutant of THIS
+# board.sh (never the real file).
+STALE_MUTANT="$WORK/board.stale-mutant.sh"
+python3 - "$BOARD" "$STALE_MUTANT" <<'PY'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+text = open(src).read()
+old = (
+    '  prs="$(gh pr list --state open --label "agent:${agent}" --json number,updatedAt,body --limit 100 2>&1)" || {\n'
+    '    echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} failed: ${prs}" >&2\n'
+    '    return 1 # fail-closed: pr lookup failed\n'
+    '  }\n'
+)
+new = (
+    "  prs=\"$(gh pr list --state open --label \"agent:${agent}\" --json number,updatedAt,body --limit 100 2>&1)\""
+    " || prs='[]' # MUTATED: fail-closed removed, silently treats a failed lookup as \"no PR data\"\n"
+)
+count = text.count(old)
+if count != 1:
+    sys.stderr.write(f"expected exactly 1 occurrence of the fail-closed block, found {count}\n")
+    sys.exit(1)
+open(dst, "w").write(text.replace(old, new))
+PY
+mutant_gen_rc=$?
+chmod +x "$STALE_MUTANT" 2>/dev/null || true
+if [ "$mutant_gen_rc" = "0" ] && ! diff -q "$BOARD" "$STALE_MUTANT" >/dev/null 2>&1; then
+  pass "stale-check MUTATION CHECK setup: mutant differs from board.sh (fail-closed block found and replaced)"
+else
+  fail "stale-check MUTATION CHECK setup: could not locate/replace the pr-lookup fail-closed block — assertion below proves nothing (rc=$mutant_gen_rc)"
+fi
+
+# --- (b) an open PR referencing the issue, updated recently, overrides an
+# old claim comment: the claim is NOT stale. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":301,"title":"active via PR","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/301"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON="[{\"number\":9001,\"updatedAt\":\"${RECENT_TS}\",\"body\":\"Fixes #301\"}]"
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if ! printf '%s' "$out" | grep -q '#301'; then
+  pass "list --stale: an open PR touching #301 updated 1h ago keeps the claim non-stale (overrides the 25h-old comment)"
+else
+  fail "list --stale: PR activity should have kept #301 out of --stale (out=[$out])"
+fi
+
+out_all="$(bash "$BOARD" list 2>/dev/null)"
+line301="$(printf '%s' "$out_all" | grep '#301' || true)"
+if [ -n "$line301" ] && ! printf '%s' "$line301" | grep -q 'stale '; then
+  pass "list: #301's STALE column is '-' (recent PR activity, not stale)"
+else
+  fail "list: expected a non-stale STALE column for #301 (line=[$line301])"
+fi
+
+# --- (c) gh pr list failing -> FAIL CLOSED: not stale, SKIPPED on stderr ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":302,"title":"pr lookup fails","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/302"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_FAIL=1
+
+out="$(bash "$BOARD" list --stale 2>"$WORK/skip.err")"
+err="$(cat "$WORK/skip.err")"
+if ! printf '%s' "$out" | grep -q '#302' && printf '%s' "$err" | grep -q 'stale-check SKIPPED #302:'; then
+  pass "list --stale: a failing gh pr list fails closed (not stale) and logs 'stale-check SKIPPED' to stderr"
+else
+  fail "list --stale: fail-closed on gh pr list failure (out=[$out] err=[$err])"
+fi
+
+# Run the SAME scenario against the fail-closed mutant: the return-1 guard
+# gone means the (stale) comment timestamp alone now decides staleness, so
+# #302 wrongly comes back stale. This is the mutation check for (c).
+mut_out="$(bash "$STALE_MUTANT" list --stale 2>/dev/null)"
+if printf '%s' "$mut_out" | grep -q '#302'; then
+  pass "stale-check MUTATION CHECK — removing the pr-lookup fail-closed guard wrongly reports #302 stale on a failed PR lookup (not vacuous)"
+else
+  fail "stale-check MUTATION CHECK — mutant should have wrongly reported #302 stale; it did not (out=[$mut_out])"
+fi
+unset FAKE_PR_LIST_FAIL
+
+# --- (d) wip-keep opts an issue out, even past the TTL ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":303,"title":"kept alive","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"},{"name":"wip-keep"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/303"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if ! printf '%s' "$out" | grep -q '#303'; then
+  pass "list --stale: the wip-keep label opts an issue out of reclaim even past ttlHours"
+else
+  fail "list --stale: wip-keep should have excluded #303 (out=[$out])"
+fi
+
+# --- (e) claims.ttlHours: 0 disables the whole check ---
+reset_env
+ZERO_TTL_CONFIG="$WORK/agent-lanes-zero-ttl.json"
+cat > "$ZERO_TTL_CONFIG" <<JSON
+{ "namePrefix": "C", "claims": { "ttlHours": 0, "keepLabel": "wip-keep" } }
+JSON
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":304,"title":"ttl disabled","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/304"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+
+out="$(LANES_CONFIG="$ZERO_TTL_CONFIG" bash "$BOARD" list --stale 2>/dev/null)"
+if [ -z "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
+  pass "list --stale: claims.ttlHours=0 disables the whole check — nothing reported stale"
+else
+  fail "list --stale: ttlHours=0 should report nothing (out=[$out])"
+fi
+
+out_all="$(LANES_CONFIG="$ZERO_TTL_CONFIG" bash "$BOARD" list 2>/dev/null)"
+line304="$(printf '%s' "$out_all" | grep '#304' || true)"
+if [ -n "$line304" ] && ! printf '%s' "$line304" | grep -q 'stale '; then
+  pass "list: claims.ttlHours=0 shows '-' in the STALE column, never 'stale <N>h'"
+else
+  fail "list: ttlHours=0 STALE column (line=[$line304])"
 fi
 
 # ===========================================================================
