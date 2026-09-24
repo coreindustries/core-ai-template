@@ -74,3 +74,23 @@ function getUser(userId: string): User {
 - [ ] Errors are logged appropriately
 - [ ] Errors are re-raised or handled explicitly
 - [ ] No success-shaped fallbacks hiding failures
+
+## Enforcement
+
+"No silent exception swallowing" is checked, not just written policy:
+`node scripts/ratchet.mjs` (`make ratchet`, wired into CI's lint job and
+`make pr-check`) scans for bare `except: pass` (Python) and empty
+`catch {}` / `.catch(() => {})` (JS/TS) under `src/`, `tests/`, `scripts/`.
+It's a ratchet, not a hard zero: the count can't rise above the baseline
+committed in `.claude/ratchets.json`, and CI fails just the same if the
+count drops below it without the baseline being lowered via `--update` —
+that "slack" check exists so a new silent catch can't hide in headroom
+left by an unrelated fix. A genuine exception gets an inline
+`ratchet-allow: <reason>` comment rather than a baseline bump.
+
+Once a project picks a linter, prefer its native rule over the pattern
+entry in `.claude/ratchets.json` — Python: `ruff` `S110` (`try-except-pass`);
+JS/TS: `eslint` `no-empty` (catch clause). A linter rule runs the same
+check with a proper AST instead of the ratchet's regex heuristic; the
+ratchet exists for the gap before a linter is configured, or for a
+pattern the chosen linter doesn't cover.

@@ -1,0 +1,84 @@
+{
+  "_comment": [
+    "Ratchet gates: CI fails only when the count of a known-bad pattern rises",
+    "above the committed baseline below. Policy and number change in one diff.",
+    "Run: node scripts/ratchet.mjs        (gate — used by CI and make ratchet)",
+    "     node scripts/ratchet.mjs --list  (print every site, incl. allowed)",
+    "     node scripts/ratchet.mjs --update  (lower baselines to match reality;",
+    "                                          refuses to raise them)",
+    "",
+    "A count BELOW baseline also fails ('slack') — otherwise a newly introduced",
+    "bad site could hide under headroom left by an unrelated fix. Run --update",
+    "to resync the baseline whenever the count legitimately changes.",
+    "",
+    "Exempt a specific line with an inline comment: `ratchet-allow: <reason>`.",
+    "Allowed sites are still counted and listed separately with --list.",
+    "",
+    "roots: git-tracked file roots ratchet.mjs scans (via `git ls-files -- <roots>`).",
+    "An empty template (no files under any root) scans 0 files: baseline 0 passes,",
+    "baseline > 0 fails as 'scan roots vanished — refusing to pass'.",
+    "",
+    "kind: pattern     — whole-file-content regex per extension group.",
+    "kind: unreferenced — heuristic: a testGlobs match is 'orphaned' when neither",
+    "  its full path nor any parent directory appears as a substring in any",
+    "  wiring file (.github/workflows/*.yml, Makefile, package.json,",
+    "  pyproject.toml, or any non-test file under the scanned roots — a",
+    "  'runner script'). A bare directory reference wires everything beneath it.",
+    "  This is a heuristic, not static analysis — auto-discovering test runners",
+    "  (glob-based, like scripts/dev/board/tests/run-all.sh) make true orphans",
+    "  rare, since pointing at the containing directory is enough to wire them.",
+    "",
+    "When a project adopts a linter, prefer its native rule over the pattern",
+    "entry below (ruff S110 for Python, eslint no-empty for JS/TS) — see",
+    "'Enforcement' in .claude/rules/error-handling.md."
+  ],
+
+  "roots": ["src", "tests", "scripts"],
+
+  "checks": [
+    {
+      "id": "silent-exception-swallowing",
+      "kind": "pattern",
+      "baseline": 0,
+      "patterns": [
+        {
+          "label": "python: bare except swallowed with pass",
+          "ext": [".py"],
+          "regex": "except[^\\n:]*:[ \\t]*(#.*)?\\n[ \\t]*pass\\b"
+        },
+        {
+          "label": "js/ts: empty catch block",
+          "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
+          "regex": "catch\\s*(\\([^)]*\\))?\\s*\\{\\s*\\}"
+        },
+        {
+          "label": "js/ts: promise .catch(() => {})",
+          "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
+          "regex": "\\.catch\\(\\s*(\\(\\s*[a-zA-Z_$][\\w$]*?\\s*\\)|\\(\\s*\\)|[a-zA-Z_$][\\w$]*)\\s*=>\\s*\\{\\s*\\}\\s*\\)"
+        }
+      ]
+    },
+    {
+      "id": "orphaned-test-files",
+      "kind": "unreferenced",
+      "baseline": 0,
+      "testGlobs": [
+        "**/*.test.sh",
+        "**/*.test.js",
+        "**/*.test.jsx",
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.test.mjs",
+        "**/*.test.cjs",
+        "**/test_*.py"
+      ],
+      "wiringGlobs": [
+        ".github/workflows/*.yml",
+        ".github/workflows/*.yaml",
+        "Makefile",
+        "package.json",
+        "pyproject.toml"
+      ]
+    }
+  ]
+}

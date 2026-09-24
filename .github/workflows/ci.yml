@@ -46,6 +46,16 @@ jobs:
       - name: Check agent model pins match agent-models.json
         run: node scripts/sync-agent-models.mjs --check
 
+      # Unconditional for the same reason as the model-pin check above: these
+      # ratchet gates (silent exception swallowing, orphaned test files) scan
+      # src/ tests/ scripts/ generically and run fine against an
+      # uninitialized template (0 files scanned, baseline 0 -> pass).
+      - name: Ratchet gates (silent failures, orphaned tests)
+        run: node scripts/ratchet.mjs
+
+      - name: Run ratchet.mjs's own test suite
+        run: node --test scripts/tests/
+
       - name: Check project initialized
         id: init
         run: |
