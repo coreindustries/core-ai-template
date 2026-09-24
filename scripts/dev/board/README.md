@@ -31,11 +31,11 @@ scripts/dev/board/board.sh <subcommand> [args...]      # board.sh help for the f
 | Subcommand | What it does |
 |---|---|
 | `init-labels [--dry-run]` | Creates the lane taxonomy from the "Agent lanes" section of `.github/labels.yml` (the one source). `agent:<NAME>` labels are created on demand. `make lanes-init` runs this. |
-| `list [--lane b\|f\|r] [--state s] [--agent NAME] [--unclaimed] [--stale] [--json]` | Open `lane:*` issues, P0→P3 then oldest first. A `STALE` column shows `stale <N>h` for claims idle past `claims.ttlHours`; `--stale` filters to only those. |
-| `next --lane b\|f --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. Falls back to reclaiming the oldest stale claim (via `reclaim`) when nothing is unclaimed. |
-| `claim <issue> <NAME>` | `agent:<NAME>` + a `claim:` comment, then a race check: an earlier unreleased claim wins and this call backs off (exit 4). Refuses (exit 5) if another agent holds it. |
+| `list [--lane b\|f\|r] [--state s] [--agent NAME] [--unclaimed] [--stale] [--json]` | Open `lane:*` issues, P0→P3 then oldest first. A `STALE` column shows `stale <N>h` for claims idle past `claims.ttlHours`; `--stale` filters to only those; `--json` carries a `staleHours` field (null when not stale). |
+| `next --lane b\|f --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. Falls back to the lane's stale claims (via `reclaim`), oldest/highest-priority first, excluding any already held by the caller — a candidate refused for any reason other than a real race (4/5) is skipped in favor of the next one. |
+| `claim <issue> <NAME>` | `agent:<NAME>` + a `claim:` comment, then a race check: an earlier unreleased claim wins and this call backs off (exit 4). Refuses (exit 5) if another agent holds it. Same-second ties (two claims posted in the same wall-clock second, so their timestamps are byte-identical) are broken by comment ORDER, not by comparing that identical timestamp text. |
 | `release <issue> <NAME> [--reason ...]` | Drops the claim with a `release:` comment. |
-| `reclaim <issue> <NAME>` | Takes over a claim idle past `claims.ttlHours`. Re-checks staleness live; refuses if the claim is active, carries `claims.keepLabel` (default `wip-keep`), or is in a state other than `implementing`/`backlog`. Posts `release: OLD ... reclaimed-by NEW`, removes `agent:OLD`, then runs the normal `claim` path (same exit codes 4/5). |
+| `reclaim <issue> <NAME>` | Takes over a claim idle past `claims.ttlHours`. Re-checks staleness live; an OPEN, NON-DRAFT PR referencing the issue makes the claim live regardless of age (a green PR awaiting the operator's merge click has no reason to comment); only a DRAFT PR's age counts as ordinary activity. Posts `release: OLD ... reclaimed-by NEW` (naming any open PR OLD still has, so it isn't silently orphaned), removes `agent:OLD`, then runs the normal `claim` path. **Exit codes:** `2` usage/precondition error (bad args, not open, no `agent:*` label, already yours, wrong state, `wip-keep`, `claims.ttlHours` is 0); `3` not stale (live PR or still under the TTL); `4`/`5` a real claim race, same as `claim`; `6` staleness could not be verified (a gh/jq lookup failed). |
 | `state <issue> <new-state>` | Swaps to exactly one `state:*` label, with a `state: old -> new` comment. |
 | `handoff` / `comment <issue> --file <md>` | A resumable `handoff:` comment / a progress note, always from a file. |
 | `show <issue>` / `watch --agent NAME [--lane l]` | Issue text with downloaded screenshots / new-work events for Monitor. |
@@ -125,12 +125,29 @@ redaction tests carry mutation checks: break the guard on a throwaway copy and c
 There is no scheduled sweep — staleness is computed at read time by `list --stale`, `render`, and
 `next`'s fallback, from `.claude/agent-lanes.json`'s `claims.ttlHours` / `claims.keepLabel`. A
 claim's "last activity" is the later of the newest comment on the issue and the newest `updatedAt`
-of an open PR labeled `agent:<NAME>` whose body references `#<issue>` — never the issue's own
-`updatedAt`, which bots (labeler, project-sync) bump without the claimant doing anything. Only
-`state:implementing` and a claimed `state:backlog` issue can be stale; `built` and later belong to
-the Release Manager. `claims.ttlHours: 0` disables the check entirely. Any `gh`/`jq` failure while
-computing staleness fails closed (treated as NOT stale) and logs `stale-check SKIPPED #<n>: <why>`
-to stderr — a lookup failure must never evict live work.
+of an open, **DRAFT** PR labeled `agent:<NAME>` whose body references `#<issue>` or an
+`/issues/<issue>` URL — never the issue's own `updatedAt`, which bots (labeler, project-sync) bump
+without the claimant doing anything.
+
+**An open, NON-DRAFT PR referencing the issue makes the claim LIVE regardless of age.** A green PR
+sitting on the operator's merge click has no reason to accumulate comments; reclaiming it out from
+under the claimant would duplicate work and let the old PR's `Fixes #n` close the issue out from
+under the new claimant. Only a draft PR's own age counts as ordinary activity — a draft nobody is
+touching still goes stale.
+
+Only `state:implementing` and a claimed `state:backlog` issue can be stale; `built` and later belong
+to the Release Manager. `claims.ttlHours: 0` disables the check entirely — as does any malformed
+explicit value (`-1`, `1.5`, `"off"`, `false`, `null`): `_claim_ttl_hours` fails CLOSED (disabled)
+and logs once to stderr rather than silently defaulting to 24 (feature ON); `lanes-config.sh check`
+rejects the same malformed values outright, reading the raw config value with no `// default`
+masking. Any `gh`/`jq` failure while computing staleness fails closed (treated as NOT stale) and
+logs `stale-check SKIPPED #<n>: <why>` to stderr — a lookup failure must never evict live work.
+`gh pr list --label agent:X` is cached per agent within one `list`/`render`/`next` call, so N stale
+issues held by the same agent cost one PR lookup, not N.
+
+`next`'s stale fallback never offers the caller's own claims as candidates (reclaiming yourself is
+nonsensical, not a race), and treats any candidate refusal other than a real claim race (exit 4/5)
+as "try the next candidate" rather than giving up.
 
 ## Known limitations
 

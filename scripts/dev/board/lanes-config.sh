@@ -27,6 +27,29 @@ lanes_cfg() {
   if [ -z "$out" ]; then printf '%s' "$def"; else printf '%s' "$out"; fi
 }
 
+# lanes_cfg_has <jq boolean expr> — "true"/"false", never masked by a
+# default. Use this BEFORE lanes_cfg_raw when a caller must tell "key
+# absent, apply the default" apart from "key present but a nonsensical
+# value" — lanes_cfg's `// default` collapses both into the same "empty"
+# result, which is exactly how a malformed claims.ttlHours (-1, 1.5, "off",
+# false, null) used to silently become the default 24 (feature ON) instead
+# of failing closed.
+lanes_cfg_has() {
+  local expr="$1"
+  [ -f "$LANES_CONFIG" ] || { printf 'false'; return 0; }
+  jq -r "($expr) // false" "$LANES_CONFIG" 2>/dev/null
+}
+
+# lanes_cfg_raw <jq expr> — prints exactly what jq resolves, `tostring`'d,
+# with NO `// default` fallback: "null", "false", "1.5", "off" all come
+# through unchanged instead of collapsing to "". Only meaningful after
+# lanes_cfg_has confirms the key is actually present.
+lanes_cfg_raw() {
+  local expr="$1"
+  [ -f "$LANES_CONFIG" ] || return 0
+  jq -r "$expr" "$LANES_CONFIG" 2>/dev/null
+}
+
 lanes_check() {
   local problems=0
   command -v jq >/dev/null 2>&1 || { echo "FAIL jq not on PATH"; return 1; }
@@ -41,12 +64,18 @@ lanes_check() {
 
   # claims.ttlHours / claims.keepLabel — stale-claim reclaim (board.sh
   # list --stale / reclaim). Both have defaults, so a config that omits
-  # "claims" entirely is valid; only an explicit bad value fails.
-  local ttl_hours
-  ttl_hours="$(lanes_cfg '.claims.ttlHours' 24)"
-  case "$ttl_hours" in
-    ''|*[!0-9]*) echo "FAIL claims.ttlHours '$ttl_hours' must be a non-negative integer (0 disables reclaim)"; problems=$((problems + 1)) ;;
-  esac
+  # "claims" entirely is valid; only an explicit bad value fails. Read via
+  # lanes_cfg_has/lanes_cfg_raw, NOT lanes_cfg: lanes_cfg's `// default`
+  # would turn -1/1.5/"off"/false/null into "" and then silently into the
+  # default 24 (reclaim ON) instead of failing this check.
+  local ttl_has ttl_raw
+  ttl_has="$(lanes_cfg_has 'has("claims") and (.claims|type=="object") and (.claims|has("ttlHours"))')"
+  if [ "$ttl_has" = "true" ]; then
+    ttl_raw="$(lanes_cfg_raw '.claims.ttlHours | tostring')"
+    case "$ttl_raw" in
+      ''|*[!0-9]*) echo "FAIL claims.ttlHours '$ttl_raw' must be a non-negative integer (0 disables reclaim)"; problems=$((problems + 1)) ;;
+    esac
+  fi
 
   # lanes_cfg falls back to the default for an empty string too (matching
   # every other key read through it), so a genuinely blank keepLabel can

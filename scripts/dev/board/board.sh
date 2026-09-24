@@ -46,10 +46,17 @@ VALID_LANES="bug feature release"
 # sweep or a cached label: a claim's "last activity" is the LATER of (a) the
 # newest comment on the issue (any comment — a progress note, a state
 # transition, the claim itself — counts; there is no separate "still alive"
-# marker to post) and (b) the newest `updatedAt` of an OPEN pull request
-# labeled `agent:<NAME>` whose body references `#<issue>`. The issue's own
-# `updatedAt` is deliberately never used: label edits from bots (labeler,
-# project-sync) bump it without the claimant having done anything.
+# marker to post) and (b) the newest `updatedAt` of an OPEN, DRAFT pull
+# request labeled `agent:<NAME>` whose body references `#<issue>`. The
+# issue's own `updatedAt` is deliberately never used: label edits from bots
+# (labeler, project-sync) bump it without the claimant having done anything.
+#
+# An OPEN, NON-DRAFT PR referencing the issue makes the claim LIVE
+# regardless of its age: a green PR waiting on the operator's merge click
+# has no reason to accumulate comments, and reclaiming out from under it
+# both duplicates work and lets the old PR's `Fixes #n` close the issue out
+# from under the new claimant. Only a DRAFT PR's age counts as ordinary
+# "activity"; a claim with no PR at all falls back to comment activity only.
 #
 # Only `state:implementing` and a claimed `state:backlog` issue can go
 # stale — `built` and later belong to the Release Manager, not the claimer,
@@ -61,12 +68,83 @@ VALID_LANES="bug feature release"
 # can see why an issue that looks idle isn't offered for reclaim.
 # ---------------------------------------------------------------------------
 
-# _claim_stale_hours <issue> <agent> — prints the whole number of hours
-# since the latest known activity on the claim, or prints nothing and
-# returns 1 (having logged a `stale-check SKIPPED` line to stderr) when it
-# cannot be determined.
+# _claim_ttl_hours — resolves claims.ttlHours, FAILING CLOSED (disabled, 0)
+# on any malformed EXPLICIT value (negative, decimal, non-numeric string,
+# boolean, null) instead of silently defaulting to 24 (feature ON). An
+# ABSENT "claims" or "claims.ttlHours" key still defaults to 24 — only a
+# present-but-nonsensical value disables the feature. Logs once to stderr
+# on the malformed path (once per call — i.e. once per board.sh invocation)
+# so a config typo doesn't disable reclaim invisibly forever.
+# `lanes-config.sh check` is the human-facing counterpart that FAILS the
+# config outright for the same malformed values; this is the runtime
+# defense in depth for whatever slips past that check.
+_claim_ttl_hours() {
+  local has raw
+  has="$(lanes_cfg_has 'has("claims") and (.claims|type=="object") and (.claims|has("ttlHours"))')"
+  if [ "$has" != "true" ]; then
+    printf '%s' 24
+    return 0
+  fi
+  raw="$(lanes_cfg_raw '.claims.ttlHours | tostring')"
+  case "$raw" in
+    ''|*[!0-9]*)
+      echo "claims.ttlHours ('$(lanes_cfg_raw '.claims.ttlHours')') is not a valid non-negative integer — stale-claim reclaim DISABLED for this run. Fix .claude/agent-lanes.json (see 'lanes-config.sh check')." >&2
+      printf '%s' 0
+      ;;
+    *) printf '%s' "$raw" ;;
+  esac
+}
+
+# _claim_referencing_prs <issue> <agent> [cache_dir] — prints a JSON array
+# of OPEN PRs labeled agent:<agent> whose body references #<issue>, either
+# as "#<n>" or as an "/issues/<n>" URL (anchored on the right so #12/
+# /issues/12 never matches #123/issues/123), each as
+# {number, isDraft, updatedAt}. On any gh/jq failure, logs
+# `stale-check SKIPPED #<n>: <why>` and returns 1 — fail closed, never an
+# empty-looking success.
+#
+# cache_dir (optional): when given, the raw `gh pr list` result is cached
+# per sanitized agent name for the life of that directory, so a single
+# `_claim_stale_map` call over many issues held by the SAME agent makes
+# one `gh pr list --label agent:X` call, not one per issue. Only successful
+# lookups are cached; a failure is retried per issue (rare, and simpler
+# than also caching negative results correctly).
+_claim_referencing_prs() {
+  local num="$1" agent="$2" cache_dir="${3:-}" prs cache_file
+  cache_file=""
+  if [ -n "$cache_dir" ]; then
+    cache_file="$cache_dir/$(sanitize_id "$agent").json"
+    [ -f "$cache_file" ] && prs="$(cat "$cache_file")"
+  fi
+
+  if [ -z "${prs:-}" ]; then
+    prs="$(gh pr list --state open --label "agent:${agent}" --json number,updatedAt,body,isDraft --limit 100 2>&1)" || {
+      echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} failed: ${prs}" >&2
+      return 1 # fail-closed: pr lookup failed
+    }
+    printf '%s' "$prs" | jq -e . >/dev/null 2>&1 || {
+      echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} returned invalid JSON" >&2
+      return 1 # fail-closed: pr invalid JSON
+    }
+    [ -n "$cache_file" ] && printf '%s' "$prs" > "$cache_file"
+  fi
+
+  printf '%s' "$prs" | jq -c --argjson n "$num" '
+    def refs: (.body // "") as $b
+      | ($b | test("(^|[^0-9])#" + ($n|tostring) + "([^0-9]|$)"))
+        or ($b | test("/issues/" + ($n|tostring) + "([^0-9]|$)"));
+    map(select(refs)) | map({number, isDraft: (.isDraft // false), updatedAt})
+  '
+}
+
+# _claim_stale_hours <issue> <agent> [cache_dir] — prints the whole number
+# of hours since the latest known activity on the claim, prints the literal
+# string LIVE when an open, non-draft PR referencing the issue makes the
+# claim live regardless of age, or prints nothing and returns 1 (having
+# logged a `stale-check SKIPPED` line to stderr) when staleness cannot be
+# determined.
 _claim_stale_hours() {
-  local num="$1" agent="$2" comments prs comment_ts pr_ts latest
+  local num="$1" agent="$2" cache_dir="${3:-}" comments comment_ts refs live_nondraft draft_ts latest
 
   comments="$(gh issue view "$num" --json comments 2>&1)" || {
     echo "stale-check SKIPPED #${num}: gh issue view --json comments failed: ${comments}" >&2
@@ -78,21 +156,19 @@ _claim_stale_hours() {
   }
   comment_ts="$(printf '%s' "$comments" | jq -r '[ .comments[].createdAt ] | sort | last // empty')"
 
-  prs="$(gh pr list --state open --label "agent:${agent}" --json number,updatedAt,body --limit 100 2>&1)" || {
-    echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} failed: ${prs}" >&2
-    return 1 # fail-closed: pr lookup failed
-  }
-  printf '%s' "$prs" | jq -e . >/dev/null 2>&1 || {
-    echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} returned invalid JSON" >&2
-    return 1 # fail-closed: pr invalid JSON
-  }
-  # "references #<issue>" — a word-boundary match so #4 doesn't match #42.
-  pr_ts="$(printf '%s' "$prs" | jq -r --argjson n "$num" '
-    [ .[] | select((.body // "") | test("(^|[^0-9])#" + ($n|tostring) + "([^0-9]|$)")) | .updatedAt ]
-    | sort | last // empty
-  ')"
+  refs="$(_claim_referencing_prs "$num" "$agent" "$cache_dir")" || return 1 # fail-closed: pr lookup failed (message already logged)
 
-  latest="$(printf '%s\n%s\n' "$comment_ts" "$pr_ts" | grep -v '^$' | sort | tail -1)"
+  live_nondraft="$(printf '%s' "$refs" | jq -r 'map(select(.isDraft == false)) | length > 0')"
+  if [ "$live_nondraft" = "true" ]; then
+    # DECISION: an open, non-draft PR referencing the issue is live
+    # regardless of comment/claim age — see the header comment above.
+    printf '%s' LIVE
+    return 0
+  fi
+
+  draft_ts="$(printf '%s' "$refs" | jq -r 'map(select(.isDraft == true) | .updatedAt) | sort | last // empty')"
+
+  latest="$(printf '%s\n%s\n' "$comment_ts" "$draft_ts" | grep -v '^$' | sort | tail -1)"
   if [ -z "$latest" ]; then
     echo "stale-check SKIPPED #${num}: no activity signal found (no comments, no matching open PR)" >&2
     return 1 # fail-closed: no activity signal
@@ -105,16 +181,20 @@ _claim_stale_hours() {
 # shaped like `gh issue list --json number,...,labels` (must have .number
 # and .labels). Prints a JSON object {"<number>": <hours>} containing every
 # issue that is claimed, in an eligible state, does NOT carry the
-# claims.keepLabel opt-out, and whose computed staleness has reached
-# claims.ttlHours. claims.ttlHours == 0 disables the whole check and prints
+# claims.keepLabel opt-out, is not made LIVE by an open non-draft PR, and
+# whose computed staleness has reached claims.ttlHours. claims.ttlHours == 0
+# (or malformed — see _claim_ttl_hours) disables the whole check and prints
 # {} without making any gh calls.
 _claim_stale_map() {
-  local issues_json="$1" ttl_hours keep_label
-  ttl_hours="$(lanes_cfg '.claims.ttlHours' 24)"
+  local issues_json="$1" ttl_hours keep_label cache_dir
+  ttl_hours="$(_claim_ttl_hours)"
+  [ "$ttl_hours" -gt 0 ] || { echo '{}'; return 0; }
   keep_label="$(lanes_cfg '.claims.keepLabel' wip-keep)"
 
-  case "$ttl_hours" in ''|*[!0-9]*) ttl_hours=24 ;; esac
-  [ "$ttl_hours" -gt 0 ] || { echo '{}'; return 0; }
+  # Cache gh pr list per agent for the life of this one call — see
+  # _claim_referencing_prs. mktemp failing (e.g. a read-only tmp) just means
+  # no caching, not a hard failure.
+  cache_dir="$(mktemp -d 2>/dev/null)" || cache_dir=""
 
   local eligible num agent hrs pairs=""
   eligible="$(printf '%s' "$issues_json" | jq -r --arg keep "$keep_label" '
@@ -129,8 +209,8 @@ _claim_stale_map() {
 
   while IFS=$'\t' read -r num agent; do
     [ -n "$num" ] || continue
-    hrs="$(_claim_stale_hours "$num" "$agent")" || continue
-    [ -n "$hrs" ] || continue
+    hrs="$(_claim_stale_hours "$num" "$agent" "$cache_dir")" || continue
+    [ -n "$hrs" ] && [ "$hrs" != "LIVE" ] || continue
     if [ "$hrs" -ge "$ttl_hours" ] 2>/dev/null; then
       pairs="${pairs}${num}:${hrs}
 "
@@ -138,6 +218,8 @@ _claim_stale_map() {
   done <<EOF
 $eligible
 EOF
+
+  [ -n "$cache_dir" ] && rm -rf "$cache_dir"
 
   if [ -z "$pairs" ]; then
     echo '{}'
@@ -148,6 +230,41 @@ EOF
       | add
     '
   fi
+}
+
+# _claim_race_winner <comments_json> <me> <my_ts> — given the FULL comments
+# array (as returned by `gh issue view --json comments`) and this claim's
+# own (name, timestamp), prints the name of an earlier, still-unreleased
+# claimant if one exists (this claim has LOST the race), or nothing if this
+# claim wins.
+#
+# Ties are broken by the comment's POSITION in the array (`to_entries` on an
+# array yields 0,1,2,... — a strict, always-unique order GitHub preserves
+# as true creation order), never by comparing the timestamp TEXT alone:
+# `now_iso` has second resolution, so two claims posted in the same second
+# are BYTE-IDENTICAL strings. A text-only `.ts < $myts` comparison sees
+# neither claim as "earlier" than the other, so BOTH would wrongly believe
+# they won — array order is the only signal that can't tie.
+_claim_race_winner() {
+  local comments_json="$1" me="$2" my_ts="$3"
+  printf '%s' "$comments_json" | jq -r --arg me "$me" --arg myts "$my_ts" '
+    [ .comments | to_entries[]
+      | { idx: .key, cap: (.value.body | capture("^(?<kind>claim|release): (?<name>\\S+) (?<ts>\\S+)")?) }
+      | select(.cap != null)
+      | { idx: .idx, kind: .cap.kind, name: .cap.name, ts: .cap.ts }
+    ] as $events
+    | ( $events | map(select(.kind=="claim" and .name==$me and .ts==$myts)) | sort_by(.idx) | last.idx ) as $my_idx
+    | ( $events | map(select(.kind=="claim" and .name != $me and ($my_idx != null) and .idx < $my_idx))) as $earlier
+    | ( $events | map(select(.kind=="release"))) as $releases
+    | ( $earlier
+        | map(select(
+            . as $c
+            | ($releases | map(select(.name == $c.name and .idx > $c.idx)) | length) == 0
+          ))
+        | sort_by(.idx)
+        | .[0].name // empty
+      )
+  '
 }
 
 # ---------------------------------------------------------------------------
@@ -277,7 +394,9 @@ cmd_list() {
   fi
 
   if [ "$as_json" = "1" ]; then
-    printf '%s\n' "$filtered"
+    printf '%s' "$filtered" | jq -c --argjson sm "$stale_map" '
+      map(. + { staleHours: ($sm[(.number|tostring)] // null) })
+    '
     return
   fi
 
@@ -325,34 +444,66 @@ cmd_next() {
   ')"
 
   if [ -z "$pick" ]; then
-    # Nothing unclaimed — fall back to the oldest, highest-priority STALE
-    # claim in this lane (e.g. a crashed agent's abandoned work) and
-    # reclaim it live. `cmd_reclaim` re-verifies staleness itself, so a
-    # claim that got a comment between this list and the reclaim call is
-    # correctly refused rather than evicted.
-    local stale_map stale_pick
+    # Nothing unclaimed — fall back to the STALE claims in this lane (e.g. a
+    # crashed agent's abandoned work), oldest/highest-priority first,
+    # EXCLUDING any issue already claimed by the CALLER (reclaiming your own
+    # claim is nonsensical, not a race). `cmd_reclaim` re-verifies staleness
+    # live, so a candidate that is no longer actually stale — reclaimed by
+    # someone else, opted out with wip-keep, made LIVE by a PR, or whose
+    # staleness couldn't be verified this instant — is refused; we retry the
+    # NEXT candidate rather than giving up (exit 2), UNLESS the refusal is a
+    # real claim race (exit 4/5), which propagates immediately.
+    local stale_map candidates n_stale i
     stale_map="$(_claim_stale_map "$raw")"
-    stale_pick="$(printf '%s' "$raw" | jq -c --argjson sm "$stale_map" '
+    candidates="$(printf '%s' "$raw" | jq -c --argjson sm "$stale_map" --arg me "$agent" '
       map(select(($sm[(.number|tostring)] // null) != null))
+      | map(select(
+          (((.labels | map(.name) | map(select(startswith("agent:")))|map(sub("^agent:";"")))[0]) // "") != $me
+        ))
       | map(. + { _p: ( ((.labels | map(.name)) | map(select(test("^P[0-3]$"))))[0] // "P9" ) })
       | sort_by(._p, .createdAt)
-      | .[0] // empty
     ')"
-    if [ -z "$stale_pick" ]; then
-      echo "next: no unclaimed or stale open issue in lane:${lane}" >&2
+    n_stale="$(printf '%s' "$candidates" | jq 'length')"
+
+    if [ "$n_stale" = "0" ]; then
+      echo "next: no unclaimed or reclaimable stale open issue in lane:${lane}" >&2
       exit 3
     fi
 
-    local snum stitle surl
-    snum="$(printf '%s' "$stale_pick" | jq -r '.number')"
-    stitle="$(printf '%s' "$stale_pick" | jq -r '.title')"
-    surl="$(printf '%s' "$stale_pick" | jq -r '.url')"
-    echo "next: no unclaimed issue in lane:${lane} — reclaiming stale #${snum}" >&2
-    cmd_reclaim "$snum" "$agent"
+    i=0
+    while [ "$i" -lt "$n_stale" ]; do
+      local cand snum stitle surl reclaim_out reclaim_rc
+      cand="$(printf '%s' "$candidates" | jq -c --argjson i "$i" '.[$i]')"
+      snum="$(printf '%s' "$cand" | jq -r '.number')"
+      stitle="$(printf '%s' "$cand" | jq -r '.title')"
+      surl="$(printf '%s' "$cand" | jq -r '.url')"
+      echo "next: no unclaimed issue in lane:${lane} — trying to reclaim stale #${snum}" >&2
 
-    echo "#${snum}  ${stitle}"
-    echo "$surl"
-    return
+      # NOT `reclaim_out="$(cmd_reclaim ...)"; reclaim_rc=$?` as two
+      # statements: under this script's `set -e`, a bare assignment whose
+      # command substitution exits nonzero kills the WHOLE process right
+      # there (before `reclaim_rc=$?` ever runs) — `set -e` only stands
+      # down for a command tested by `if`/`while`/`&&`/`||`.
+      if reclaim_out="$(cmd_reclaim "$snum" "$agent")"; then
+        reclaim_rc=0
+      else
+        reclaim_rc=$?
+      fi
+      if [ "$reclaim_rc" = "0" ]; then
+        printf '%s\n' "$reclaim_out"
+        echo "#${snum}  ${stitle}"
+        echo "$surl"
+        return
+      fi
+      case "$reclaim_rc" in
+        4|5) exit "$reclaim_rc" ;; # a real claim race — propagate, do not paper over it
+        *) echo "next: reclaim of stale #${snum} refused (exit ${reclaim_rc}) — trying the next candidate" >&2 ;;
+      esac
+      i=$((i + 1))
+    done
+
+    echo "next: no unclaimed or reclaimable stale open issue in lane:${lane}" >&2
+    exit 3
   fi
 
   local num title url
@@ -397,22 +548,7 @@ cmd_claim() {
 
   local comments winner
   comments="$(gh issue view "$issue" --json comments)"
-  winner="$(printf '%s' "$comments" | jq -r --arg me "$name" --arg myts "$ts" '
-    [ .comments[].body
-      | capture("^(?<kind>claim|release): (?<name>\\S+) (?<ts>\\S+)")?
-    ]
-    | map(select(. != null)) as $events
-    | ($events | map(select(.kind=="claim" and .name != $me and .ts < $myts))) as $earlier
-    | ($events | map(select(.kind=="release"))) as $releases
-    | ( $earlier
-        | map(select(
-            . as $c
-            | ($releases | map(select(.name == $c.name and .ts > $c.ts)) | length) == 0
-          ))
-        | sort_by(.ts)
-        | .[0].name // empty
-      )
-  ')"
+  winner="$(_claim_race_winner "$comments" "$name" "$ts")"
 
   if [ -n "$winner" ]; then
     gh issue edit "$issue" --remove-label "agent:${name}" >/dev/null \
@@ -461,6 +597,19 @@ cmd_release() {
 # 4 (lost a race) and 5 (someone else already holds it) are handled exactly
 # as they are for a fresh claim.
 # ---------------------------------------------------------------------------
+#
+# Exit codes (documented in agent-protocol.md and README.md next to claim's
+# 3/4/5):
+#   2  usage/precondition error (bad args, issue not open, no agent:*
+#      label, already claimed by the caller, wrong state, wip-keep present,
+#      claims.ttlHours is 0)
+#   3  NOT STALE — either an open, non-draft PR makes the claim live
+#      regardless of age, or the claim's activity is still under the TTL
+#   4  lost the claim race (propagated from the underlying `claim`)
+#   5  someone else already holds the claim (propagated from `claim`)
+#   6  staleness could NOT be verified (a gh/jq lookup failed) — refuses to
+#      reclaim rather than risk evicting live work; see the
+#      `stale-check SKIPPED` line this prints for why
 cmd_reclaim() {
   require_gh; require_jq
   local issue="${1:-}" name="${2:-}"
@@ -488,24 +637,51 @@ cmd_reclaim() {
   fi
 
   local ttl_hours hrs
-  ttl_hours="$(lanes_cfg '.claims.ttlHours' 24)"
-  case "$ttl_hours" in ''|*[!0-9]*) ttl_hours=24 ;; esac
-  [ "$ttl_hours" -gt 0 ] || die "reclaim: claims.ttlHours is 0 — reclaim is disabled for this project"
+  ttl_hours="$(_claim_ttl_hours)"
+  [ "$ttl_hours" -gt 0 ] || die "reclaim: claims.ttlHours is 0 (or malformed) — reclaim is disabled for this project"
 
   hrs="$(_claim_stale_hours "$issue" "$old_agent")" \
-    || die "reclaim: staleness could not be verified for #${issue} — refusing to reclaim live work (see the stale-check SKIPPED line above)" 2
-  [ -n "$hrs" ] || die "reclaim: staleness could not be verified for #${issue} — refusing to reclaim live work" 2
+    || die "reclaim: staleness could not be verified for #${issue} — refusing to reclaim live work (see the stale-check SKIPPED line above)" 6
+
+  if [ "$hrs" = "LIVE" ]; then
+    local live_pr
+    live_pr="$(_claim_referencing_prs "$issue" "$old_agent" | jq -r 'map(select(.isDraft == false)) | .[0].number // empty')"
+    if [ -n "$live_pr" ]; then
+      die "reclaim: #${issue} has an open, non-draft PR #${live_pr} (agent:${old_agent}) referencing it — live regardless of comment/claim age, not stale" 3
+    fi
+    die "reclaim: #${issue} has an open, non-draft PR (agent:${old_agent}) referencing it — live regardless of comment/claim age, not stale" 3
+  fi
   if [ "$hrs" -lt "$ttl_hours" ]; then
-    die "reclaim: #${issue} was active ${hrs}h ago, under the ${ttl_hours}h TTL — not stale"
+    die "reclaim: #${issue} was active ${hrs}h ago, under the ${ttl_hours}h TTL — not stale" 3
   fi
 
-  local ts
+  # The claim IS genuinely stale. Any PR OLD still has open on the issue at
+  # this point can only be a DRAFT (a non-draft one would have refused
+  # above) — but reclaiming doesn't touch it: it keeps agent:OLD, NEW's
+  # `pr-own` on a new PR would exit 5 against it, and OLD's own pr-watch
+  # keeps polling it. Name it so a human (or OLD, seeing the `unclaimed`
+  # event) closes or adopts it instead of two PRs silently competing.
+  local old_prs old_pr_note
+  old_prs="$(_claim_referencing_prs "$issue" "$old_agent" 2>/dev/null)"
+  old_pr_note=""
+  if [ -n "$old_prs" ]; then
+    old_pr_note="$(printf '%s' "$old_prs" | jq -r --arg agent "$old_agent" '
+      map("#" + (.number|tostring) + (if .isDraft then " (draft)" else "" end))
+      | if length > 0 then "old-pr: " + join(", ") + " still open under agent:" + $agent + " — close it or hand it off, do not leave two PRs on this issue" else empty end
+    ')"
+  fi
+
+  local ts release_body
   ts="$(now_iso)"
-  gh issue comment "$issue" --body "release: ${old_agent} ${ts} reclaimed-by ${name}" >/dev/null
+  release_body="release: ${old_agent} ${ts} reclaimed-by ${name}"
+  [ -n "$old_pr_note" ] && release_body="${release_body}
+${old_pr_note}"
+  gh issue comment "$issue" --body "$release_body" >/dev/null
   gh issue edit "$issue" --remove-label "agent:${old_agent}" >/dev/null 2>&1 \
     || echo "reclaim: remove-label agent:${old_agent} on #${issue} failed (label may already be absent) — continuing" >&2
 
   echo "reclaim: #${issue} was ${hrs}h idle (TTL ${ttl_hours}h) — taking over from ${old_agent}"
+  [ -n "$old_pr_note" ] && echo "$old_pr_note"
   cmd_claim "$issue" "$name"
 }
 

@@ -310,6 +310,22 @@ else
   fail "lanes-config.sh check: claims.ttlHours negative rejection (rc=$rc out=[$out])"
 fi
 
+# Every other malformed-but-not-caught-by-lanes_cfg value from the judge's
+# P2 finding: lanes_cfg's `// default` used to turn each of these into "",
+# which then silently became the DEFAULT 24 (feature ON) instead of
+# failing. lanes_cfg_has/lanes_cfg_raw must see the raw, explicit value.
+for bad_ttl in '1.5' '"off"' 'false' 'null'; do
+  BAD_TTL_VARIANT="$WORK/bad-ttl-variant.json"
+  printf '{ "namePrefix": "C", "claims": { "ttlHours": %s, "keepLabel": "wip-keep" } }' "$bad_ttl" > "$BAD_TTL_VARIANT"
+  out="$(LANES_CONFIG="$BAD_TTL_VARIANT" bash "$LANES_CONFIG_SH" check 2>&1)"
+  rc=$?
+  if [ "$rc" != "0" ] && printf '%s' "$out" | grep -qF "FAIL claims.ttlHours"; then
+    pass "lanes-config.sh check: rejects claims.ttlHours = $bad_ttl"
+  else
+    fail "lanes-config.sh check: claims.ttlHours = $bad_ttl should be rejected (rc=$rc out=[$out])"
+  fi
+done
+
 BAD_KEEP_CONFIG="$WORK/bad-claims-keep.json"
 cat > "$BAD_KEEP_CONFIG" <<'BADCFG'
 { "namePrefix": "C", "claims": { "ttlHours": 24, "keepLabel": "bad label" } }
