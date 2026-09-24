@@ -35,7 +35,7 @@ Node** via plain `node <script>.mjs`, using only Node's built-in modules
 
 This covers `scripts/sync-agent-models.mjs`, `scripts/ratchet.mjs`, and
 their test suite `scripts/tests/ratchet.test.mjs` (run via `node --test
-scripts/tests/`, itself dependency-free via `node:test` +
+'scripts/tests/*.test.mjs'`, itself dependency-free via `node:test` +
 `node:assert/strict`).
 
 Concretely: no `import` of anything not resolvable from Node's standard
@@ -57,7 +57,8 @@ ls-files` shelled out via `node:child_process` instead of a git library.
 
 **Negative:**
 - Hand-rolled glob matching and line-based editing are less capable than a
-  real library (e.g. no brace expansion, no negation patterns). Acceptable
+  real library (e.g. simple `{a,b}` brace expansion only, no negation
+  patterns). Acceptable
   because the inputs are template-controlled config, not arbitrary user
   input.
 - If either script's scope grows substantially (e.g. needs a real YAML
@@ -85,5 +86,7 @@ to need one, treat that as a signal to re-open this ADR rather than adding a
 - **`node scripts/ratchet.mjs` / `node scripts/sync-agent-models.mjs` run
   unconditionally in CI's lint job**, ungated by the "project initialized"
   check — both must keep working against an empty `src/`/`tests/` tree.
-- **`node --test scripts/tests/`** as the test runner for this tooling — no
-  Jest/Vitest/Mocha dependency for a handful of `node:test` cases.
+- **`node --test 'scripts/tests/*.test.mjs'`** as the test runner for this
+  tooling — no Jest/Vitest/Mocha dependency for a handful of `node:test`
+  cases. Keep the quoted glob: Node 22 (CI's runtime) treats
+  `node --test <dir>` as a file path and fails with MODULE_NOT_FOUND.

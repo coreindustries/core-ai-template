@@ -472,7 +472,9 @@ test('js pattern: block-comment variants still match — { /* ignore */ }, {/***
 // hand-written repro after the fact.
 // ---------------------------------------------------------------------------
 
-const FUZZ_SIZES = [5000, 20000];
+// 50k: a quadratic pattern costs ~200ms at 20k, under budget; at 50k it
+// is over 1s, so polynomial blowups surface as well as exponential ones.
+const FUZZ_SIZES = [5000, 20000, 50000];
 const FUZZ_BUDGET_MS = 1000;
 
 const FUZZ_FRAGMENTS = {
@@ -497,6 +499,9 @@ const FUZZ_WRAPPERS = {
   catchBlock: (frag) => `catch (e) {${frag}x }\n`,
   catchArrowTyped: (frag) => `.catch((e:${frag}) => x)\n`,
   catchBare: (frag) => `.catch(${frag}\n`,
+  // The fragment directly after `catch`, with no `{` after it: the shape that
+  // made adjacent `\s*…(optional)…\s*` quantifiers quadratic.
+  catchSpace: (frag) => `catch${frag}(\n`,
   exceptColon: (frag) => `except ${frag}:\n`,
 };
 
@@ -642,6 +647,45 @@ test('unreferenced: a "by" string appearing only in a comment line is not wired 
   const result = runRatchet(dir);
   assert.equal(result.status, 1, result.stdout);
   assert.match(result.stdout, /not invoked/i);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: a Makefile variable definition holding the command is NOT wired (it runs nothing)', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'node --test scripts/tests/' }],
+    }),
+  );
+  write(dir, 'Makefile', 'TESTCMD= node --test scripts/tests/\nOTHER := node --test scripts/tests/\nhelp:\n\techo hi\n');
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 1, result.stdout);
+  assert.match(result.stdout, /not invoked/i);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: an env assignment prefixing a recipe command IS wired (FOO=1 cmd runs cmd)', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'node --test scripts/tests/' }],
+    }),
+  );
+  write(dir, 'Makefile', 'test:\n\tFOO=1 node --test scripts/tests/\n');
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 

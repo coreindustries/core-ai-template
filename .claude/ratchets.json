@@ -160,7 +160,7 @@
         {
           "label": "js/ts: empty (or comment-only) catch block",
           "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
-          "regex": "catch\\s*(\\([^)]{0,500}\\))?\\s*\\{(?:\\s|//[^\\r\\n]*(?:\\r?\\n|$)|/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/)*\\}"
+          "regex": "catch(?:\\s*\\([^)]{0,500}\\))?\\s*\\{(?:\\s|//[^\\r\\n]*(?:\\r?\\n|$)|/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/)*\\}"
         },
         {
           "label": "js/ts: promise .catch(arrow => {}/undefined/null)",

@@ -240,6 +240,10 @@ function stripLeadingMakeVarsAndAssignments(text) {
 
 function commandSegmentsOf(rawLine) {
   const isMakefileRecipe = rawLine.startsWith('\t');
+  // A column-0 assignment (`NAME=`, `NAME :=`, `?=`, `+=`, `!=`) is a Makefile
+  // variable definition: it runs nothing, so it cannot wire a runner. Commands
+  // only appear in tab-indented recipes or indented YAML `run:` lines.
+  if (/^[A-Za-z_][A-Za-z0-9_]*\s*[:?+!]?=/.test(rawLine)) return [];
   let line = isMakefileRecipe ? rawLine.slice(1) : rawLine;
   if (isMakefileRecipe) {
     while (line[0] === '@' || line[0] === '-' || line[0] === '+') line = line.slice(1);
