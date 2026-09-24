@@ -32,10 +32,10 @@ scripts/dev/board/board.sh <subcommand> [args...]      # board.sh help for the f
 |---|---|
 | `init-labels [--dry-run]` | Creates the lane taxonomy from the "Agent lanes" section of `.github/labels.yml` (the one source). `agent:<NAME>` labels are created on demand. `make lanes-init` runs this. |
 | `list [--lane b\|f\|r] [--state s] [--agent NAME] [--unclaimed] [--stale] [--json]` | Open `lane:*` issues, P0→P3 then oldest first. A `STALE` column shows `stale <N>h` for claims idle past `claims.ttlHours`; `--stale` filters to only those; `--json` carries a `staleHours` field (null when not stale). |
-| `next --lane b\|f --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. Falls back to the lane's stale claims (via `reclaim`), oldest/highest-priority first, excluding any already held by the caller. A refused candidate is skipped in favor of the next one ONLY on exit 3 (not stale) or 6 (could not verify) — both refuse before any write; every other code propagates immediately. |
-| `claim <issue> <NAME>` | `agent:<NAME>` + a `claim:` comment, then a race check: an earlier unreleased claim wins and this call backs off (exit 4). Refuses (exit 5) if another agent holds it. Same-second ties (two claims posted in the same wall-clock second, so their timestamps are byte-identical) are broken by comment ORDER, not by comparing that identical timestamp text. |
+| `next --lane b\|f --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. Falls back to the lane's stale claims (via `reclaim`), oldest/highest-priority first, excluding any already held by the caller. A refused candidate is skipped in favor of the next one ONLY on exit 3 (not eligible) or 6 (could not verify) — both refuse before any write; every other code, including 7, propagates immediately. |
+| `claim <issue> <NAME>` | `agent:<NAME>` + a `claim:` comment, then a race check: an earlier unreleased claim wins and this call backs off (exit 4). Refuses (exit 5) if another agent holds it. Same-second ties (two claims posted in the same wall-clock second, so their timestamps are byte-identical) are broken by comment ORDER, not by comparing that identical timestamp text. A claim ends on either a `release:` comment OR a lost racer's own `claim-lost: NAME to WINNER` — treating only the first as a release let a racer who had already lost block every later claimant forever. If the race outcome can't be verified even after one retry (the comments read-back is invalid, or the claimant's own just-posted comment never shows up), `claim` posts `release: NAME ts unverified` before exiting 4 — dying silently would leave that same kind of never-released ghost claim. |
 | `release <issue> <NAME> [--reason ...]` | Drops the claim with a `release:` comment. |
-| `reclaim <issue> <NAME>` | Takes over a claim idle past `claims.ttlHours`. Re-checks staleness live; an OPEN, NON-DRAFT PR referencing the issue makes the claim live regardless of age (a green PR awaiting the operator's merge click has no reason to comment); only a DRAFT PR's age counts as ordinary activity. Posts `release: OLD ... reclaimed-by NEW` (naming any open PR OLD still has, so it isn't silently orphaned), removes `agent:OLD`, then runs the normal `claim` path. **Exit codes:** `2` usage/precondition error (bad args, not open, no `agent:*` label, already yours, wrong state, `wip-keep`, `claims.ttlHours` is 0); `3` not stale (live PR or still under the TTL); `4`/`5` a real claim race, same as `claim`; `6` staleness could not be verified (a gh/jq lookup failed). |
+| `reclaim <issue> <NAME>` | Takes over a claim idle past `claims.ttlHours`. Re-checks staleness live; an OPEN, NON-DRAFT PR referencing the issue makes the claim live regardless of age (a green PR awaiting the operator's merge click has no reason to comment); only a DRAFT PR's age counts as ordinary activity. Posts `release: OLD ... reclaimed-by NEW` (naming any open PR OLD still has, so it isn't silently orphaned), removes `agent:OLD`, then runs the normal `claim` path. **Exit codes:** `2` usage error (bad args, already claimed by you); `3` NOT ELIGIBLE, refused before any write (closed, `agent:*` label gone, state changed, `wip-keep`, `claims.ttlHours` is 0, a live PR, or still under the TTL); `4`/`5` a real claim race, same as `claim`; `6` COULD NOT VERIFY, also refused before any write (a gh/jq lookup failed, including the release comment itself); `7` a write happened (the release comment landed) but the claim afterward failed anyway — never retried. |
 | `state <issue> <new-state>` | Swaps to exactly one `state:*` label, with a `state: old -> new` comment. |
 | `handoff` / `comment <issue> --file <md>` | A resumable `handoff:` comment / a progress note, always from a file. |
 | `show <issue>` / `watch --agent NAME [--lane l]` | Issue text with downloaded screenshots / new-work events for Monitor. |
@@ -148,17 +148,24 @@ logs `stale-check SKIPPED #<n>: <why>` to stderr — a lookup failure must never
 issues held by the same agent cost one PR lookup, not N.
 
 `next`'s stale fallback never offers the caller's own claims as candidates (reclaiming yourself is
-nonsensical, not a race). On refusal it retries the next candidate ONLY for exit `3` (not stale) and
-`6` (staleness could not be verified) — both refuse before making any write. Every other code,
-including `4`/`5` (a real claim race) and anything else (a usage error, or a gh call that crashed
-mid-write), propagates immediately: retrying past a partial write (e.g. OLD's claim already released
-but NEW's claim never completed) would silently abandon that issue while `next` moved on and looked
-successful. `claim`/`reclaim` never rely on `set -e` to catch a failed `gh`/`jq` call — every one is
-followed by an explicit `|| die`, because bash 3.2 does not propagate `-e` into a `$(...)` command
+nonsensical, not a race). On refusal it retries the next candidate ONLY for exit `3` (not eligible)
+and `6` (could not verify) — both refuse before making any write. Every other code, including `4`/`5`
+(a real claim race), `2` (a usage error) and `7` (a write DID happen — the release comment landed —
+but the claim afterward failed anyway), propagates immediately: retrying past `7` would silently
+abandon that issue (OLD's claim already released, NEW's claim never completed) while `next` moved on
+and looked successful. `claim`/`reclaim` never rely on `set -e` to catch a failed `gh`/`jq` call —
+calling `cmd_claim` from `cmd_reclaim` goes through `$(...)` for the same reason: `exit` (which `die`
+uses) ends the current shell outright rather than "returning" to an `if`, so a direct function call
+would let cmd_claim's raw exit code escape uncaught instead of being remapped to `7`. Every gh/jq call
+is followed by an explicit `|| die`, because bash 3.2 does not propagate `-e` into a `$(...)` command
 substitution at all, and even where it can on other bash versions, the race check runs nested inside
 an `if` (where `-e` is always suspended for the whole condition). The claim-race resolver itself
 fails (not "wins") when the comments read-back is empty/invalid or when the claimant's own
 just-posted claim comment isn't in it yet — it re-reads once after a short delay before giving up.
+A claim ends on a `release:` comment OR a lost racer's own `claim-lost: NAME to WINNER` — treating
+only the first as a release let a racer who had already lost block every later claimant forever; the
+unverified-race path above posts its own `release: NAME ts unverified` for the identical reason,
+since dying with no comment at all leaves the same kind of claim that nothing ever ends.
 
 ## Known limitations
 

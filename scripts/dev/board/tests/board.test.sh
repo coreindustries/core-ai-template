@@ -702,6 +702,51 @@ else
   fail "list --stale: pr-list caching (calls=$pr_list_calls out=[$out])"
 fi
 
+# --- P3: _claim_stale_map's per-call `mktemp -d` cache dir is actually
+# removed afterward, by the RETURN trap it sets. Point TMPDIR at a
+# dedicated, otherwise-empty directory so any leftover `mktemp -d` output
+# is unambiguous; the SAME scenario above (two stale issues, one agent)
+# guarantees a cache dir gets created and used. ---
+CACHE_PROBE_DIR="$WORK/cache-probe-tmp"
+mkdir -p "$CACHE_PROBE_DIR"
+out="$(TMPDIR="$CACHE_PROBE_DIR" bash "$BOARD" list --stale 2>/dev/null)"
+leftover="$(find "$CACHE_PROBE_DIR" -mindepth 1 2>/dev/null)"
+if printf '%s' "$out" | grep -q '#510' && [ -z "$leftover" ]; then
+  pass "_claim_stale_map: the per-call PR-list cache dir (mktemp -d under TMPDIR) is gone after list --stale"
+else
+  fail "_claim_stale_map: cache dir not cleaned up (leftover=[$leftover] out=[$out])"
+fi
+
+# --- P3: the RETURN trap that cleans that cache dir must disarm itself —
+# a bare `trap ... RETURN` is a single global slot, not scoped to the
+# function that armed it (confirmed directly: `f(){ trap ... RETURN; };
+# g(){ f; }; g` fires the trap AGAIN on g's return, with whatever `f`
+# declared local now unbound). Every current call site invokes
+# `_claim_stale_map` via `$(...)`, which forks a subshell, so today that
+# leakage is confined to a throwaway process and this exact scenario can't
+# actually crash `next` — but that's a property of how it's called, not of
+# the trap, so this regression test exercises the deepest real call chain
+# available (next's full stale-fallback: _claim_stale_map -> cmd_reclaim ->
+# cmd_claim -> _claim_race_winner) and asserts it stays clean, in case a
+# future direct (non-subshell) call is ever added. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":900,"title":"exercises the full reclaim+claim chain","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/900"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OLD ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+export FAKE_ISSUE_VIEW_META_JSON='{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}]}'
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"}]}'
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/trap-persist.err")"
+rc=$?
+err="$(cat "$WORK/trap-persist.err")"
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q '#900' && ! printf '%s' "$err" | grep -qi "unbound variable"; then
+  pass "RETURN trap: does not persist past _claim_stale_map — the full reclaim+claim chain afterward succeeds with no unbound-variable errors"
+else
+  fail "RETURN trap persistence (rc=$rc out=[$out] err=[$err])"
+fi
+
 # --- P2: `next` excludes the CALLER's own claim from stale candidates —
 # reclaiming your own claim is nonsensical, not a race, and must never even
 # be attempted. ---
@@ -721,11 +766,13 @@ else
   fail "next: own-claim exclusion (rc=$rc out=[$out] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
 fi
 
-# --- P2: `next` PROPAGATES (does not retry) when a candidate is refused for
-# a reason other than exit 3/6 — here, wip-keep discovered only at reclaim
-# time (a race between the `next` snapshot and the live re-check) refuses
-# with exit 2. Retrying past it would be retrying past a usage/precondition
-# refusal, which the judge's stricter policy reserves for exit 3/6 only. ---
+# --- P2: wip-keep found only at reclaim time (a race between the `next`
+# snapshot and the live re-check) is a "not eligible, nothing written"
+# refusal — cmd_reclaim now dies 3 for it, not the generic usage code 2 —
+# so `next` RETRIES the next candidate and succeeds on #522. Before this
+# fix wip-keep died 2, which `next`'s stricter retry-only-on-3/6 policy
+# would have wrongly treated as a hard stop, contradicting this very
+# comment block's own claim that wip-keep refusals are retried. ---
 reset_env
 export FAKE_ISSUE_LIST_JSON='[
   {"number":521,"title":"race: wip-keep only in live meta","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OTHER1"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/521"},
@@ -743,13 +790,42 @@ export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P2"}
 out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/next-retry.err")"
 rc=$?
 err="$(cat "$WORK/next-retry.err")"
-if [ "$rc" = "2" ] && printf '%s' "$err" | grep -q "wip-keep" \
-   && ! printf '%s' "$out" | grep -q '#522' \
-   && ! grep -q "issue view 522 --json labels,state" "$FAKE_GH_LOG"; then
-  pass "next: propagates exit 2 (wip-keep found only at reclaim time) — never tries #522"
+if [ "$rc" = "0" ] && printf '%s' "$err" | grep -q "wip-keep" \
+   && printf '%s' "$err" | grep -q "exit 3, not a write failure" \
+   && printf '%s' "$out" | grep -q '#522'; then
+  pass "next: retries past a wip-keep refusal (exit 3, not eligible) and reclaims #522"
 else
-  fail "next: exit-2 propagation (rc=$rc out=[$out] err=[$err])"
+  fail "next: wip-keep retry (rc=$rc out=[$out] err=[$err])"
 fi
+
+# --- P2: a POST-write failure (the release comment succeeds, but
+# completing the claim afterward fails) must exit 7 and PROPAGATE — never
+# retried, since retrying would abandon #600 (OLD's claim already
+# released) while `next` moved on and looked successful. #601 is a
+# perfectly good second candidate that must NEVER be tried. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":600,"title":"release succeeds, claim fails after","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/600"},
+  {"number":601,"title":"never reached","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OLD2"}],"createdAt":"2026-01-02T00:00:00Z","url":"https://example/601"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OLD ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+export FAKE_ISSUE_VIEW_META_JSON='{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}]}'
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"}]}'
+export FAKE_FAIL_AFTER_RELEASE_MARKER="$WORK/fail-after-release-p2.marker"
+rm -f "$FAKE_FAIL_AFTER_RELEASE_MARKER"
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/next-postwrite.err")"
+rc=$?
+err="$(cat "$WORK/next-postwrite.err")"
+if [ "$rc" = "7" ] && printf '%s' "$err" | grep -q "OLD's claim is already released" \
+   && ! printf '%s' "$out" | grep -q '#601' \
+   && ! grep -q "issue view 601 --json labels,state" "$FAKE_GH_LOG"; then
+  pass "next: a post-write failure (exit 7) propagates — never retries #601"
+else
+  fail "next: exit-7 propagation (rc=$rc out=[$out] err=[$err])"
+fi
+unset FAKE_FAIL_AFTER_RELEASE_MARKER
 
 # --- P2: `next` DOES retry the next candidate on exit 6 (staleness could
 # not be verified — refused BEFORE any write). #521's own PR-list lookup
@@ -844,6 +920,71 @@ if [ "$rc" = "4" ] && ! printf '%s' "$out" | grep -qi "claimed" \
   pass "claim: own claim comment permanently missing from the read-back exits 4 (unverified), never wins"
 else
   fail "claim: null my_idx handling (rc=$rc out=[$out] err=[$err])"
+fi
+
+# --- P1 (judge's exact reproduction): the resolver treats ONLY `release:`
+# as ending a claim, not a lost racer's OWN `claim-lost: NAME to WINNER`
+# comment. History: claim A, claim B, claim-lost: B to A, release: A,
+# claim C. B never posted a `release:` for itself (only its claim-lost),
+# so B's claim looked forever-unreleased and EVERY later claimant —
+# including C here — lost to a racer who lost two comments ago. C must
+# win: A released, and B's own claim-lost now correctly ends B's claim
+# too. ---
+reset_env
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[
+  {"body":"claim: A 2026-01-01T00:00:00Z"},
+  {"body":"claim: B 2026-01-01T00:00:01Z"},
+  {"body":"claim-lost: B to A"},
+  {"body":"release: A 2026-01-01T00:00:02Z"}
+]}'
+
+out="$(bash "$BOARD" claim 700 C 2>"$WORK/claim-lost-chain.err")"
+rc=$?
+err="$(cat "$WORK/claim-lost-chain.err")"
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q "claimed: #700 as C"; then
+  pass "claim: sequential A-claims/B-loses/A-releases/C-claims — C wins (claim-lost ends B's claim too)"
+else
+  fail "claim: claim-lost-as-release chain (rc=$rc out=[$out] err=[$err])"
+fi
+
+# --- P1: the unverified-race path posts `release: NAME ts unverified`
+# before dying — otherwise D's abandoned claim comment is never released
+# either, the exact same class of bug as the claim-lost case above (dying
+# silently leaves a claim nothing ever ends). Two checks: (a) D's own run
+# actually posts that comment, and (b) given such a comment already exists
+# in history, a LATER claimant is not blocked by the abandoned claim it
+# refers to. ---
+reset_env
+unset FAKE_COMMENTS_STATE
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[]}'
+: > "$FAKE_GH_LOG"
+
+bash "$BOARD" claim 701 D >/dev/null 2>"$WORK/unverified-release.err"
+rc=$?
+if [ "$rc" = "4" ] && grep -q -- "--body release: D .* unverified" "$FAKE_GH_LOG"; then
+  pass "claim: the unverified path posts 'release: D ... unverified' before dying — the claim doesn't die unreleased"
+else
+  fail "claim: unverified path should post a release comment (rc=$rc log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+fi
+
+reset_env
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[
+  {"body":"claim: D 2026-01-01T00:00:00Z"},
+  {"body":"release: D 2026-01-01T00:00:01Z unverified"}
+]}'
+
+out="$(bash "$BOARD" claim 702 E 2>"$WORK/unverified-then-claim.err")"
+rc=$?
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q "claimed: #702 as E"; then
+  pass "claim: a later claimant is not blocked by an unverified-path release already in history"
+else
+  fail "claim: unverified-release unblocks a later claimant (rc=$rc out=[$out] err=[$(cat "$WORK/unverified-then-claim.err")])"
 fi
 
 # --- P3: the claim-race resolver breaks a SAME-SECOND tie by comment ORDER,
