@@ -63,8 +63,8 @@
     "  - alternatively, just bound an otherwise-unbounded class with `{0,N}`",
     "    (see the Python pattern's `[^\\n:]{0,200}`) — a bounded repetition",
     "    can't blow up combinatorially regardless of alternation shape.",
-    "  When changing a pattern, run `node --test scripts/tests/` — the fuzz",
-    "  budget test in ratchet.test.mjs feeds every pattern in this file a",
+    "  When changing a pattern, run `node --test 'scripts/tests/*.test.mjs'`",
+    "  — the fuzz budget test in ratchet.test.mjs feeds every pattern in this file a",
     "  generated adversarial corpus (long runs of `/`, `/**/`, spaces, CRLF",
     "  mixes, ...) at 5k/20k sizes with a 1s-per-case budget, so a new pattern",
     "  is covered automatically without a hand-written repro.",
@@ -79,18 +79,40 @@
     "  marker or `run:` key is stripped; the remainder is split on `&&`/`;`/`|`",
     "  into individual commands, and `by` must equal one of them exactly. A",
     "  `by` that's only a PREFIX of a longer command (`\"node --test\"` against",
-    "  a line running `node --test scripts/tests/`) does NOT count as wired —",
-    "  only the complete command does. A runner whose `by` matches no command",
-    "  anywhere is itself reported as a violation ('runner not invoked by any",
-    "  wiring file') so the declaration can't lie about what actually runs it.",
+    "  a line running `node --test 'scripts/tests/*.test.mjs'`) does NOT count",
+    "  as wired — only the complete command does. A runner whose `by` matches",
+    "  no command anywhere is itself reported as a violation ('runner not",
+    "  invoked by any wiring file') so the declaration can't lie about what",
+    "  actually runs it.",
     "",
-    "  Residual `by`-matching limits (heuristic, not a shell parser): a",
-    "  trailing same-line comment after the command (`by-command  # note`) is",
-    "  not stripped, so it would need to be part of `by` too or it won't match;",
-    "  and a line that merely echoes or prints the exact command text (`echo",
-    "  \"by-command\"`) is textually indistinguishable from actually running it",
-    "  and would be counted as wired. Both are accepted tradeoffs of a",
-    "  substring/line heuristic rather than real shell semantics.",
+    "  A Makefile line's leading `$(WRAPPER)`/`$(RUNNER)`-style variable",
+    "  references, and leading `VAR=value` shell assignments, are stripped from",
+    "  each command segment before comparison (repeatedly, so `FOO=bar",
+    "  $(WRAPPER) node --test 'x'` reduces to `node --test 'x'`) — the",
+    "  `$(WRAPPER) $(RUNNER) ...` convention used elsewhere in this template's",
+    "  own Makefile would otherwise never match a concrete `by` string.",
+    "",
+    "  `package.json` is deliberately NOT a supported `wiringFiles` entry: an",
+    "  npm `scripts` value is JSON data, not a shell command line on its own",
+    "  line, so the line-based command-segment matching above has no line to",
+    "  match against. A project wiring tests through `npm test`/package.json",
+    "  scripts needs its own resolver; this heuristic doesn't attempt it.",
+    "",
+    "  Residual `by`-matching limits (heuristic, not a shell parser):",
+    "  - A trailing same-line comment after the command (`by-command  # note`)",
+    "    is not stripped, so it would need to be part of `by` too or it won't",
+    "    match.",
+    "  - A line that merely echoes or prints the exact command text (`echo",
+    "    \"by-command\"`) is textually indistinguishable from actually running",
+    "    it and would be counted as wired.",
+    "  - A command split across lines with a trailing `\\` continuation is not",
+    "    joined back into one logical line before matching.",
+    "  - A `by` value that itself contains `&&`, `;`, or `|` can never match,",
+    "    since a wiring line is split on those same characters into separate",
+    "    command segments before comparison — `by` must name a single command,",
+    "    not a pipeline or chain.",
+    "  All of the above are accepted tradeoffs of a substring/line heuristic",
+    "  rather than real shell semantics.",
     "",
     "  `covers` must be narrow enough to match only what `by` actually",
     "  executes — e.g. if `by` is a script that runs one named file, `covers`",
@@ -113,7 +135,8 @@
     "  directly with no wrapper script:",
     "    { \"covers\": [\"tests/**/test_*.py\"], \"by\": \"pytest tests/\" }",
     "  `by` must equal the whole command as it appears in one of the",
-    "  wiringFiles (a Makefile recipe, a CI step, a package.json script) —",
+    "  wiringFiles (a Makefile recipe or a CI step — see above for why",
+    "  package.json is not a supported wiringFiles entry) —",
     "  it is not executed by ratchet.mjs itself.",
     "",
     "When a project adopts a linter, prefer its native rule over the pattern",
@@ -137,12 +160,12 @@
         {
           "label": "js/ts: empty (or comment-only) catch block",
           "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
-          "regex": "catch\\s*(\\([^)]*\\))?\\s*\\{(?:\\s|//[^\\r\\n]*(?:\\r?\\n|$)|/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/)*\\}"
+          "regex": "catch\\s*(\\([^)]{0,500}\\))?\\s*\\{(?:\\s|//[^\\r\\n]*(?:\\r?\\n|$)|/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/)*\\}"
         },
         {
           "label": "js/ts: promise .catch(arrow => {}/undefined/null)",
           "ext": [".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"],
-          "regex": "\\.catch\\(\\s*(?:async\\s+)?(\\(\\s*[a-zA-Z_$][\\w$]*?(?::[^)]*)?\\)|\\(\\s*\\)|[a-zA-Z_$][\\w$]*)\\s*=>\\s*(?:\\{\\s*\\}|undefined|null)\\s*\\)"
+          "regex": "\\.catch\\(\\s*(?:async\\s+)?(\\(\\s*[a-zA-Z_$][\\w$]*\\s*(?::[^)]{0,500})?\\)|\\(\\s*\\)|[a-zA-Z_$][\\w$]*)\\s*=>\\s*(?:\\{\\s*\\}|undefined|null)\\s*\\)"
         },
         {
           "label": "js/ts: promise .catch(function () {})",
@@ -172,7 +195,6 @@
         ".github/workflows/*.yml",
         ".github/workflows/*.yaml",
         "Makefile",
-        "package.json",
         "pyproject.toml"
       ],
       "runners": [
@@ -182,7 +204,7 @@
         },
         {
           "covers": ["scripts/tests/*.test.mjs"],
-          "by": "node --test scripts/tests/"
+          "by": "node --test 'scripts/tests/*.test.mjs'"
         }
       ]
     }

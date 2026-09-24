@@ -7,7 +7,10 @@
 // as a child process against that repo (cwd = the tmp repo, or a
 // subdirectory of it where a test specifically covers that).
 //
-// Run: node --test scripts/tests/
+// Run: node --test 'scripts/tests/*.test.mjs'
+// (a bare directory, `node --test scripts/tests/`, is treated as a file path
+// on Node 22 — the version GitHub's ubuntu runner defaults to — and fails
+// with MODULE_NOT_FOUND; the quoted glob works on both Node 22 and later.)
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -218,6 +221,12 @@ test('ratchet-allow must follow a real comment marker, not just appear as text i
 // Widened pattern coverage (P2) — exercised against the real shipped regexes
 // ---------------------------------------------------------------------------
 
+// NOTE on `['--strict']` + exact "N == baseline N" assertions below: with a
+// baseline > 0 and a plain (non-strict) run, an undercount regression (e.g.
+// a widened-coverage case silently stops matching) reads as "slack" and
+// still exits 0 — silently masking exactly the kind of regression these
+// tests exist to catch. `--strict` turns that into a failure too.
+
 test('python pattern: one-line "except E: pass" is counted', () => {
   const dir = makeRepo();
   const pattern = realPattern('python');
@@ -225,8 +234,9 @@ test('python pattern: one-line "except E: pass" is counted', () => {
   write(dir, 'src/a.py', 'try:\n    x()\nexcept Exception: pass\n');
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /1 == baseline 1/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -237,8 +247,9 @@ test('python pattern: CRLF line endings are counted', () => {
   write(dir, 'src/a.py', 'try:\r\n    x()\r\nexcept Exception:\r\n    pass\r\n');
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /1 == baseline 1/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -249,8 +260,9 @@ test('python pattern: "..." stub body is counted', () => {
   write(dir, 'src/a.py', 'try:\n    x()\nexcept Exception:\n    ...\n');
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /1 == baseline 1/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -273,8 +285,9 @@ test('js pattern: comment-only catch body is counted', () => {
   write(dir, 'src/a.js', 'try {\n  x();\n} catch (e) {\n  // ignore\n}\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /1 == baseline 1/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -285,8 +298,9 @@ test('js pattern: catch-arrow undefined/null bodies are counted', () => {
   write(dir, 'src/a.js', 'foo().catch(() => undefined);\nbar().catch(() => null);\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /2 == baseline 2/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -297,8 +311,9 @@ test('js pattern: async-arrow empty catch body is counted', () => {
   write(dir, 'src/a.js', 'foo().catch(async () => {});\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /1 == baseline 1/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -309,8 +324,9 @@ test('js pattern: catch-function empty body is counted', () => {
   write(dir, 'src/a.js', 'foo().catch(function () {});\n'); // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /1 == baseline 1/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -323,6 +339,43 @@ test('js pattern: TS-typed catch-arrow params are counted, e.g. (e: unknown) => 
     'src/a.ts',
     'foo().catch((e: unknown) => {});\nbar().catch((_e: any) => undefined);\n', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
   );
+  gitAdd(dir);
+
+  const result = runRatchet(dir, ['--strict']);
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /2 == baseline 2/, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('js pattern: catch-arrow params with interior whitespace are still counted (regression: whitespace handling)', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('undefined/null');
+  writeConfig(dir, singlePatternConfig(pattern, 3));
+  write(
+    dir,
+    'src/a.ts',
+    [
+      'foo().catch(( e ) => {});', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+      'bar().catch((e ) => {});', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+      'baz().catch((e : unknown) => {});', // ratchet-allow(silent-exception-swallowing): fixture string scanned as this repo's own source, not real code
+      '',
+    ].join('\n'),
+  );
+  gitAdd(dir);
+
+  // --strict: baseline is exactly 3, so any count other than 3 (e.g. a
+  // regression back to 0 matches) must fail, not silently pass as "slack".
+  const result = runRatchet(dir, ['--strict']);
+  assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /3 == baseline 3/, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('js pattern: catch-arrow still rejects a real (non-empty) body, e.g. (e) => log(e)', () => {
+  const dir = makeRepo();
+  const pattern = realPattern('undefined/null');
+  writeConfig(dir, singlePatternConfig(pattern, 0));
+  write(dir, 'src/a.ts', 'foo().catch((e) => log(e));\n');
   gitAdd(dir);
 
   const result = runRatchet(dir);
@@ -406,8 +459,9 @@ test('js pattern: block-comment variants still match — { /* ignore */ }, {/***
   );
   gitAdd(dir);
 
-  const result = runRatchet(dir);
+  const result = runRatchet(dir, ['--strict']);
   assert.equal(result.status, 0, result.stdout);
+  assert.match(result.stdout, /3 == baseline 3/, result.stdout);
   rmSync(dir, { recursive: true, force: true });
 });
 
@@ -432,14 +486,25 @@ const FUZZ_FRAGMENTS = {
     Array.from({ length: Math.ceil(n / 4) }, (_, i) => (i % 2 === 0 ? '//\r\n' : '//\n')).join(''),
 };
 
-function wrapForPattern(pattern, fragment) {
-  if (pattern.ext.includes('.py')) return `except ${fragment}:\n    pass\n`;
-  return `catch (e) {${fragment}x }\n`;
-}
+// Every fragment is tried under EVERY wrapper shape, regardless of which
+// pattern is being tested — not just the shape that "obviously" matches a
+// given pattern's own file extension. This is what the third-round fix
+// missed: wrapping every js/ts pattern as `catch (e) {...}` never actually
+// exercised the `.catch(...)` promise patterns, because their own literal
+// `\.catch\(` prefix never matched against that wrapper at all, so the old
+// cubic TS-type regex inside them was never reached by the fuzz corpus.
+const FUZZ_WRAPPERS = {
+  catchBlock: (frag) => `catch (e) {${frag}x }\n`,
+  catchArrowTyped: (frag) => `.catch((e:${frag}) => x)\n`,
+  catchBare: (frag) => `.catch(${frag}\n`,
+  exceptColon: (frag) => `except ${frag}:\n`,
+};
 
 // One node subprocess per case: exec()'s the exact shipped regex against
 // generated content, wall-clock budgeted. Isolated per case so one runaway
-// pattern can't stall or crash the whole fuzz test.
+// pattern can't stall or crash the whole fuzz test. Distinguishes a budget
+// kill (the ReDoS signal) from any other failure (e.g. a bad regex string),
+// which is reported separately rather than lumped in with "slow".
 function execRegexBudgeted(regexSource, content, budgetMs) {
   const script = `
     const re = new RegExp(process.argv[1], 'g');
@@ -452,7 +517,11 @@ function execRegexBudgeted(regexSource, content, budgetMs) {
   const start = Date.now();
   try {
     execFileSync('node', ['-e', script, regexSource, contentFile], { timeout: budgetMs });
-    return Date.now() - start;
+    return { elapsed: Date.now() - start, timedOut: false, error: null };
+  } catch (e) {
+    const elapsed = Date.now() - start;
+    const timedOut = e.signal === 'SIGTERM' || e.killed === true;
+    return { elapsed, timedOut, error: timedOut ? null : String(e.stderr || e.message) };
   } finally {
     rmSync(dirname(contentFile), { recursive: true, force: true });
   }
@@ -464,25 +533,27 @@ test('ReDoS fuzz budget: every pattern check in ratchets.json stays under budget
   assert.ok(patternChecks.length > 0, 'expected at least one pattern check in the real config');
 
   const slow = [];
+  const errors = [];
   for (const check of patternChecks) {
     for (const pattern of check.patterns) {
-      for (const [fragName, fragFn] of Object.entries(FUZZ_FRAGMENTS)) {
-        for (const size of FUZZ_SIZES) {
-          const content = wrapForPattern(pattern, fragFn(size));
-          const label = `${pattern.label} / ${fragName} / ${size}`;
-          let elapsed;
-          try {
-            elapsed = execRegexBudgeted(pattern.regex, content, FUZZ_BUDGET_MS);
-          } catch (e) {
-            slow.push(`${label}: killed at budget (${FUZZ_BUDGET_MS}ms) — ${e.message}`);
-            continue;
+      for (const [wrapperName, wrapFn] of Object.entries(FUZZ_WRAPPERS)) {
+        for (const [fragName, fragFn] of Object.entries(FUZZ_FRAGMENTS)) {
+          for (const size of FUZZ_SIZES) {
+            const content = wrapFn(fragFn(size));
+            const label = `${pattern.label} / ${wrapperName} / ${fragName} / ${size}`;
+            const { elapsed, timedOut, error } = execRegexBudgeted(pattern.regex, content, FUZZ_BUDGET_MS);
+            if (timedOut || elapsed >= FUZZ_BUDGET_MS) {
+              slow.push(`${label}: ${timedOut ? 'killed at budget' : `${elapsed}ms`} (budget ${FUZZ_BUDGET_MS}ms)`);
+            } else if (error) {
+              errors.push(`${label}: ${error}`);
+            }
           }
-          if (elapsed >= FUZZ_BUDGET_MS) slow.push(`${label}: ${elapsed}ms`);
         }
       }
     }
   }
-  assert.equal(slow.length, 0, `ReDoS-suspect pattern/fragment combinations:\n${slow.join('\n')}`);
+  assert.equal(errors.length, 0, `non-timeout failures while fuzzing patterns:\n${errors.join('\n')}`);
+  assert.equal(slow.length, 0, `ReDoS-suspect pattern/wrapper/fragment combinations:\n${slow.join('\n')}`);
 });
 
 // ---------------------------------------------------------------------------
@@ -610,6 +681,64 @@ test('unreferenced: "by" matching the exact whole command IS wired (Makefile rec
 
   const result = runRatchet(dir);
   assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: a leading $(WRAPPER)/$(RUNNER) Makefile-variable convention is stripped before matching "by"', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'node --test scripts/tests/' }],
+    }),
+  );
+  write(dir, 'Makefile', 'test:\n\t$(WRAPPER) $(RUNNER) node --test scripts/tests/\n');
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: a leading VAR=value shell assignment is stripped before matching "by"', () => {
+  const dir = makeRepo();
+  writeConfig(
+    dir,
+    runnersConfig({
+      testGlobs: ['**/*.test.mjs'],
+      wiringFiles: ['Makefile'],
+      runners: [{ covers: ['scripts/tests/*.test.mjs'], by: 'node --test scripts/tests/' }],
+    }),
+  );
+  write(dir, 'Makefile', 'test:\n\tNODE_ENV=test node --test scripts/tests/\n');
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('unreferenced: real config\'s quoted "by" (node --test with a quoted glob, for Node 22 compat) is wired by a matching quoted CI line', () => {
+  const dir = makeRepo();
+  const cfg = JSON.parse(readFileSync(join(realRepoRoot, '.claude', 'ratchets.json'), 'utf8'));
+  const realCheck = cfg.checks.find((c) => c.kind === 'unreferenced');
+  const scriptsTestsRunner = realCheck.runners.find((r) => r.covers.includes('scripts/tests/*.test.mjs'));
+  assert.ok(scriptsTestsRunner.by.includes("'"), 'expected the shipped "by" to be a quoted glob invocation');
+  writeConfig(dir, {
+    roots: ['src', 'tests', 'scripts'],
+    checks: [{ ...realCheck, baseline: 0, runners: [scriptsTestsRunner] }],
+  });
+  write(dir, '.github/workflows/ci.yml', `jobs:\n  lint:\n    steps:\n      - run: ${scriptsTestsRunner.by}\n`);
+  write(dir, 'scripts/tests/foo.test.mjs', '// test\n');
+  gitAdd(dir);
+
+  const result = runRatchet(dir);
+  assert.equal(result.status, 0, result.stdout);
+  assert.doesNotMatch(result.stdout, /not invoked/i);
   rmSync(dir, { recursive: true, force: true });
 });
 

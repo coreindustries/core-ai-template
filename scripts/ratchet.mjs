@@ -213,6 +213,31 @@ function stripHashCommentLines(content) {
 // whether `by` equals one of them exactly — not merely appears as a
 // substring/prefix of a longer command. See ratchets.json's `_comment` for
 // the full rationale and residual limits (trailing comments, echo strings).
+// Strips leading Makefile variable references (`$(WRAPPER)`, `$(RUNNER)`, ...)
+// and leading shell `VAR=value` assignments, repeatedly, so a command like
+// `FOO=bar $(WRAPPER) node --test 'x'` reduces to `node --test 'x'` — the
+// `$(WRAPPER) $(RUNNER) ...` convention used elsewhere in this template's own
+// Makefile would otherwise never match a concrete `by` string.
+function stripLeadingMakeVarsAndAssignments(text) {
+  let s = text;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    let m = s.match(/^\$\([A-Za-z_][A-Za-z0-9_]*\)\s*/);
+    if (m) {
+      s = s.slice(m[0].length);
+      changed = true;
+      continue;
+    }
+    m = s.match(/^[A-Za-z_][A-Za-z0-9_]*=\S*\s*/);
+    if (m) {
+      s = s.slice(m[0].length);
+      changed = true;
+    }
+  }
+  return s;
+}
+
 function commandSegmentsOf(rawLine) {
   const isMakefileRecipe = rawLine.startsWith('\t');
   let line = isMakefileRecipe ? rawLine.slice(1) : rawLine;
@@ -224,7 +249,7 @@ function commandSegmentsOf(rawLine) {
   if (line.startsWith('run:')) line = line.slice(4).trim(); // YAML `run:` step
   return line
     .split(/&&|;|\|/)
-    .map((s) => s.trim())
+    .map((s) => stripLeadingMakeVarsAndAssignments(s.trim()).trim())
     .filter(Boolean);
 }
 

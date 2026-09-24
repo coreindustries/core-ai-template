@@ -53,8 +53,13 @@ jobs:
       - name: Ratchet gates (silent failures, orphaned tests)
         run: node scripts/ratchet.mjs
 
+      # Quoted glob, not a bare directory: Node 22 (this runner's default)
+      # treats `node --test scripts/tests/` as a file path and fails with
+      # MODULE_NOT_FOUND. Node's own directory-recursion support for --test
+      # is newer than 22. Verified: node:22 rejects the directory form,
+      # accepts the quoted glob.
       - name: Run ratchet.mjs's own test suite
-        run: node --test scripts/tests/
+        run: node --test 'scripts/tests/*.test.mjs'
 
       - name: Check project initialized
         id: init
