@@ -66,7 +66,12 @@ fi
 
 step "doc IDs"
 if [ -n "$CHANGED" ]; then
-  "$LANES_REPO_ROOT/scripts/assert-doc-ids.sh" "origin/${BASE}" HEAD || bad "new PRD/ADR uses a sequential ID"
+  "$LANES_REPO_ROOT/scripts/assert-doc-ids.sh" "origin/${BASE}" HEAD
+  case $? in
+    0) ;;
+    1) bad "new PRD/ADR uses a sequential ID" ;;
+    *) bad "doc ID check could not run (see output above)" ;;
+  esac
 fi
 
 step "ratchets"

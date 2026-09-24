@@ -3,10 +3,13 @@ name: Doc ID Lint
 # A PRD or ADR added by a PR must be named by date+slug (YYYY-MM-DD-<slug>.md),
 # not "the next number". Parallel agents taking the next number collide, and
 # nobody finds out until both merge. Numbered docs already on main are
-# grandfathered; only additions are checked.
+# grandfathered; only additions (including renames) are checked.
 #
-# Security note: the gate script runs from the BASE commit, so a PR cannot edit
-# the script to pass itself. The PR head is fetched only as data to diff.
+# The gate script is copied out of the BASE commit, so a PR cannot edit the
+# script to pass itself. (A PR can still edit this workflow file; review
+# changes to it.) No fetch after checkout: the default merge-ref checkout with
+# full history already contains both base and head, and needs no credentials,
+# so this works on private repos.
 
 on:
   pull_request:
@@ -26,23 +29,19 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Fetch PR head (as data)
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
 
       - name: New PRD/ADR files use date+slug IDs
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
+          gate="$RUNNER_TEMP/assert-doc-ids.sh"
           # Absent only on the base of the PR that introduces the script.
-          if [ ! -x scripts/assert-doc-ids.sh ]; then
+          if ! git show "${BASE_SHA}:scripts/assert-doc-ids.sh" > "$gate" 2>/dev/null; then
             echo "::warning title=Doc ID lint skipped::scripts/assert-doc-ids.sh is not on the base commit yet — IDs not checked"
             exit 0
           fi
-          scripts/assert-doc-ids.sh "$BASE_SHA" refs/remotes/pr/head
+          bash "$gate" "$BASE_SHA" "$HEAD_SHA"

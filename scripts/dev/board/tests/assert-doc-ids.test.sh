@@ -62,12 +62,37 @@ case_ "no doc changes passes"                    0
 case_ "date+slug PRD passes"                     0 prd/2026-09-24-oauth-login.md
 case_ "date+slug ADR passes"                     0 docs/decisions/2026-09-24-queue-backend.md
 case_ "task files are not IDs"                   0 prd/tasks/oauth_tasks.md
-case_ "template/index files are not IDs"         0 prd/00_roadmap.md prd/_task_template.md docs/decisions/README.md
+case_ "template/index files are not IDs"         0 prd/00_technology.md prd/_task_template.md docs/decisions/README.md
 case_ "new numbered PRD fails"                   1 prd/06-next-thing.md
 case_ "new numbered ADR fails"                   1 docs/decisions/0002-next-thing.md
 case_ "PRD- prefixed numbered fails"             1 prd/PRD-07-thing.md
 case_ "uppercase slug fails"                     1 prd/2026-09-24-OAuth.md
 case_ "one bad among good still fails"           1 prd/2026-09-24-good.md docs/decisions/0002-bad.md
+case_ "'template' in a slug is no exemption"     1 prd/07-template-engine.md
+case_ "00_ prefix is no exemption"               1 prd/00_new-feature.md
+case_ "uppercase .MD extension still checked"    1 prd/07-thing.MD
+case_ "non-ASCII name still checked"             1 "prd/07-café.md"
+case_ "impossible date fails"                    1 prd/2026-13-40-x.md
+
+# Renames are additions of the destination name: renumbering is how a shared
+# counter sneaks back in.
+rename_case() {
+  local name="$1" from="$2" to="$3"
+  git -C "$REPO" checkout -q -B "case" "$BASE"
+  if [ ! -e "$REPO/$from" ]; then
+    echo "seed" > "$REPO/$from"; git -C "$REPO" add -A; git -C "$REPO" commit -q -m "add $from"
+  fi
+  local from_base; from_base="$(git -C "$REPO" rev-parse HEAD)"
+  git -C "$REPO" mv "$from" "$to"
+  git -C "$REPO" commit -q -m "rename"
+  if ( cd "$REPO" && "$GATE" "$from_base" HEAD >/dev/null 2>&1 ); then
+    fail "$name: rename $from -> $to should fail"
+  else
+    pass "$name"
+  fi
+}
+rename_case "renaming dated -> numbered fails"   prd/2026-09-24-x.md prd/07-x.md
+rename_case "renumbering a legacy doc fails"     prd/05-legacy.md    prd/06-legacy.md
 
 # Grandfathering: editing an existing numbered doc is not an addition.
 git -C "$REPO" checkout -q -B "case" "$BASE"

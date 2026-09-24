@@ -27,7 +27,7 @@ Confirm before any operation that deletes, drops, truncates, or overwrites.
 
 - **Defaults to a dry run** that reports what it would do and changes nothing.
 - **Mutates only with two keys:** `APPLY=1` *and* a target-specific `<NAME>_AUTHORIZED=1`. The second key is named for the target, so an `APPLY=1` copied from a different command cannot authorize this one.
-- **Fails with the exact command to run** when a key is missing.
+- **Fails with the exact command to run** when a key is missing, and when `APPLY` is set to anything other than `1` (`APPLY=true` must not quietly dry-run and exit 0; a pipeline would read that as success).
 
 `make db-push` is the reference implementation (`APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push`). Local, rebuildable state such as `make db-reset` on a local database is exempt.
 

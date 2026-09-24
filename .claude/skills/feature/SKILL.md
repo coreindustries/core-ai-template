@@ -147,7 +147,7 @@ echo "PRD-$(date -u +%F)-<kebab-slug>"   # e.g. PRD-2026-09-24-oauth-login
 
 ### Step 2.3: Create PRD File
 
-Create `prd/YYYY-MM-DD-<slug>.md` following the template:
+Create `prd/YYYY-MM-DD-<slug>.md` following the template. The filename has **no** `PRD-` prefix; the prefix appears only in the heading and in `depends_on` references. `prd/PRD-2026-…md` is rejected by the gate.
 
 ```markdown
 ---
