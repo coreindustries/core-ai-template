@@ -2,6 +2,17 @@
 
 Security and behavioral standards for all AI coding agents working in this repository.
 
+## Agent Skills
+
+Codex discovers repository skills under `.agents/skills/`. The lane entries there point to the
+canonical workflows in `.claude/skills/`; read those workflows and the shared agent protocol before
+acting in a lane.
+
+- `feature-agent`: FEATURES lane
+- `bugfix-agent`: BUGFIXES lane
+- `release-manager`: RELEASE-MANAGER lane
+- `prd-manager`: PRD-MANAGER lane
+
 ## Security Standards
 
 ### Files AI Tools Must Never Access
