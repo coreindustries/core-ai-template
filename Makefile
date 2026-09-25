@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test
+.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test ratchet
 
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
@@ -211,6 +211,9 @@ deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-securit
 	@scripts/audit-dependencies.sh
 	@echo "  ✓ deps pinned + aged + audited"
 
+ratchet: ## Ratchet gates: fail on regression AND on stale-baseline slack (.claude/ratchets.json). CI itself runs non-strict; use --update to resync.
+	@node scripts/ratchet.mjs --strict
+
 agent-models: ## Write .claude/agent-models.json pins into agent frontmatter
 	@node scripts/sync-agent-models.mjs
 
@@ -278,6 +281,9 @@ quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@echo ""
 	@echo "=== Secrets & PII ==="
 	@scripts/scan-secrets.sh --all
+	@echo ""
+	@echo "=== Ratchet gates ==="
+	@node scripts/ratchet.mjs --strict
 	@echo ""
 	@echo "=== Tests ==="
 	{test_coverage_command}
