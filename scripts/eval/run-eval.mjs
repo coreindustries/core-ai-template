@@ -289,8 +289,12 @@ function killGroup(pgid) {
     process.kill(-pgid, 'SIGKILL');
   } catch (err) {
     // ESRCH: the group is already gone, so there is nothing to clean up.
-    // Anything else (e.g. EPERM) is unexpected and must surface.
-    if (err.code !== 'ESRCH') throw err;
+    // Anything else (e.g. EPERM when a group member is setuid) is reported,
+    // not thrown: callers are cleanup loops and signal handlers that must
+    // still kill every other group and exit with their own code.
+    if (err.code !== 'ESRCH') {
+      process.stderr.write(`run-eval: could not kill scorer process group ${pgid}: ${err.code || err.message}\n`);
+    }
   }
 }
 
