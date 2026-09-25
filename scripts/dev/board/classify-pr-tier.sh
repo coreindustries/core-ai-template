@@ -43,7 +43,9 @@ PR_NUMBER="${1:-}"
 # undefined state, and every failure must be treated at least as
 # conservatively as the highest-risk classification.
 fail_closed() {
-  echo "::warning title=Auto-merge classifier fail-closed::${1}" >&2
+  # The workflow labels tier 3 needs-review, which holds every later run too:
+  # say so, since a transient error can cause the hold.
+  echo "::warning title=Auto-merge classifier fail-closed::${1} — held as needs-review; remove that label to reclassify once the cause is fixed" >&2
   echo "tier=3"
   exit 0
 }

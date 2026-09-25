@@ -13,7 +13,7 @@ name: Auto-Merge Policy
 # (scripts/dev/board/tests/classify-pr-tier.test.sh) rather than only
 # exercised by a live PR.
 #
-# Concurrency: one run per PR, cancelling any run still sleeping through the
+# Concurrency (job-level, see tier-check): one run per PR, cancelling any run still sleeping through the
 # Tier-1 review window — a later push that reclassifies the PR (e.g. adds a
 # prd/ file, making it Tier 3) must not let a stale Tier-1 run enable
 # auto-merge out from under the new classification.
@@ -31,10 +31,6 @@ permissions:
   pull-requests: write
   contents: write
 
-concurrency:
-  group: auto-merge-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
-
 jobs:
   tier-check:
     name: Classify PR tier and configure merge
@@ -42,6 +38,13 @@ jobs:
     # would cancel a sleeping Tier-1 run and restart its window. Only title
     # and base changes can change the tier.
     if: github.event.action != 'edited' || github.event.changes.title != null || github.event.changes.base != null
+    # Job-level, not workflow-level: a workflow-level group is joined before
+    # the `if:` above is evaluated, so a body-only edit would cancel a
+    # sleeping Tier-1 run and then skip itself — auto-merge silently never
+    # enabled. A job skipped by `if:` never joins this group.
+    concurrency:
+      group: auto-merge-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:

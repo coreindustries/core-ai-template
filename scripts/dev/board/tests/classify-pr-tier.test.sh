@@ -59,13 +59,19 @@ if [ "${1:-}" = "api" ]; then
     echo "fake gh: api call with no --jq filter: $*" >&2
     exit 1
   fi
+  # FAKE_PR_FILES_FILE: large fixtures live in a file — Linux caps a single
+  # environment variable at 128KB (MAX_ARG_STRLEN), so a big JSON in
+  # FAKE_PR_FILES_JSON makes exec fail with 126 before gh even runs.
+  files_json() {
+    if [ -n "${FAKE_PR_FILES_FILE:-}" ]; then cat "$FAKE_PR_FILES_FILE"; else printf '%s' "${FAKE_PR_FILES_JSON:-[]}"; fi
+  }
   case "$*" in
     */files*)
-      printf '%s' "${FAKE_PR_FILES_JSON:-[]}" | jq -r "$jq_filter" ;;
+      files_json | jq -r "$jq_filter" ;;
     *)
       # PR metadata (repos/<r>/pulls/<n>): changed_files defaults to the
-      # number of entries in FAKE_PR_FILES_JSON, i.e. a consistent PR.
-      meta="${FAKE_PR_META_JSON:-$(printf '%s' "${FAKE_PR_FILES_JSON:-[]}" | jq -c '{changed_files: length}')}"
+      # number of listed files, i.e. a consistent PR.
+      meta="${FAKE_PR_META_JSON:-$(files_json | jq -c '{changed_files: length}')}"
       printf '%s' "$meta" | jq -r "$jq_filter" ;;
   esac
   exit 0
@@ -78,7 +84,7 @@ chmod +x "$FAKE_BIN/gh"
 export PATH="$FAKE_BIN:$PATH"
 
 reset_env() {
-  unset FAKE_PR_FILES_JSON FAKE_PR_META_JSON FAKE_GH_API_FAIL PR_TITLE LABELS
+  unset FAKE_PR_FILES_JSON FAKE_PR_FILES_FILE FAKE_PR_META_JSON FAKE_GH_API_FAIL PR_TITLE LABELS
   : > "$FAKE_GH_LOG"
 }
 
@@ -197,7 +203,8 @@ files = [{"filename": "prd/2026-09-25-example.md"}]
 files += [{"filename": "src/some/fairly/long/directory/name/file-%05d.ts" % i} for i in range(2500)]
 print(json.dumps(files))
 ')"
-export FAKE_PR_FILES_JSON="$files_json"
+printf '%s' "$files_json" > "$WORK/case7-files.json"
+export FAKE_PR_FILES_FILE="$WORK/case7-files.json"
 out="$(run_classify 108 2>"$WORK/case7.err")"; rc=$?
 if [ "$rc" = "0" ] && [ "$out" = "tier=3" ]; then
   pass "a prd/ path followed by >64KB of other paths still forces tier=3 (no SIGPIPE fail-open)"
@@ -307,6 +314,17 @@ if printf '%s' "$WORKFLOW_TEXT" | grep -qE "steps\.tier\.outputs\.tier == '3'" \
   pass "auto-merge.yml revokes auto-merge on tier 3 (--disable-auto)"
 else
   fail "auto-merge.yml has no tier==3 step calling --disable-auto"
+fi
+
+# Job-level, not workflow-level: a workflow-level group is joined before the
+# job's `if:` runs, so a skipped body-only `edited` run would still cancel a
+# sleeping Tier-1 run.
+# Text check (no PyYAML dependency): no column-0 `concurrency:` key, and an
+# indented one present.
+if ! grep -qE '^concurrency:' <<<"$WORKFLOW_TEXT" && grep -qE '^[[:space:]]+concurrency:' <<<"$WORKFLOW_TEXT"; then
+  pass "auto-merge.yml concurrency group is job-level (tier-check), not workflow-level"
+else
+  fail "auto-merge.yml concurrency must be on jobs.tier-check, not at workflow level"
 fi
 
 enable_calls="$(grep -c -- '--auto --squash' <<<"$WORKFLOW_TEXT")"
