@@ -1,6 +1,7 @@
 ---
 prd_version: "1.0"
-status: "Draft" # Draft | Active | Deprecated
+prd_id: PRD-YYYY-MM-DD-{slug} # must match the filename: prd/YYYY-MM-DD-{slug}.md
+status: "Draft" # Draft | Active | Complete | Superseded (add superseded_by) | Deprecated
 priority: "P1" # P0 (Critical) | P1 (High) | P2 (Medium) | P3 (Low)
 last_updated: "YYYY-MM-DD"
 owner: "@github-handle"

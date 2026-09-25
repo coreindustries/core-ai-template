@@ -13,14 +13,17 @@
 # duplicate that here.
 #
 # Usage:
-#   issue-watch.sh --agent <NAME> [--lane bug|feature] [--interval SEC=60]
+#   issue-watch.sh --agent <NAME> [--lane bug|feature|prd] [--interval SEC=60]
 #                   [--once] [--state-dir DIR]
 #
 #   --agent NAME    This agent's name, e.g. C-BUGFIX-136d. Selects the
 #                    `agent:<NAME>` label for the ISSUE-EVENT scan.
-#   --lane bug|feature
+#   --lane bug|feature|prd
 #                    Enables the QUEUE scan for `lane:<LANE>` issues. Omit to
 #                    skip QUEUE entirely (NEW-ISSUE and ISSUE-EVENT still run).
+#                    Must mirror board.sh's VALID_LANES minus release (which
+#                    doesn't watch the issue queue) — every lane agent that
+#                    does runs `watch --lane <l>` (agent-protocol.md).
 #   --interval SEC   Seconds between polls in loop mode (default 60, floor 15
 #                    — a smaller value hot-loops gh api calls).
 #   --once           Poll exactly once instead of looping, then exit 0.
@@ -157,7 +160,7 @@ INTAKE_EXCLUDE_JSON="$(lanes_cfg '(.intake.excludeLabels // []) | tojson' '[]')"
 
 usage() {
   cat <<'EOF'
-issue-watch.sh --agent <NAME> [--lane bug|feature] [--interval SEC=60] [--once] [--state-dir DIR]
+issue-watch.sh --agent <NAME> [--lane bug|feature|prd] [--interval SEC=60] [--once] [--state-dir DIR]
 
 See the header comment in this file for the full event/dedup contract.
 EOF
@@ -473,10 +476,16 @@ main() {
   done
 
   [ -n "$AGENT" ] || { usage >&2; die "--agent NAME is required"; }
-  if [ -n "$LANE" ] && [ "$LANE" != "bug" ] && [ "$LANE" != "feature" ]; then
-    usage >&2
-    die "--lane must be 'bug' or 'feature', got: ${LANE}"
-  fi
+  # Mirrors board.sh's VALID_LANES ("bug feature release prd") for the lanes
+  # that actually run `watch --lane <l>` — release doesn't (it works off
+  # `deploy-queue`, not the issue queue), so it stays out of this list too.
+  case "$LANE" in
+    ''|bug|feature|prd) ;;
+    *)
+      usage >&2
+      die "--lane must be one of: bug feature prd — got: ${LANE}"
+      ;;
+  esac
   case "$INTERVAL" in
     ''|*[!0-9]*) usage >&2; die "--interval must be a positive integer, got: ${INTERVAL}" ;;
   esac

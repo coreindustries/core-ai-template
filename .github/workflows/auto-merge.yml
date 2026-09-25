@@ -31,11 +31,39 @@ jobs:
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           TITLE="$PR_TITLE"
 
+          # prd/ is sensitive for a different reason than the area labels
+          # below: a "grooming-only" PRD PR can still change scope under the
+          # hood — flipping a PRD's frontmatter `status` to
+          # Superseded/Deprecated hides its FRs from `board.sh prd-scan`
+          # (which skips deprecated/superseded/dropped/cancelled PRDs), and
+          # adding FR ids to a previously-unnumbered PRD creates real
+          # FEATURES-lane work. The prd-manager skill's own commit-prefix
+          # convention (📝 docs(prd): vs ✨ feat(prd):) is a hint for
+          # reviewers, not a merge-path decision, so this reads the actual
+          # changed files rather than trusting the prefix — and it can't
+          # depend on the labeler workflow's area/agent label either: that
+          # workflow races this one on the same PR events (both trigger on
+          # opened/synchronize/reopened) and area/agent covers more than just
+          # prd/ anyway (`.claude/**`, `docs/decisions/**`, ...).
+          # PRD_SENSITIVE_PATTERN mirrors the PRD root directory in
+          # `.claude/agent-lanes.json`'s `prd.glob` — hardcoded here because
+          # this step has no jq/config reader available; keep the two in
+          # sync if the PRD directory ever moves. Pinned by
+          # scripts/dev/board/tests/auto-merge-sensitive-paths.test.sh, which
+          # reads this exact line out of this file.
+          PRD_SENSITIVE_PATTERN='^prd/'
+          CHANGED_FILES="$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path')"
+
+          if printf '%s\n' "$CHANGED_FILES" | grep -qE "$PRD_SENSITIVE_PATTERN"; then
+            echo "tier=3" >> "$GITHUB_OUTPUT"
+
           # Tier 3: protected areas set by labeler.yml
-          if echo "$LABELS" | grep -qE '"area/(auth|billing|database|infra)"'; then
+          elif echo "$LABELS" | grep -qE '"area/(auth|billing|database|infra)"'; then
             echo "tier=3" >> "$GITHUB_OUTPUT"
 
           # Tier 0: chore, docs, style (with or without gitmoji prefix)

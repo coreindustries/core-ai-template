@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # agent-role.sh — UserPromptSubmit hook (wired in .claude/settings.json).
 # Detects a prompt that assigns THIS session a standing lane role — Release
-# Manager, feature agent, or bugfix agent — and records it to
+# Manager, feature agent, bugfix agent, or PRD manager — and records it to
 # <state-dir>/<session_id>.json, so agent-compact.sh can remind the session who
 # it is after compaction or resume, when the assigning prompt is gone.
 #
@@ -22,11 +22,15 @@
 #   feature  ^/feature-agent   | ^you are (the |a )?feature (manager|agent|lane)
 #   bugfix   ^/bugfix-agent    | ^you (handle|do|own) (the )?bug ?fix(es)?
 #                              | ^you are (the |a )?bug ?fix(es)? (manager|agent|lane)
+#   prd      ^/prd-manager     | ^you are (the |a )?(prd|product requirements?) (manager|agent|lane)
 # A lane number ("feature agent 2") is taken ONLY when it directly follows the
 # role noun in that anchored span; a number elsewhere ("... for issue #123")
-# falls back to the first four characters of the session id.
-# Names: <P>-RELEASE, <P>-FEATURE-<id>, <P>-BUGFIX-<id>; <P> = namePrefix in
-# .claude/agent-lanes.json (default C).
+# falls back to the first four characters of the session id. release and prd
+# are both SINGLETON lanes (their ROLES entry's number-pattern is None), so a
+# trailing number in the prompt ("you are the PRD manager 2") is simply never
+# looked at — they always name C-RELEASE / C-PRD.
+# Names: <P>-RELEASE, <P>-FEATURE-<id>, <P>-BUGFIX-<id>, <P>-PRD; <P> =
+# namePrefix in .claude/agent-lanes.json (default C).
 set -uo pipefail
 
 # shellcheck disable=SC1091
@@ -68,6 +72,10 @@ ROLES = [
         r"^\s*you (?:handle|do|own) (?:the )?bug ?fix(?:es)?\b",
         r"^\s*you are (?:the |a )?bug ?fix(?:es)? (?:manager|agent|lane)\b",
     ], r"^\s*you are (?:the |a )?bug ?fix(?:es)? (?:manager|agent|lane)\s*#?(\d{1,3})\b"),
+    ("prd", "prd-manager", [
+        r"^\s*/prd-manager\b",
+        r"^\s*you are (?:the |a )?(?:prd|product requirements?) (?:manager|agent|lane)\b",
+    ], None),
 ]
 
 match = next(((r, s, n) for r, s, pats, n in ROLES
@@ -90,6 +98,8 @@ if existing is not None and existing.get("role") == role:
 
 if role == "release":
     name = "%s-RELEASE" % prefix
+elif role == "prd":
+    name = "%s-PRD" % prefix
 else:
     m = re.search(num_pattern, prompt, re.IGNORECASE)
     name = "%s-%s-%s" % (prefix, role.upper(), m.group(1) if m else (session_id[:4] or "0000"))

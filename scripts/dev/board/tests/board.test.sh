@@ -1758,6 +1758,19 @@ else
   fail "checkout --worktree: slug fallback (rc=$rc4 out=[$out4])"
 fi
 
+# 5. lane:prd issue -> docs/ branch prefix (PRD-manager lane, C-PRD): a PRD
+# PR's commit-prefix convention is docs(prd)/feat(prd) (prd-manager SKILL.md
+# §6), so its worktree branch defaults to the docs/ prefix too.
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"title":"groom prd/2026-09-25-example.md","state":"OPEN","labels":[{"name":"lane:prd"},{"name":"agent:ME"},{"name":"state:implementing"}]}'
+out5="$(PATH="$WT_TEST_PATH" LANES_CONFIG="$LANES_FIXTURE" LANES_REPO_ROOT="$REPO_ROOT" bash "$BOARD" checkout 4244 ME --worktree 2>&1)"; rc5=$?
+if [ "$rc5" = "0" ] \
+   && printf '%s' "$out5" | grep -qF "checkout: worktree ${WT_MAIN}/.worktrees/4244-groom-prd-2026-09-25-example-md on docs/4244-groom-prd-2026-09-25-example-md" \
+   && [ -d "${WT_MAIN}/.worktrees/4244-groom-prd-2026-09-25-example-md" ]; then
+  pass "checkout --worktree: lane:prd issue uses the docs/ branch prefix"
+else
+  fail "checkout --worktree: lane:prd docs/ prefix (rc=$rc5 out=[$out5])"
+fi
+
 unset BOARD_REPO BOARD_ISSUE_DIR FAKE_API_JSON BOARD_MAIN_ROOT
 
 print_summary "board.sh / release-prs.sh"

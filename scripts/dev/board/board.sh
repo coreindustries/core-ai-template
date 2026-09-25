@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # board.sh — deterministic GitHub-Issues coordination CLI for the bugfix/
-# feature/release-manager agent lanes. GitHub Issues are the single source of
-# truth for coordinated work; the repetitive coordination is done by this TOOL,
-# not by model calls that rediscover state.
+# feature/release-manager/PRD-manager agent lanes. GitHub Issues are the
+# single source of truth for coordinated work; the repetitive coordination is
+# done by this TOOL, not by model calls that rediscover state.
 #
 # Every subcommand shells `gh` (never a hand-rolled REST client) so this
 # stays in lockstep with whatever `gh` itself supports, and every subcommand
@@ -15,7 +15,7 @@
 #
 # Label taxonomy (.claude/skills/_shared/agent-protocol.md §2; created by
 # `board.sh init-labels`):
-#   lane:bug | lane:feature | lane:release   — which agent lane owns the issue
+#   lane:bug | lane:feature | lane:release | lane:prd   — which agent lane owns the issue
 #   P0..P3                                    — priority
 #   state:backlog|implementing|built|deployed|verifying|blocked|dropped|done
 #   agent:<NAME>                              — current claimant (0 or 1)
@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEFAULT_BRANCH="$(lanes_cfg '.defaultBranch' main)"
 
 VALID_STATES="backlog implementing built deployed verifying done blocked dropped"
-VALID_LANES="bug feature release"
+VALID_LANES="bug feature release prd"
 
 # ---------------------------------------------------------------------------
 # Stale-claim reclaim — shared by `list --stale`, `render` and `reclaim`.
@@ -416,7 +416,7 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# list [--lane bug|feature|release] [--state <s>] [--agent <NAME>] [--unclaimed] [--json]
+# list [--lane bug|feature|release|prd] [--state <s>] [--agent <NAME>] [--unclaimed] [--json]
 # ---------------------------------------------------------------------------
 cmd_list() {
   require_gh; require_jq
@@ -493,7 +493,7 @@ cmd_list() {
 }
 
 # ---------------------------------------------------------------------------
-# next --lane bug|feature --agent <NAME>
+# next --lane bug|feature|prd --agent <NAME>
 # ---------------------------------------------------------------------------
 cmd_next() {
   require_gh; require_jq
@@ -938,7 +938,7 @@ cmd_handoff() {
 
 # ---------------------------------------------------------------------------
 # show <issue> [issue-fetch.sh options] — issue text + downloaded screenshots
-# watch --agent <NAME> [--lane bug|feature] [...] — issue events for Monitor
+# watch --agent <NAME> [--lane bug|feature|prd] [...] — issue events for Monitor
 #
 # Both `exec` into a child script and never return to this process — bash
 # does NOT run EXIT traps on a successful exec (the process image is simply
@@ -1025,6 +1025,7 @@ cmd_checkout() {
     case "$labels" in
       *lane:feature*) prefix=feat ;;
       *lane:bug*) prefix=fix ;;
+      *lane:prd*) prefix=docs ;;
       *) prefix=chore ;;
     esac
     slug="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed -e 's/^-//' -e 's/-$//' | cut -c1-40 | sed 's/-$//')"
@@ -1177,7 +1178,7 @@ HTML_HEAD
 <script>
 (function () {
   var data = JSON.parse(document.getElementById('board-data').textContent);
-  var lanes = ['bug', 'feature', 'release'];
+  var lanes = ['bug', 'feature', 'release', 'prd'];
   var states = ['backlog', 'implementing', 'built', 'deployed', 'verifying', 'blocked'];
   var root = document.getElementById('root');
   lanes.forEach(function (lane) {
@@ -1425,7 +1426,7 @@ cmd_project_sync() {
     || die "project-sync: gh project field-list failed for project #${number}: ${fields_json}" 2
 
   # name|type|csv-options (csv empty for TEXT)
-  local field_defs="Lane|SINGLE_SELECT|bug,feature,release
+  local field_defs="Lane|SINGLE_SELECT|bug,feature,release,prd
 State|SINGLE_SELECT|backlog,implementing,built,deployed,verifying,blocked,done,dropped
 Priority|SINGLE_SELECT|P0,P1,P2,P3
 Agent|TEXT|"
@@ -2002,7 +2003,7 @@ board.sh — deterministic GitHub-Issues coordination CLI
   handoff <issue> --file <md>
   comment <issue> --file <md>
   show <issue> [--out DIR] [--no-comments]     (text + screenshots, via issue-fetch.sh)
-  watch --agent <NAME> [--lane bug|feature]    (issue events for Monitor, via issue-watch.sh)
+  watch --agent <NAME> [--lane bug|feature|prd]    (issue events for Monitor, via issue-watch.sh)
   checkout <issue> <NAME> [--worktree]         (claim + implementing + show [+ worktree])
   deploy-queue [--json]
   render --out <file.html> [--hash-file <path>]

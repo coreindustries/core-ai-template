@@ -295,7 +295,7 @@ if [ "$rc" = "0" ] \
    && printf '%s' "$out" | grep -q "created field: Priority" \
    && printf '%s' "$out" | grep -q "created field: Agent" \
    && ! printf '%s' "$out" | grep -q "created field: State" \
-   && grep -q -- 'project field-create 5 --owner example-org --name Lane --data-type SINGLE_SELECT --single-select-options bug,feature,release' "$FAKE_GH_LOG" \
+   && grep -q -- 'project field-create 5 --owner example-org --name Lane --data-type SINGLE_SELECT --single-select-options bug,feature,release,prd' "$FAKE_GH_LOG" \
    && grep -q -- 'project field-create 5 --owner example-org --name Agent --data-type TEXT' "$FAKE_GH_LOG" \
    && [ "$field_list_calls" = "2" ]; then
   pass "project-sync: creates the 3 missing fields (Lane, Priority, Agent), leaves existing State alone, refetches once"
@@ -391,6 +391,35 @@ if [ "$rc" = "0" ] \
   pass "project-sync: missing P0-P3 label is left unset and counted in the WARN unmapped summary"
 else
   fail "project-sync: unmapped-label-warning (rc=$rc out=[$out] err=[$(cat "$WORK/unmapped.err")])"
+fi
+
+# ===========================================================================
+# 6b. missing single-select OPTION (not the whole field): a lane:prd issue
+# against a Lane field that already exists on the live project but was
+# created before the prd lane existed (FULL_FIELDS_JSON's Lane options are
+# still bug/feature/release only — see its definition above). `gh` CLI
+# cannot add an option to an existing single-select field, so this must WARN
+# and leave Lane unset rather than erroring the whole sync — see README.md's
+# "Adding a new lane to an already-created project".
+# ===========================================================================
+reset_env
+export FAKE_PROJECT_VIEW_JSON='{"id":"PVT_5","number":5,"title":"Agent Work Board"}'
+export FAKE_PROJECT_FIELD_LIST_JSON="$FULL_FIELDS_JSON"
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":702,"title":"groom a PRD","state":"OPEN","url":"https://example/702","labels":[{"name":"lane:prd"},{"name":"state:backlog"},{"name":"P2"}]}
+]'
+export FAKE_ISSUE_LIST_CLOSED_JSON='[]'
+
+out="$(bash "$BOARD" project-sync --number 5 2>"$WORK/missing-option.err")"
+rc=$?
+if [ "$rc" = "0" ] \
+   && grep -q "WARN #702 field 'Lane' on project #5 has no option 'prd'" "$WORK/missing-option.err" \
+   && grep -qi "gh CLI cannot add an option to an existing single-select field" "$WORK/missing-option.err" \
+   && printf '%s' "$out" | grep -q "^SYNCED #702 lane=prd state=backlog p=P2 agent=-$" \
+   && printf '%s' "$out" | grep -q "SUMMARY synced=1 warned=1"; then
+  pass "project-sync: Lane field exists but lacks the 'prd' option -> WARN, left unset, counted, sync still completes"
+else
+  fail "project-sync: missing-lane-option (rc=$rc out=[$out] err=[$(cat "$WORK/missing-option.err")])"
 fi
 
 # ===========================================================================

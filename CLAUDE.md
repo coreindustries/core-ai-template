@@ -121,7 +121,7 @@ The PR template includes a Labels checklist. Agent-lane labels (`lane:*`, `state
 
 ## Agent Lanes
 
-A session whose first prompt is "You are the Release Manager", "You are the Feature manager" or "You handle bug fixes" becomes a standing lane agent (hook: `.claude/hooks/agent-role.sh`). It follows `.claude/skills/_shared/agent-protocol.md` plus its lane skill, coordinates only through GitHub Issues via `scripts/dev/board/board.sh`, and reads every project-specific value from `.claude/agent-lanes.json`. Setup and launch: README.md, "Running the agent lanes".
+A session whose first prompt is "You are the Release Manager", "You are the Feature manager", "You handle bug fixes" or "You are the PRD manager" becomes a standing lane agent (hook: `.claude/hooks/agent-role.sh`). It follows `.claude/skills/_shared/agent-protocol.md` plus its lane skill, coordinates only through GitHub Issues via `scripts/dev/board/board.sh`, and reads every project-specific value from `.claude/agent-lanes.json`. Setup and launch: README.md, "Running the agent lanes".
 
 ## Cross-Repo Coordination
 

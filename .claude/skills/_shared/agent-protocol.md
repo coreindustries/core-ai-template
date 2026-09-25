@@ -1,9 +1,9 @@
 # Agent lanes — the shared protocol
 
-**Not a skill.** The architecture that `release-manager`, `feature-agent` and `bugfix-agent` all
-load. Anything shared lives here exactly once; a lane's SKILL.md holds only what is specific to
-that lane. Project-specific values (environments, commands, PRD layout, name prefix) live in
-`.claude/agent-lanes.json` — never in this file or a SKILL.md.
+**Not a skill.** The architecture that `release-manager`, `feature-agent`, `bugfix-agent` and
+`prd-manager` all load. Anything shared lives here exactly once; a lane's SKILL.md holds only what
+is specific to that lane. Project-specific values (environments, commands, PRD layout, name prefix)
+live in `.claude/agent-lanes.json` — never in this file or a SKILL.md.
 
 `<P>` below is `namePrefix` from that config (default `C`).
 
@@ -16,6 +16,7 @@ The operator opens `claude` in the main checkout and says one sentence:
 | "You are the Release Manager" | release | `<P>-RELEASE` (one at a time) | `release-manager` |
 | "You are the Feature manager" / "You are feature agent 2" | feature | `<P>-FEATURE-<id>` | `feature-agent` |
 | "You handle bug fixes" / "You are bugfix agent 3" | bugfix | `<P>-BUGFIX-<id>` | `bugfix-agent` |
+| "You are the PRD manager" | prd | `<P>-PRD` (one at a time) | `prd-manager` |
 
 The sentence must **start** the prompt; the same words later in a prompt are ignored.
 
@@ -29,24 +30,24 @@ After every compaction or resume, the `SessionStart` hook (`.claude/hooks/agent-
 re-injects your role, claimed issues and open PRs. Obey it: re-read your SKILL.md and this file,
 then re-arm your PR watch (§7). A compaction summary alone does not keep a lane.
 
-Run any number of FEATURE and BUGFIX agents at once; run one RELEASE-MANAGER. For long sessions,
-compact early: `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude`.
+Run any number of FEATURE and BUGFIX agents at once; run one RELEASE-MANAGER and one PRD-MANAGER.
+For long sessions, compact early: `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude`.
 
 ## 1. Lanes
 
-| | FEATURES | BUGFIXES | RELEASE-MANAGER |
-|---|---|---|---|
-| Owns | PRD requirements not yet built → merged PRs | `lane:bug` issues → merged PRs that fix the class | merged `needs-deploy` PRs → proven on every environment |
-| Finds work | `board.sh prd-scan` → `file-feature` → `next --lane feature` | `board.sh next --lane bug` | `board.sh deploy-queue`, `ladder.sh health --all`, `release-prs.sh` |
-| Ends at | PR merged, labeled `needs-deploy` if deploy-bound | same | `state:done` after proof on the deployed target |
-| Never | deploys, merges, edits another lane's claims | same | merges, writes feature code (files a `lane:bug` issue instead) |
+| | FEATURES | BUGFIXES | RELEASE-MANAGER | PRD-MANAGER |
+|---|---|---|---|---|
+| Owns | PRD requirements not yet built → merged PRs | `lane:bug` issues → merged PRs that fix the class | merged `needs-deploy` PRs → proven on every environment | `prd/**`: new PRDs from operator asks, grooming, updates |
+| Finds work | `board.sh prd-scan` → `file-feature` → `next --lane feature` | `board.sh next --lane bug` | `board.sh deploy-queue`, `ladder.sh health --all`, `release-prs.sh` | operator asks, `board.sh next --lane prd`, grooming sweeps |
+| Ends at | PR merged, labeled `needs-deploy` if deploy-bound | same | `state:done` after proof on the deployed target | PRD merged and its buildable FRs filed via `file-feature` |
+| Never | deploys, merges, edits another lane's claims | same | merges, writes feature code (files a `lane:bug` issue instead) | writes code, deploys, merges, invents product scope (asks `needs input:`) |
 
 **Nobody self-merges.** The operator clicks merge. **Only the Release Manager deploys.**
 
 ## 2. Where tasks live
 
 **GitHub Issues are the only source of truth.** Every unit of work is an issue with:
-- one `lane:bug|feature|release`,
+- one `lane:bug|feature|release|prd`,
 - one `P0`–`P3`,
 - exactly one `state:*`: `backlog` → `implementing` → `built` → `deployed` → `verifying` → `done`,
   or `blocked` (the issue names the one action that unblocks it) or `dropped` (reason in the issue),
@@ -75,9 +76,13 @@ workflow has measured.
 | → `blocked` | claimer | `board.sh state <n> blocked` plus a comment naming the blocker and the ONE unblocking action |
 | → `built` | claimer, when its PR merges | `board.sh state <n> built`; label the PR `needs-deploy` if it touches `deploy.boundPaths` |
 | → `deployed` / `verifying` / `done` | Release Manager | after the ladder deploy and the proof on the real target |
+| `lane:prd` → `state:done` | PRD manager | when the PRD is merged and its buildable FRs are filed for FEATURES (no deploy involved) |
 | give up / pause | claimer | `board.sh handoff <n> --file <md>` then `board.sh release <n> <NAME>` |
 
-Change state **the moment it happens**, not in a batch at the end.
+Change state **the moment it happens**, not in a batch at the end. **Exception: a `lane:prd` item**
+(the PRD-manager lane) **reaches `state:done` when its PRD merges and its buildable FRs are filed**
+to the FEATURES lane — a PRD has no runtime to deploy or verify, so shipping the requirement is the
+FEATURES lane's job from there (`prd-manager` SKILL.md §7).
 
 ## 4. Saving progress
 

@@ -154,6 +154,70 @@ run_role_hook "$WORK/p.txt" sess-bugfix >/dev/null
 [ "$(role_of sess-bugfix)" = "bugfix" ] && pass "handle-bug-fixes-phrase-matches" \
   || fail "handle-bug-fixes-phrase-matches (got role='$(role_of sess-bugfix)')"
 
+rm -rf "$STATE_DIR"; printf '%s' "You are the PRD manager" > "$WORK/p.txt"
+run_role_hook "$WORK/p.txt" sess-prd >/dev/null
+[ "$(role_of sess-prd)" = "prd" ] && pass "prd-manager-phrase-matches" \
+  || fail "prd-manager-phrase-matches (got role='$(role_of sess-prd)')"
+[ "$(name_of sess-prd)" = "C-PRD" ] && pass "prd-manager-name-is-c-prd" \
+  || fail "prd-manager-name-is-c-prd (got '$(name_of sess-prd)')"
+
+rm -rf "$STATE_DIR"; printf '%s' "You are the product requirements manager" > "$WORK/p.txt"
+run_role_hook "$WORK/p.txt" sess-prd-longform >/dev/null
+[ "$(role_of sess-prd-longform)" = "prd" ] && pass "product-requirements-manager-longform-matches" \
+  || fail "product-requirements-manager-longform-matches (got role='$(role_of sess-prd-longform)')"
+[ "$(name_of sess-prd-longform)" = "C-PRD" ] && pass "product-requirements-manager-longform-name-is-c-prd" \
+  || fail "product-requirements-manager-longform-name-is-c-prd (got '$(name_of sess-prd-longform)')"
+
+# Singleton lane: a trailing number must NOT produce C-PRD-2 — there is no
+# numbered pattern for prd at all, mirroring release.
+rm -rf "$STATE_DIR"; printf '%s' "You are the PRD manager 2" > "$WORK/p.txt"
+run_role_hook "$WORK/p.txt" sess-prd2 >/dev/null
+[ "$(name_of sess-prd2)" = "C-PRD" ] && pass "prd-manager-numbered-prompt-still-yields-c-prd-singleton" \
+  || fail "prd-manager-numbered-prompt-still-yields-c-prd-singleton (got '$(name_of sess-prd2)')"
+
+# MUTATION CHECK: break the prd role regex (swap it for a pattern that can
+# never match anything) and confirm the positive prd cases above would then
+# fail — proving those tests are actually exercising the regex, not passing
+# vacuously. Built via a literal python3 string replace, not sed, so the
+# regex escaping in the mutant source is unambiguous.
+# agent-role.sh sources lib/agent-state.sh relative to its OWN location, so
+# the mutant needs a copy of lib/ sitting next to it too, or it fails at
+# source-time (a false pass/fail unrelated to the mutation itself) — same
+# reason the earlier number-extraction mutation check uses its own dir.
+MUTANT_PRD_ROLE_DIR="$WORK/mutant-prd-role-dir"
+mkdir -p "$MUTANT_PRD_ROLE_DIR/lib"
+cp "$REAL_HOOKS_DIR/lib/agent-state.sh" "$MUTANT_PRD_ROLE_DIR/lib/agent-state.sh"
+MUTANT_PRD_ROLE="$MUTANT_PRD_ROLE_DIR/agent-role.sh"
+python3 -c '
+import sys
+src = open(sys.argv[1]).read()
+old = "        r\"^\\s*you are (?:the |a )?(?:prd|product requirements?) (?:manager|agent|lane)\\b\","
+new = "        r\"^\\s*THIS-PATTERN-CAN-NEVER-MATCH-ANYTHING\\b\","
+if old not in src:
+    sys.exit(2)
+open(sys.argv[2], "w").write(src.replace(old, new))
+' "$ROLE_HOOK" "$MUTANT_PRD_ROLE"
+mutant_prd_rc=$?
+chmod +x "$MUTANT_PRD_ROLE"
+
+if [ "$mutant_prd_rc" -ne 0 ]; then
+  fail "MUTATION CHECK: could not locate the prd sentence regex to mutate in agent-role.sh (source drifted from the expected text)"
+else
+  rm -rf "$STATE_DIR"; printf '%s' "You are the PRD manager" > "$WORK/p.txt"
+  mutant_prd_payload="$WORK/mutant-prd-payload.json"
+  python3 -c '
+import json, sys
+prompt = open(sys.argv[1]).read()
+print(json.dumps({"session_id": sys.argv[2], "prompt": prompt}))
+' "$WORK/p.txt" "sess-mutant-prd" > "$mutant_prd_payload"
+  CLAUDE_PROJECT_DIR="$FAKE_PROJECT" "$MUTANT_PRD_ROLE" < "$mutant_prd_payload" >/dev/null
+  if [ "$(role_of sess-mutant-prd)" = "" ]; then
+    pass "MUTATION CHECK: breaking the prd regex makes 'You are the PRD manager' stop matching (prd regex is load-bearing)"
+  else
+    fail "MUTATION CHECK: breaking the prd regex should have produced no role match (got '$(role_of sess-mutant-prd)')"
+  fi
+fi
+
 rm -rf "$STATE_DIR"; printf '%s' "You are feature agent 2" > "$WORK/p.txt"
 run_role_hook "$WORK/p.txt" sess-feature2 >/dev/null
 [ "$(name_of sess-feature2)" = "C-FEATURE-2" ] && pass "feature-agent-2-numbered-name" \
@@ -242,6 +306,11 @@ run_role_hook "$WORK/p.txt" sess-slash-feature >/dev/null
 [ "$(role_of sess-slash-feature)" = "feature" ] && pass "slash-feature-agent-matches" \
   || fail "slash-feature-agent-matches (got role='$(role_of sess-slash-feature)')"
 
+rm -rf "$STATE_DIR"; printf '%s' "/prd-manager please continue" > "$WORK/p.txt"
+run_role_hook "$WORK/p.txt" sess-slash-prd >/dev/null
+[ "$(role_of sess-slash-prd)" = "prd" ] && pass "slash-prd-manager-matches" \
+  || fail "slash-prd-manager-matches (got role='$(role_of sess-slash-prd)')"
+
 # ── Negative matches (named in the task spec) — mutation-checks the anchor:
 #    a regex that degraded to a bare keyword search would wrongly match both. ─
 rm -rf "$STATE_DIR"; printf '%s' "fix the release notes" > "$WORK/p.txt"
@@ -270,6 +339,28 @@ rm -rf "$STATE_DIR"; printf '%s' "look at scripts/release-manager/foo" > "$WORK/
 out="$(run_role_hook "$WORK/p.txt" sess-neg5)"
 [ -z "$out" ] && pass "release-manager-path-mid-sentence-no-match-stdout" || fail "release-manager-path-mid-sentence-no-match-stdout (got '$out')"
 [ ! -f "$STATE_DIR/sess-neg5.json" ] && pass "release-manager-path-mid-sentence-no-state-file" || fail "release-manager-path-mid-sentence-no-state-file"
+
+# ── prd negative matches — mutation-checks the role-noun requirement and the
+#    start-of-prompt anchor the same way the release/feature negatives do ───
+rm -rf "$STATE_DIR"; printf '%s' "you are a prd expert" > "$WORK/p.txt"
+out="$(run_role_hook "$WORK/p.txt" sess-neg6)"
+[ -z "$out" ] && pass "prd-expert-no-match-stdout" || fail "prd-expert-no-match-stdout (got '$out')"
+[ ! -f "$STATE_DIR/sess-neg6.json" ] && pass "prd-expert-no-state-file" || fail "prd-expert-no-state-file"
+
+rm -rf "$STATE_DIR"; printf '%s' "you are the product manager" > "$WORK/p.txt"
+out="$(run_role_hook "$WORK/p.txt" sess-neg7)"
+[ -z "$out" ] && pass "product-manager-no-match-stdout" || fail "product-manager-no-match-stdout (got '$out')"
+[ ! -f "$STATE_DIR/sess-neg7.json" ] && pass "product-manager-no-state-file" || fail "product-manager-no-state-file"
+
+rm -rf "$STATE_DIR"; printf '%s' "review the prd manager skill" > "$WORK/p.txt"
+out="$(run_role_hook "$WORK/p.txt" sess-neg8)"
+[ -z "$out" ] && pass "review-prd-manager-skill-mid-sentence-no-match-stdout" || fail "review-prd-manager-skill-mid-sentence-no-match-stdout (got '$out')"
+[ ! -f "$STATE_DIR/sess-neg8.json" ] && pass "review-prd-manager-skill-mid-sentence-no-state-file" || fail "review-prd-manager-skill-mid-sentence-no-state-file"
+
+rm -rf "$STATE_DIR"; printf '%s' "Let's talk about the roadmap. You are the PRD manager" > "$WORK/p.txt"
+out="$(run_role_hook "$WORK/p.txt" sess-neg9)"
+[ -z "$out" ] && pass "prd-manager-later-in-prompt-no-match-stdout" || fail "prd-manager-later-in-prompt-no-match-stdout (got '$out')"
+[ ! -f "$STATE_DIR/sess-neg9.json" ] && pass "prd-manager-later-in-prompt-no-state-file" || fail "prd-manager-later-in-prompt-no-state-file"
 
 # ── P2 mutation check: a number NOT directly following agent|manager|lane
 #    must not be captured — falls back to the session-id-derived suffix ────
