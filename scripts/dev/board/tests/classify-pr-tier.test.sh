@@ -236,6 +236,21 @@ else
 fi
 
 # ===========================================================================
+# 10. A hand-applied needs-review hold forces tier=3: a `labeled` event must
+# not re-enable auto-merge on a PR someone deliberately held.
+# ===========================================================================
+reset_env
+export PR_TITLE="🔧 chore: x"
+export FAKE_PR_FILES_JSON='[{"filename":"README.md"}]'
+export LABELS='["needs-review"]'
+out="$(run_classify 111 2>"$WORK/case10.err")"; rc=$?
+if [ "$rc" = "0" ] && [ "$out" = "tier=3" ]; then
+  pass "a needs-review hold label forces tier=3 on an otherwise tier-0 PR"
+else
+  fail "needs-review-hold (rc=$rc out=[$out] err=[$(cat "$WORK/case10.err")])"
+fi
+
+# ===========================================================================
 # MUTATION CHECK: break PRD_SENSITIVE_PATTERN (swap it for a pattern that can
 # never match anything real) and confirm case 1 above would then flip to a
 # non-3 tier — proving the prd/ assertions are actually exercising the

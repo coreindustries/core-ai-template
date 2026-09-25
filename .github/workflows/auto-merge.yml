@@ -38,6 +38,10 @@ concurrency:
 jobs:
   tier-check:
     name: Classify PR tier and configure merge
+    # `edited` also fires on body-only edits, which agents make often; each
+    # would cancel a sleeping Tier-1 run and restart its window. Only title
+    # and base changes can change the tier.
+    if: github.event.action != 'edited' || github.event.changes.title != null || github.event.changes.base != null
     runs-on: ubuntu-latest
     timeout-minutes: 35
     env:

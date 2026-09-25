@@ -122,8 +122,12 @@ if grep -qE "$PRD_SENSITIVE_PATTERN" <<<"$CHANGED_FILES"; then
   exit 0
 fi
 
-# Tier 3: protected areas set by labeler.yml
-if grep -qE '"area/(auth|billing|database|infra)"' <<<"${LABELS:-}"; then
+# Tier 3: protected areas set by labeler.yml, or a needs-review hold. Since
+# the workflow also runs on `labeled`, a person adding needs-review would
+# otherwise re-trigger a tier-0/1 run that re-enables auto-merge. The
+# workflow applies needs-review to tier 2/3 itself, so a PR stays held (a
+# human merge) until someone removes the label — the conservative direction.
+if grep -qE '"(area/(auth|billing|database|infra)|needs-review)"' <<<"${LABELS:-}"; then
   echo "tier=3"
   exit 0
 fi
