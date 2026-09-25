@@ -1344,6 +1344,47 @@ else
 fi
 
 # ===========================================================================
+# 9b. prd_frontmatter_field strips an inline ` # comment` instead of leaking
+# it into the value — exactly the shape prd/_PRD_TEMPLATE.md's own `status`
+# and `prd_id` fields carry. Before this fix, a status comment that merely
+# LISTS "Superseded"/"Deprecated" as options made the *`case`* pattern match
+# and skip the PRD entirely, hiding every FR from prd-scan.
+# ===========================================================================
+reset_env
+prd_commented="$WORK/PRD-commented.md"
+cat > "$prd_commented" <<'PRDEOF2'
+---
+prd_id: PRD-2026-09-25-example # must match the filename: prd/YYYY-MM-DD-{slug}.md
+status: "Draft" # Draft | Active | Complete | Superseded (add superseded_by) | Deprecated
+---
+
+### FR1 – only requirement
+Some text.
+PRDEOF2
+
+export FAKE_LABEL_LIST_JSON='[]'
+cat > "$FAKE_BIN/gh" <<'FAKE_GH_CMT'
+#!/usr/bin/env bash
+set -uo pipefail
+: "${FAKE_GH_LOG:=/dev/null}"
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then echo '[]'; exit 0; fi
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "list" ]; then echo '[]'; exit 0; fi
+echo "fake gh (comment-pollution mode): unhandled $*" >&2
+exit 1
+FAKE_GH_CMT
+chmod +x "$FAKE_BIN/gh"
+
+out="$(bash "$BOARD" prd-scan --json --prd "$prd_commented" 2>"$WORK/prd-scan-cmt.err")"
+fr_count="$(printf '%s' "$out" | jq 'length')"
+token="$(printf '%s' "$out" | jq -r '.[0].token // empty')"
+if [ "$fr_count" = "1" ] && [ "$token" = "[PRD-2026-09-25-example FR1]" ]; then
+  pass "prd_frontmatter_field: an inline status/prd_id comment does not hide the PRD or pollute its id"
+else
+  fail "prd_frontmatter_field: comment pollution (fr_count=[$fr_count] token=[$token] out=[$out])"
+fi
+
+# ===========================================================================
 # 10. file-feature refuses a duplicate token
 # ===========================================================================
 reset_env
@@ -1374,6 +1415,81 @@ if [ "$rc" = "5" ] && ! grep -q '^issue create' "$FAKE_GH_LOG"; then
   pass "file-feature: refuses a duplicate token (exit 5), never calls issue create"
 else
   fail "file-feature: duplicate-token refusal (rc=$rc log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+fi
+
+# ===========================================================================
+# 10b. A `lane:prd` needs-decision issue must NOT be titled with the
+# bracketed `[<prd_id> FR<n>]` token: that literal string is `file-feature`'s
+# own dedup search token (see cmd_file_feature above — it searches
+# `"[<prd_id> FR<n>]" in:title,body`). This fake `gh` mimics GitHub's
+# full-text search as a literal substring match against a small corpus of
+# existing issue text, so it actually exercises the search-string shape
+# board.sh builds, not just a canned yes/no.
+# ===========================================================================
+reset_env
+cat > "$FAKE_BIN/gh" <<'FAKE_GH_ND'
+#!/usr/bin/env bash
+set -uo pipefail
+: "${FAKE_GH_LOG:=/dev/null}"
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then
+  search_arg=""
+  prev=""
+  for a in "$@"; do
+    [ "$prev" = "--search" ] && search_arg="$a"
+    prev="$a"
+  done
+  # search_arg is exactly `"[<prd_id> FR<n>]" in:title,body` (board.sh wraps
+  # the token in literal double quotes) — strip the ` in:title,body` suffix
+  # and the surrounding quotes to get the bare bracketed token, then check
+  # it as a literal substring of the fixture's issue corpus, the same way
+  # GitHub's real full-text search would match it against issue text.
+  token="${search_arg%% in:*}"
+  token="${token#\"}"
+  token="${token%\"}"
+  if printf '%s' "${FAKE_ISSUE_CORPUS:-}" | grep -qF -- "$token"; then
+    echo '[{"number":9,"title":"decoy match","url":"https://example/9","state":"OPEN"}]'
+  else
+    echo '[]'
+  fi
+  exit 0
+fi
+if [ "${1:-}" = "issue" ] && [ "${2:-}" = "create" ]; then
+  echo "https://example/999"
+  exit 0
+fi
+echo "fake gh (needs-decision mode): unhandled $*" >&2
+exit 1
+FAKE_GH_ND
+chmod +x "$FAKE_BIN/gh"
+
+body_file2="$WORK/body2.md"
+printf 'Body text.\n' > "$body_file2"
+
+# (a) reproduces the bug: an OLD-style lane:prd issue titled with the
+# bracketed token blocks file-feature FOREVER, even once the decision is
+# made — this is exactly why the skills no longer instruct that title shape.
+export FAKE_ISSUE_CORPUS='[PRD-fixture FR2] widget export decision needed — needs decision'
+out_nd_bad="$(bash "$BOARD" file-feature --prd "$prd_fixture" --fr FR2 --priority P2 \
+  --title "widget export" --body-file "$body_file2" 2>&1)"
+rc_nd_bad=$?
+if [ "$rc_nd_bad" = "5" ]; then
+  pass "file-feature: (bug reproduction) a bracketed-token lane:prd title blocks filing forever"
+else
+  fail "file-feature: expected the bracketed-token corpus to reproduce the block (rc=$rc_nd_bad out=[$out_nd_bad])"
+fi
+
+# (b) the fix: the SAME decision, filed as a lane:prd issue per the updated
+# skills (prd_id + FR cited UNBRACKETED), does not block file-feature.
+reset_env
+export FAKE_ISSUE_CORPUS='PRD-fixture FR2 needs decision: widget export destination'
+out_nd_ok="$(bash "$BOARD" file-feature --prd "$prd_fixture" --fr FR2 --priority P2 \
+  --title "widget export" --body-file "$body_file2" 2>"$WORK/file-feature-nd.err")"
+rc_nd_ok=$?
+if [ "$rc_nd_ok" = "0" ] && grep -q '^issue create' "$FAKE_GH_LOG"; then
+  pass "file-feature: an unbracketed needs-decision reference does not block filing the FR once decided"
+else
+  fail "file-feature: unbracketed needs-decision non-block (rc=$rc_nd_ok out=[$out_nd_ok] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
 fi
 
 # ===========================================================================

@@ -42,9 +42,13 @@ You never deploy or merge.
    `file-feature` refuses duplicates (exit 5), so several feature agents can refill safely.
 5. `needs-decision` items: don't file a blocked `lane:feature` issue for these — the PRD manager
    (`prd-manager` skill) owns product decisions and batches them to the operator. File a `lane:prd`
-   issue instead, `state:backlog`, with the question and the FR's token in the title:
-   `gh issue create --label lane:prd --label P<n> --label state:backlog --title "[<prd_id> FR<n>]
-   <outcome> — needs decision" --body "<question>"`. Never guess a product decision yourself.
+   issue instead, `state:backlog`, citing the PRD id and FR **unbracketed** in the title — never the
+   `[<prd_id> FR<n>]` tracking token, which is `board.sh prd-scan`/`file-feature`'s literal dedup
+   search string. A lane:prd issue titled with that bracketed token makes `file-feature` see the FR
+   as already tracked **forever**, even after the decision is made and the real feature issue needs
+   filing:
+   `gh issue create --label lane:prd --label P<n> --label state:backlog --title "<prd_id> FR<n> needs
+   decision: <outcome>" --body "<question>"`. Never guess a product decision yourself.
 
 ## 3. Build the claimed feature
 

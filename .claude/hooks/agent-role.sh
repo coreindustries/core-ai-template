@@ -74,7 +74,17 @@ ROLES = [
     ], r"^\s*you are (?:the |a )?bug ?fix(?:es)? (?:manager|agent|lane)\s*#?(\d{1,3})\b"),
     ("prd", "prd-manager", [
         r"^\s*/prd-manager\b",
-        r"^\s*you are (?:the |a )?(?:prd|product requirements?) (?:manager|agent|lane)\b",
+        # (?![\w\x27]) rather than a bare \b after the role noun: \b only
+        # requires A boundary, not a particular kind of character on the far
+        # side of it, so a possessive apostrophe right after "manager" is
+        # still a boundary (an apostrophe is non-word), and a bare \b
+        # wrongly matches a prompt like: you are the PRD manager, then an
+        # apostrophe-s, then more text. \x27 is used instead of a literal
+        # quote mark because this whole ROLES block is embedded in a
+        # single-quoted python3 -c shell string below, where a literal
+        # quote mark would terminate that shell string early. The negative
+        # lookahead also excludes a following word character (managerial).
+        r"^\s*you are (?:the |a )?(?:prd|product requirements?) (?:manager|agent|lane)(?![\w\x27])",
     ], None),
 ]
 

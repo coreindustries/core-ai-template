@@ -85,6 +85,20 @@ For each PRD, the subagent checks and fixes:
   Also required: `prd_id`, `priority`, `last_updated`, `owner`, and `depends_on` using real
   `prd_id`s. Collapse free-text variants (`in-progress`, `Implemented`, a status sentence) into this
   set, and move any prose into the body.
+
+  **Adding a missing `prd_id` during grooming can silently orphan every FR the PRD already has.**
+  `prd_id_for()` in `board.sh` falls back to the **filename stem** (e.g. `2026-09-25-example`, no
+  `PRD-` prefix) when `prd_id` is absent — and every tracking issue/PR filed against this PRD so far
+  used that fallback id in its `[<prd_id> FR<n>]` token. Re-prefixing it to the canonical
+  `PRD-2026-09-25-example` form changes the bracket contents of every token, so `board.sh prd-scan`
+  stops recognizing any of them as tracked and `file-feature` re-files duplicates for FRs that are
+  already built or in flight. Rule: **when a PRD has any FR already referenced by an issue or PR, set
+  `prd_id` to its CURRENT effective id — the filename stem, exactly as `prd_id_for()` already
+  resolves it — never re-prefix it.** Only a PRD with no tracked FRs yet (a genuinely new one, or one
+  groomed before any `file-feature` call ever ran against it) is safe to give the canonical
+  `PRD-YYYY-MM-DD-<slug>` form. Before and after any grooming edit that touches `prd_id` or renumbers
+  an FR, run `board.sh prd-scan --prd <file> --json` and diff the set of `tracked==true` FRs — it
+  must come out identical, or the edit just orphaned something.
 - **Acceptance checks.** Every FR needs at least one check a stranger could run: a command, a query,
   a UI step with the expected result. "Works correctly" is not a check. If the right check needs a
   product decision, mark the FR `needs-decision` in the body. Don't guess.
@@ -168,8 +182,16 @@ When a PRD with buildable FRs merges, or an update adds one:
    The body is the FR text, its acceptance checks, `depends_on`, and the reuse rung. `file-feature`
    refuses duplicates (exit 5).
 3. Don't file FRs marked `needs-decision`. List them for the operator in one `needs input:` message
-   instead.
-4. Comment the filed issue numbers on the PRD's PR, or its `lane:prd` issue, and move that issue to
+   instead — never a `[<prd_id> FR<n>]`-titled `lane:prd` issue (see §1's note): that literal
+   bracketed string is `file-feature`'s own dedup search token, so an issue titled with it makes
+   `file-feature` treat the FR as already tracked and refuse it forever, even once the decision is
+   made.
+4. **Once the operator answers a `needs-decision` question:** update the FR's acceptance check in
+   the PRD with the decision, then immediately `board.sh file-feature` it per step 2 — a decision
+   that only updates the PRD and never reaches FEATURES has not actually unblocked anything. Close
+   out its `lane:prd` issue (`board.sh state <n> done`, or `dropped` if the decision was "don't
+   build this").
+5. Comment the filed issue numbers on the PRD's PR, or its `lane:prd` issue, and move that issue to
    `state:done`. A PRD lane item is done when the PRD is merged and its FRs are handed off — shipping
    is the FEATURES lane's job from there.
 

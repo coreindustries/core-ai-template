@@ -191,7 +191,7 @@ MUTANT_PRD_ROLE="$MUTANT_PRD_ROLE_DIR/agent-role.sh"
 python3 -c '
 import sys
 src = open(sys.argv[1]).read()
-old = "        r\"^\\s*you are (?:the |a )?(?:prd|product requirements?) (?:manager|agent|lane)\\b\","
+old = "        r\"^\\s*you are (?:the |a )?(?:prd|product requirements?) (?:manager|agent|lane)(?![\\w\\x27])\","
 new = "        r\"^\\s*THIS-PATTERN-CAN-NEVER-MATCH-ANYTHING\\b\","
 if old not in src:
     sys.exit(2)
@@ -361,6 +361,16 @@ rm -rf "$STATE_DIR"; printf '%s' "Let's talk about the roadmap. You are the PRD 
 out="$(run_role_hook "$WORK/p.txt" sess-neg9)"
 [ -z "$out" ] && pass "prd-manager-later-in-prompt-no-match-stdout" || fail "prd-manager-later-in-prompt-no-match-stdout (got '$out')"
 [ ! -f "$STATE_DIR/sess-neg9.json" ] && pass "prd-manager-later-in-prompt-no-state-file" || fail "prd-manager-later-in-prompt-no-state-file"
+
+# A trailing possessive must not count as a role-noun boundary: "manager's"
+# still has a `\b` right after "manager" (the apostrophe is a non-word
+# character, and `\b` only checks for A boundary, not what kind of
+# character follows it) — a bare `\b` wrongly matches this. Judge finding
+# (2026-09): "you are the PRD manager's reviewer" must not assign the role.
+rm -rf "$STATE_DIR"; printf '%s' "you are the PRD manager's reviewer" > "$WORK/p.txt"
+out="$(run_role_hook "$WORK/p.txt" sess-neg9b)"
+[ -z "$out" ] && pass "prd-manager-possessive-no-match-stdout" || fail "prd-manager-possessive-no-match-stdout (got '$out')"
+[ ! -f "$STATE_DIR/sess-neg9b.json" ] && pass "prd-manager-possessive-no-state-file" || fail "prd-manager-possessive-no-state-file"
 
 # ── P2 mutation check: a number NOT directly following agent|manager|lane
 #    must not be captured — falls back to the session-id-derived suffix ────

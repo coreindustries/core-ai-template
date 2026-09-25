@@ -1641,6 +1641,18 @@ EOF
 
 # ---------------------------------------------------------------------------
 # prd_frontmatter_field <file> <field> — shared helper for prd-scan/file-feature
+#
+# Strips a trailing ` # comment` from the raw value before returning it — the
+# PRD template documents each field's allowed values with an inline comment
+# (`status: "Draft" # Draft | Active | ... | Deprecated`), and without this,
+# the comment text itself leaks into the returned value: a `status` comment
+# that merely LISTS "Superseded"/"Deprecated" as options made prd-scan treat
+# every PRD using that comment as already superseded/deprecated and skip it
+# entirely (judge finding, 2026-09). Quoted values only strip what follows
+# the closing quote (so a value can legitimately contain a `#` if quoted);
+# an unquoted value strips from the first ` #` onward, which means an
+# unquoted value must never itself contain a literal ` #` — every field this
+# function reads today (status/title/prd_id) never legitimately does.
 # ---------------------------------------------------------------------------
 prd_frontmatter_field() {
   awk -v field="$2" '
@@ -1649,7 +1661,13 @@ prd_frontmatter_field() {
     infm && $0 == "---" { exit }
     infm && $0 ~ ("^" field ":") {
       sub("^" field ":[[:space:]]*", "")
-      gsub(/^"|"$/, "")
+      if ($0 ~ /^"/) {
+        sub(/^"/, "")
+        sub(/".*/, "")
+      } else {
+        sub(/[[:space:]]+#.*$/, "")
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+      }
       print
       exit
     }

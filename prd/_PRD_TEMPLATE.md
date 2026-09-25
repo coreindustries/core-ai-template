@@ -1,12 +1,20 @@
 ---
 prd_version: "1.0"
-prd_id: PRD-YYYY-MM-DD-{slug} # must match the filename: prd/YYYY-MM-DD-{slug}.md
-status: "Draft" # Draft | Active | Complete | Superseded (add superseded_by) | Deprecated
-priority: "P1" # P0 (Critical) | P1 (High) | P2 (Medium) | P3 (Low)
+# Leave empty until the file is named: board.sh's prd_id_for() falls back to
+# the filename stem when this is blank, so an unfilled placeholder here can
+# never collide with a real id. Once named, set this to match the filename
+# exactly: prd/YYYY-MM-DD-{slug}.md -> PRD-YYYY-MM-DD-{slug}.
+prd_id: ""
+# Draft | Active | Complete | Superseded (add superseded_by) | Deprecated
+status: "Draft"
+# P0 (Critical) | P1 (High) | P2 (Medium) | P3 (Low)
+priority: "P1"
 last_updated: "YYYY-MM-DD"
 owner: "@github-handle"
-depends_on: [] # e.g., ["PRD-2026-09-01-auth", "PRD-03"] (legacy numbered IDs stay valid)
-estimated_effort: "S" # S (<1 day) | M (1-3 days) | L (3-5 days) | XL (1-2 weeks)
+# e.g., ["PRD-2026-09-01-auth", "PRD-03"] (legacy numbered IDs stay valid)
+depends_on: []
+# S (<1 day) | M (1-3 days) | L (3-5 days) | XL (1-2 weeks)
+estimated_effort: "S"
 ---
 
 # PRD-YYYY-MM-DD-{slug} – {Feature Name}

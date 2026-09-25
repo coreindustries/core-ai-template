@@ -6,7 +6,17 @@ name: Auto-Merge Policy
 # Tier 0 — Auto-merge immediately when CI passes
 # Tier 1 — Auto-merge after 30-minute review window
 # Tier 2 — Requires Core review (feat or unknown prefix)
-# Tier 3 — Hold (PRs with auth/billing/db/infra area labels)
+# Tier 3 — Hold (PRs with auth/billing/db/infra area labels, or touching prd/)
+#
+# Classification itself lives in scripts/dev/board/classify-pr-tier.sh (not
+# inline YAML) so it can be unit-tested against a fake `gh`
+# (scripts/dev/board/tests/classify-pr-tier.test.sh) rather than only
+# exercised by a live PR.
+#
+# Concurrency: one run per PR, cancelling any run still sleeping through the
+# Tier-1 review window — a later push that reclassifies the PR (e.g. adds a
+# prd/ file, making it Tier 3) must not let a stale Tier-1 run enable
+# auto-merge out from under the new classification.
 #
 # Prerequisites: "Allow auto-merge" must be enabled in repo Settings → General.
 # Branch protection must require status checks to pass before merge.
@@ -19,70 +29,61 @@ permissions:
   pull-requests: write
   contents: write
 
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   tier-check:
     name: Classify PR tier and configure merge
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 35
+    env:
+      # Required by classify-pr-tier.sh and every other `gh` call below: this
+      # job runs with only a BASE-commit checkout (see the anti-tamper step),
+      # never one of the PR's own head content, so `gh` cannot infer the
+      # repo from a git remote and needs this explicitly.
+      GH_REPO: ${{ github.repository }}
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
 
     steps:
+      # The BASE commit, not the PR head: a PR must not be able to edit
+      # classify-pr-tier.sh to make itself pass (same anti-tamper pattern as
+      # branch-name-lint.yml / doc-id-lint.yml). No credentials are needed
+      # here — `gh` authenticates separately via GH_TOKEN above, and this
+      # step only reads files, never pushes.
+      - name: Checkout base commit (anti-tamper)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
       - name: Classify PR tier
         id: tier
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
           LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          TITLE="$PR_TITLE"
-
-          # prd/ is sensitive for a different reason than the area labels
-          # below: a "grooming-only" PRD PR can still change scope under the
-          # hood — flipping a PRD's frontmatter `status` to
-          # Superseded/Deprecated hides its FRs from `board.sh prd-scan`
-          # (which skips deprecated/superseded/dropped/cancelled PRDs), and
-          # adding FR ids to a previously-unnumbered PRD creates real
-          # FEATURES-lane work. The prd-manager skill's own commit-prefix
-          # convention (📝 docs(prd): vs ✨ feat(prd):) is a hint for
-          # reviewers, not a merge-path decision, so this reads the actual
-          # changed files rather than trusting the prefix — and it can't
-          # depend on the labeler workflow's area/agent label either: that
-          # workflow races this one on the same PR events (both trigger on
-          # opened/synchronize/reopened) and area/agent covers more than just
-          # prd/ anyway (`.claude/**`, `docs/decisions/**`, ...).
-          # PRD_SENSITIVE_PATTERN mirrors the PRD root directory in
-          # `.claude/agent-lanes.json`'s `prd.glob` — hardcoded here because
-          # this step has no jq/config reader available; keep the two in
-          # sync if the PRD directory ever moves. Pinned by
-          # scripts/dev/board/tests/auto-merge-sensitive-paths.test.sh, which
-          # reads this exact line out of this file.
-          PRD_SENSITIVE_PATTERN='^prd/'
-          CHANGED_FILES="$(gh pr view "$PR_NUMBER" --json files --jq '.files[].path')"
-
-          if printf '%s\n' "$CHANGED_FILES" | grep -qE "$PRD_SENSITIVE_PATTERN"; then
+          set -uo pipefail
+          # Absent only on the base commit of the PR that introduces the
+          # script itself. Fails CLOSED (tier 3) rather than skipping: there
+          # is no safe default tier for "we could not classify this PR".
+          if [ ! -x scripts/dev/board/classify-pr-tier.sh ]; then
+            echo "::warning title=Auto-merge classifier skipped::scripts/dev/board/classify-pr-tier.sh is not on the base commit yet — defaulting to tier 3 (needs-review)"
             echo "tier=3" >> "$GITHUB_OUTPUT"
-
-          # Tier 3: protected areas set by labeler.yml
-          elif echo "$LABELS" | grep -qE '"area/(auth|billing|database|infra)"'; then
-            echo "tier=3" >> "$GITHUB_OUTPUT"
-
-          # Tier 0: chore, docs, style (with or without gitmoji prefix)
-          elif echo "$TITLE" | grep -qiE '^(🔧 chore|📝 docs|🎨 style|chore|docs|style):'; then
-            echo "tier=0" >> "$GITHUB_OUTPUT"
-
-          # Tier 1: fix (with or without gitmoji prefix)
-          elif echo "$TITLE" | grep -qiE '^(🐛 fix|fix):'; then
-            echo "tier=1" >> "$GITHUB_OUTPUT"
-
-          # Tier 2: feat or anything else
-          else
-            echo "tier=2" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+          OUT="$(scripts/dev/board/classify-pr-tier.sh "$PR_NUMBER")"
+          rc=$?
+          if [ "$rc" -ne 0 ] || ! printf '%s' "$OUT" | grep -qE '^tier=[0-3]$'; then
+            echo "::warning title=Auto-merge classifier failed::classify-pr-tier.sh exited ${rc} with output [${OUT}] — defaulting to tier 3 (needs-review)"
+            OUT="tier=3"
+          fi
+          echo "$OUT" >> "$GITHUB_OUTPUT"
 
       - name: Apply tier label
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
           TIER: ${{ steps.tier.outputs.tier }}
         run: |
           case "$TIER" in
@@ -92,23 +93,42 @@ jobs:
           esac
           gh pr edit "$PR_NUMBER" --add-label "$LABEL" || true
 
+      - name: Disable auto-merge — Tier 3 (revoke anything enabled by an earlier, looser classification)
+        if: steps.tier.outputs.tier == '3'
+        run: |
+          # A PR can start Tier 0/1 (auto-merge enabled) and then have a
+          # later push add a prd/ file or a protected-area label, making it
+          # Tier 3 on re-classification. Revoke here so a stale
+          # already-enabled auto-merge can't complete behind review's back.
+          # Tolerates "auto-merge is not enabled" — this runs unconditionally
+          # on every Tier-3 result, not only ones that were previously 0/1.
+          gh pr merge "$PR_NUMBER" --disable-auto || true
+
       - name: Enable auto-merge — Tier 0 (immediate)
         if: steps.tier.outputs.tier == '0'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: gh pr merge "$PR_NUMBER" --auto --squash
 
       - name: Enable auto-merge — Tier 1 (30-minute window)
         if: steps.tier.outputs.tier == '1'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          set -euo pipefail
           # NOTE: sleep holds a runner for 30 minutes. Replace with a
           # dedicated delay action before using in high-volume repos.
           echo "Waiting 30-minute review window before enabling auto-merge..."
           sleep 1800
+          # Belt-and-suspenders alongside the workflow-level concurrency
+          # group above: if this run somehow wasn't cancelled by a later
+          # push (e.g. a scheduling race), re-check the head SHA before
+          # enabling auto-merge rather than trusting a 30-minute-stale
+          # classification. A changed head means a fresh run already fired
+          # for the new commit and will make its own tier decision.
+          CURRENT_HEAD_SHA="$(gh pr view "$PR_NUMBER" --json headRefOid --jq .headRefOid)"
+          if [ "$CURRENT_HEAD_SHA" != "$EXPECTED_HEAD_SHA" ]; then
+            echo "::notice title=Auto-merge Tier 1 skipped::PR #${PR_NUMBER} head moved from ${EXPECTED_HEAD_SHA} to ${CURRENT_HEAD_SHA} during the review window — a newer run already reclassified it; not enabling auto-merge here."
+            exit 0
+          fi
           gh pr merge "$PR_NUMBER" --auto --squash
 
       - name: Notify Slack — auto-merge enabled
@@ -118,7 +138,6 @@ jobs:
           # Downstream: create this secret to start receiving these. See REPO_SETUP.md.
           SLACK_WEBHOOK_CI_ALERTS: ${{ secrets.SLACK_WEBHOOK_CI_ALERTS }}
           TIER: ${{ steps.tier.outputs.tier }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           SUFFIX=""
