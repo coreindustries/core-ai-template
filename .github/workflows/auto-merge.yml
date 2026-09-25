@@ -117,8 +117,11 @@ jobs:
           done
           gh pr edit "$PR_NUMBER" --add-label "$LABEL" || true
 
-      - name: Disable auto-merge — Tier 2/3 (revoke anything enabled by an earlier, looser classification)
-        if: steps.tier.outputs.tier == '2' || steps.tier.outputs.tier == '3'
+      # Tier 1 too: a PR that was Tier 0 (auto-merge on) and became Tier 1
+      # must not skip its 30-minute window; the Tier-1 step re-enables it
+      # after the wait.
+      - name: Disable auto-merge — Tier 1/2/3 (revoke anything enabled by an earlier, looser classification)
+        if: steps.tier.outputs.tier == '1' || steps.tier.outputs.tier == '2' || steps.tier.outputs.tier == '3'
         env:
           TIER: ${{ steps.tier.outputs.tier }}
         run: |
@@ -133,7 +136,12 @@ jobs:
           if [ "$state" = "true" ]; then
             # Also removes auto-merge a person enabled by hand: Tier 2/3 PRs
             # need a human merge click (ADR 0006). Say so on the run.
-            echo "::notice title=Auto-merge revoked::PR #${PR_NUMBER} is Tier ${TIER} and needs a human merge; auto-merge was turned off."
+            if [ "$TIER" = "1" ]; then
+              why="it re-enables after the 30-minute review window"
+            else
+              why="it needs a human merge"
+            fi
+            echo "::notice title=Auto-merge revoked::PR #${PR_NUMBER} is Tier ${TIER}; auto-merge was turned off (${why})."
             gh pr merge "$PR_NUMBER" --disable-auto || {
               echo "::error title=Could not revoke auto-merge::PR #${PR_NUMBER} still has auto-merge enabled"; exit 1; }
           fi
@@ -156,7 +164,7 @@ jobs:
           # dedicated delay action before using in high-volume repos.
           echo "Waiting 30-minute review window before enabling auto-merge..."
           sleep 1800
-          # Belt-and-suspenders alongside the workflow-level concurrency
+          # Belt-and-suspenders alongside the job-level concurrency
           # group above: if this run somehow wasn't cancelled by a later
           # push (e.g. a scheduling race), re-check the head SHA before
           # enabling auto-merge rather than trusting a 30-minute-stale
