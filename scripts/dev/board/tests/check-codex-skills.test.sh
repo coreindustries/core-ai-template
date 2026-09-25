@@ -70,6 +70,7 @@ name: "probe"
 description: "Quoted description."
 ---
 '
+case_skill "CRLF line endings (Windows autocrlf) pass" 0 "$(printf -- '---\r\nname: probe\r\ndescription: CRLF file.\r\n---\r\n')"
 case_skill "empty double-quoted description fails" 1 '---
 name: probe
 description: ""

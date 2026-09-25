@@ -94,6 +94,7 @@ if [ -d "$SKILLS_TARGET" ]; then
         if (v ~ /^".*"$/ || v ~ /^\047.*\047$/) v = substr(v, 2, length(v) - 2)
         return v
       }
+      { sub(/\r$/, "") }   # CRLF checkouts (Windows autocrlf)
       NR == 1 {
         if ($0 !~ /^---[ \t]*$/) { print "frontmatter must start on line 1 with ---"; bad = 1; exit }
         infm = 1; next
