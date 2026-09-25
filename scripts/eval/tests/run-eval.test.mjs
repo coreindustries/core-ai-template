@@ -853,7 +853,8 @@ test('SIGINT to the harness kills a live scorer process, not just the harness it
     cwd: repoRoot,
     stdio: ['ignore', 'ignore', 'ignore'],
   });
-  t.after(() => { try { harness.kill('SIGKILL'); } catch { /* already gone */ } });
+  // ChildProcess.kill() returns false rather than throwing when the child has exited.
+  t.after(() => { harness.kill('SIGKILL'); });
 
   const readHeartbeat = () => (existsSync(heartbeatFile) ? Number(readFileSync(heartbeatFile, 'utf8').trim()) : null);
 
@@ -863,7 +864,13 @@ test('SIGINT to the harness kills a live scorer process, not just the harness it
   }
   assert.ok(existsSync(pidFile), 'the scorer should have started and recorded its pid');
   const scorerPid = Number(readFileSync(pidFile, 'utf8').trim());
-  t.after(() => { try { process.kill(scorerPid, 'SIGKILL'); } catch { /* already gone, or fix worked */ } });
+  t.after(() => {
+    try {
+      process.kill(scorerPid, 'SIGKILL');
+    } catch (err) {
+      if (err.code !== 'ESRCH') throw err; // ESRCH: already gone, i.e. the fix worked
+    }
+  });
 
   const beforeSignal = readHeartbeat();
   assert.ok(beforeSignal !== null, 'the scorer should have started ticking its heartbeat before SIGINT');

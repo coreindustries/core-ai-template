@@ -181,6 +181,23 @@ Batch logical edits together, not repeated micro-edits.
 - Make all related changes in one pass
 - Avoid thrashing with many tiny patches to the same file
 
+## Delegating to Subagents
+
+The orchestrating session decides; subagents read, implement and prove. Pick the cheapest tier that can do the job (CLAUDE.md → Agent Routing), always pass `model:` explicitly to built-in agents, and keep the subagent's verdict rather than its file dumps.
+
+**Every brief states:** the goal and the invariant; the files the agent owns versus may only read; its worktree path; "mutation-check every fix"; and "report in ≤400 words with `file:line`, no file dumps".
+
+**Isolation for code-writing subagents.** The failure to prevent is an *isolation leak*: a subagent editing the parent's worktree instead of its own.
+
+1. **Classify first.** Operational tasks (probes, queries, deploy checks) make no repo edits and need no worktree. Only code-editing tasks get one.
+2. **Don't nest isolation.** From inside a worktree session, do not spawn an `isolation: "worktree"` subagent. Create a dedicated worktree (`git worktree add`) with disjoint file ownership and pass the subagent that path.
+3. **Make the subagent confirm where it is.** Its first step is `pwd && git rev-parse --show-toplevel`, and it refuses to edit if that is not the worktree you gave it.
+4. **Verify within seconds of spawning.** `git -C <their-worktree> status` shows their changes; your own `git status` stays clean. Don't trust the isolation label alone.
+5. **Treat an unexpected "file X was modified" as a leak** and investigate before continuing.
+6. **Commit your own work before you fan out**, staging explicit paths, never `git add -A`.
+
+Recovery if a leak happens: commit or stash the leaked changes under a unique tag, restore your worktree to its HEAD, create a fresh worktree for the subagent's work, and reapply there. Committed and pushed work is always safe; only working trees leak.
+
 ## Failure Modes and Recovery
 
 ### Loop Detection

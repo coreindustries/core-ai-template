@@ -23,6 +23,14 @@ Confirm before any operation that deletes, drops, truncates, or overwrites.
 - Overwriting files outside the current feature scope
 - Removing dependencies from package manifest
 
+**Scripted destructive operations need a two-key guard in the script itself.** A chat confirmation protects one session; a Makefile target or script is run by every future agent and CI job. So any target or script that mutates shared or remote state (deploys, pushing migrations to a remote DB, bulk data fixes, deleting cloud resources):
+
+- **Defaults to a dry run** that reports what it would do and changes nothing.
+- **Mutates only with two keys:** `APPLY=1` *and* a target-specific `<NAME>_AUTHORIZED=1`. The second key is named for the target, so an `APPLY=1` copied from a different command cannot authorize this one.
+- **Fails with the exact command to run** when a key is missing, and when `APPLY` is set to anything other than `1` (`APPLY=true` must not quietly dry-run and exit 0; a pipeline would read that as success).
+
+`make db-push` is the reference implementation (`APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push`). Local, rebuildable state such as `make db-reset` on a local database is exempt.
+
 **Never require confirmation:**
 - Removing build artifacts (`dist/`, `coverage/`, `__pycache__/`)
 - Overwriting generated files (lock files, compiled output)

@@ -1,0 +1,52 @@
+name: Doc ID Lint
+
+# A PRD or ADR added by a PR must be named by date+slug (YYYY-MM-DD-<slug>.md),
+# not "the next number". Parallel agents taking the next number collide, and
+# nobody finds out until both merge. Numbered docs already on main are
+# grandfathered; only additions (including renames) are checked.
+#
+# The gate script is copied out of the BASE commit, so a PR cannot edit the
+# script to pass itself. (A PR can still edit this workflow file; review
+# changes to it.) No fetch after checkout: the default merge-ref checkout with
+# full history already contains both base and head, and needs no credentials,
+# so this works on private repos.
+
+on:
+  pull_request:
+    paths:
+      - prd/**
+      - docs/decisions/**
+
+permissions:
+  contents: read
+
+jobs:
+  doc-ids:
+    name: Doc IDs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: New PRD/ADR files use date+slug IDs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          gate="$RUNNER_TEMP/assert-doc-ids.sh"
+          # A missing base commit is a failure, not a reason to skip.
+          if ! git cat-file -e "${BASE_SHA}^{commit}"; then
+            echo "::error title=Doc ID lint::base commit ${BASE_SHA} is not in the checkout — cannot check IDs"
+            exit 1
+          fi
+          # Absent only on the base of the PR that introduces the script.
+          if ! git show "${BASE_SHA}:scripts/assert-doc-ids.sh" > "$gate" 2>/dev/null; then
+            echo "::warning title=Doc ID lint skipped::scripts/assert-doc-ids.sh is not on the base commit yet — IDs not checked"
+            exit 0
+          fi
+          bash "$gate" "$BASE_SHA" "$HEAD_SHA"

@@ -1,6 +1,6 @@
 ---
 name: judge
-description: Use to evaluate completed work before committing or merging. Reviews diffs for correctness, security, edge cases, and regressions. Also use to get a second opinion on a significant architectural decision. Returns P1/P2/P3 findings with specific file:line citations.
+description: Use on every change before its PR leaves draft (or before the final commit when there is no PR), and again after fixing its P1/P2 findings — no size exemption. Reviews diffs for correctness, security, edge cases, and regressions. Also use to get a second opinion on a significant architectural decision. Returns P1/P2/P3 findings with specific file:line citations.
 model: opus
 tools: Read, Grep, Glob, Bash
 ---
@@ -12,6 +12,8 @@ The standard below is adversarial rather than confirmatory. A confirmatory revie
 ## Inputs
 
 A diff, a set of changed files, a description of completed work, or a question about whether an approach is sound. If you aren't given specific files, run `git diff main...HEAD`.
+
+Every change comes through here, so match depth to the diff. A one-line change still gets its inverse branch and its callers checked, and the report can be a few lines. Don't pad a small review to look thorough.
 
 ## How to review
 

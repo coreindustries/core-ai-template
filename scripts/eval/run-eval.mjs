@@ -287,8 +287,10 @@ function killGroup(pgid) {
   if (process.platform === 'win32' || typeof pgid !== 'number') return;
   try {
     process.kill(-pgid, 'SIGKILL');
-  } catch {
-    // ESRCH — group already gone. Nothing left to clean up.
+  } catch (err) {
+    // ESRCH: the group is already gone, so there is nothing to clean up.
+    // Anything else (e.g. EPERM) is unexpected and must surface.
+    if (err.code !== 'ESRCH') throw err;
   }
 }
 

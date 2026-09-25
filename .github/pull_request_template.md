@@ -18,6 +18,7 @@
 
 <!-- Checklist of items to verify before merging -->
 
+- [ ] `judge` verdict: <!-- SHIP | SHIP WITH FIXES (P1/P2 fixed) — paste the verdict and "What I attacked" -->
 - [ ]
 - [ ]
 - [ ]

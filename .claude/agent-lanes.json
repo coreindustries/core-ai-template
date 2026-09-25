@@ -31,6 +31,12 @@
   "worktreeDir": ".worktrees",
   "boardTitle": "Agent Work Board",
 
+  "claims": {
+    "_comment": "Stale-claim reclaim (board.sh list --stale / reclaim). ttlHours: 0 disables the whole check. keepLabel opts a single issue out.",
+    "ttlHours": 24,
+    "keepLabel": "wip-keep"
+  },
+
   "prd": {
     "glob": "prd/[0-9]*.md",
     "frPattern": "FR-?[0-9]+",
@@ -59,7 +65,7 @@
 
   "prCheck": {
     "_comment": "Extra offline gates `make pr-check` runs after the delivery-contract and branch-name checks. Each is a command run from the PR worktree; non-zero fails the check.",
-    "ratchets": []
+    "ratchets": ["node scripts/ratchet.mjs"]
   },
 
   "deploy": {

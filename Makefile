@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test eval eval-trend
+.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test ratchet eval eval-trend
 
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
@@ -125,9 +125,16 @@ db-types: ## Regenerate types from current local schema
 db-test: ## Run pgTAP tests against local Supabase
 	supabase test db
 
-db-push: ## Push migrations to a remote DB (run through WRAPPER; e.g. make db-push ENV=staging)
+db-push: ## Dry-run migrations against a remote DB; APPLY=1 DB_PUSH_AUTHORIZED=1 to push (see guardrails.md)
 	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL not set — run it through your secret wrapper, e.g. $(WRAPPER) make db-push" && exit 1)
+	@[ -z "$(APPLY)" ] || [ "$(APPLY)" = "1" ] || (echo "ERROR: APPLY must be exactly 1 (got '$(APPLY)'). Dry run: make db-push. Push: APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push" && exit 1)
+ifeq ($(APPLY),1)
+	@[ "$$DB_PUSH_AUTHORIZED" = "1" ] || (echo "ERROR: APPLY=1 also needs DB_PUSH_AUTHORIZED=1 — review the dry run (make db-push) first, then: APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push" && exit 1)
 	supabase db push --db-url "$(DATABASE_URL)"
+else
+	@echo "DRY RUN — nothing will be applied. To push: APPLY=1 DB_PUSH_AUTHORIZED=1 make db-push"
+	supabase db push --dry-run --db-url "$(DATABASE_URL)"
+endif
 
 db-diff: ## Show schema drift between local migrations and a linked remote
 	supabase db diff --linked
@@ -204,6 +211,9 @@ deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-securit
 	@scripts/audit-dependencies.sh
 	@echo "  ✓ deps pinned + aged + audited"
 
+ratchet: ## Ratchet gates: fail on regression AND on stale-baseline slack (.claude/ratchets.json). CI itself runs non-strict; use --update to resync.
+	@node scripts/ratchet.mjs --strict
+
 agent-models: ## Write .claude/agent-models.json pins into agent frontmatter
 	@node scripts/sync-agent-models.mjs
 
@@ -277,6 +287,9 @@ quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@echo ""
 	@echo "=== Secrets & PII ==="
 	@scripts/scan-secrets.sh --all
+	@echo ""
+	@echo "=== Ratchet gates ==="
+	@node scripts/ratchet.mjs --strict
 	@echo ""
 	@echo "=== Tests ==="
 	{test_coverage_command}

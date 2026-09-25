@@ -294,6 +294,63 @@ else
   fail "lanes-config.sh check: clean fixture (rc=$rc out=[$out])"
 fi
 
+# ===========================================================================
+# 9a. lanes-config.sh check validates claims.ttlHours (non-negative integer)
+# and claims.keepLabel (non-empty) — the stale-claim reclaim config.
+# ===========================================================================
+BAD_TTL_CONFIG="$WORK/bad-claims-ttl.json"
+cat > "$BAD_TTL_CONFIG" <<'BADCFG'
+{ "namePrefix": "C", "claims": { "ttlHours": -1, "keepLabel": "wip-keep" } }
+BADCFG
+out="$(LANES_CONFIG="$BAD_TTL_CONFIG" bash "$LANES_CONFIG_SH" check 2>&1)"
+rc=$?
+if [ "$rc" != "0" ] && printf '%s' "$out" | grep -qF "FAIL claims.ttlHours"; then
+  pass "lanes-config.sh check: rejects a negative claims.ttlHours"
+else
+  fail "lanes-config.sh check: claims.ttlHours negative rejection (rc=$rc out=[$out])"
+fi
+
+# Every other malformed-but-not-caught-by-lanes_cfg value from the judge's
+# P2 finding: lanes_cfg's `// default` used to turn each of these into "",
+# which then silently became the DEFAULT 24 (feature ON) instead of
+# failing. lanes_cfg_has/lanes_cfg_raw must see the raw, explicit value.
+for bad_ttl in '1.5' '"off"' 'false' 'null'; do
+  BAD_TTL_VARIANT="$WORK/bad-ttl-variant.json"
+  printf '{ "namePrefix": "C", "claims": { "ttlHours": %s, "keepLabel": "wip-keep" } }' "$bad_ttl" > "$BAD_TTL_VARIANT"
+  out="$(LANES_CONFIG="$BAD_TTL_VARIANT" bash "$LANES_CONFIG_SH" check 2>&1)"
+  rc=$?
+  if [ "$rc" != "0" ] && printf '%s' "$out" | grep -qF "FAIL claims.ttlHours"; then
+    pass "lanes-config.sh check: rejects claims.ttlHours = $bad_ttl"
+  else
+    fail "lanes-config.sh check: claims.ttlHours = $bad_ttl should be rejected (rc=$rc out=[$out])"
+  fi
+done
+
+BAD_KEEP_CONFIG="$WORK/bad-claims-keep.json"
+cat > "$BAD_KEEP_CONFIG" <<'BADCFG'
+{ "namePrefix": "C", "claims": { "ttlHours": 24, "keepLabel": "bad label" } }
+BADCFG
+out="$(LANES_CONFIG="$BAD_KEEP_CONFIG" bash "$LANES_CONFIG_SH" check 2>&1)"
+rc=$?
+if [ "$rc" != "0" ] && printf '%s' "$out" | grep -qF "FAIL claims.keepLabel"; then
+  pass "lanes-config.sh check: rejects a claims.keepLabel containing whitespace"
+else
+  fail "lanes-config.sh check: claims.keepLabel whitespace rejection (rc=$rc out=[$out])"
+fi
+
+# A config that omits "claims" entirely still passes (defaults apply).
+NO_CLAIMS_CONFIG="$WORK/no-claims.json"
+cat > "$NO_CLAIMS_CONFIG" <<'BADCFG'
+{ "namePrefix": "C" }
+BADCFG
+out="$(LANES_CONFIG="$NO_CLAIMS_CONFIG" bash "$LANES_CONFIG_SH" check 2>&1)"
+rc=$?
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q "^OK "; then
+  pass "lanes-config.sh check: a config with no 'claims' key passes (ttlHours/keepLabel default)"
+else
+  fail "lanes-config.sh check: missing-claims default (rc=$rc out=[$out])"
+fi
+
 # Rollout that finishes after the deploy command returns: with a verify
 # window, health is polled until it reports the SHA; without one, a single
 # check reports MISMATCH (the old behavior, kept as the default).

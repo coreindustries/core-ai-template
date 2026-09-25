@@ -44,13 +44,13 @@ When this skill is invoked:
 
 ### Process
 
-#### 1. Determine Next ADR Number
+#### 1. Assign the ADR ID
+
+The ID is today's date plus a slug: `YYYY-MM-DD-<slug>`. Do **not** find the highest number and add one. Two agents doing that at the same time pick the same number, and neither finds out until merge. Existing `NNNN-*` ADRs keep their numbers; `scripts/assert-doc-ids.sh` rejects any *new* numbered one.
 
 ```bash
-ls docs/decisions/[0-9]*.md 2>/dev/null | sort -t/ -k3 -n | tail -1
+echo "$(date -u +%F)-<kebab-slug>"   # e.g. 2026-09-24-queue-backend
 ```
-
-If no ADRs exist, start at `0001`. Otherwise, increment the highest number.
 
 #### 2. Gather Decision Context
 
@@ -67,7 +67,7 @@ If context is unclear, ask the user a maximum of 2 clarifying questions.
 
 #### 3. Create ADR File
 
-**Filename:** `docs/decisions/NNNN-{slug}.md`
+**Filename:** `docs/decisions/YYYY-MM-DD-{slug}.md`
 
 Use the template from `docs/decisions/adr-template.md` with all fields filled in.
 
@@ -76,13 +76,13 @@ Use the template from `docs/decisions/adr-template.md` with all fields filled in
 Add a row to the table in `docs/decisions/index.md`:
 
 ```markdown
-| NNNN | {Title} | Accepted | YYYY-MM-DD |
+| [YYYY-MM-DD-{slug}](YYYY-MM-DD-{slug}.md) | {Title} | Accepted | YYYY-MM-DD |
 ```
 
 #### 5. Present Summary
 
 ```
-ADR created: docs/decisions/NNNN-{slug}.md
+ADR created: docs/decisions/YYYY-MM-DD-{slug}.md
 
 Decision: {one-line summary}
 Agent Guidance: {the agent-guidance field}

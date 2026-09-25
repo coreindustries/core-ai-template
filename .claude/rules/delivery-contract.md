@@ -79,6 +79,18 @@ If an agent notices a high-risk surface being changed incidentally (a migration 
 
 ---
 
+## Rule 5 — Cost-bearing and background features are safe by default
+
+The cost and background surfaces from Rule 1 fail in a particular way: invisibly, until someone reads the bill or notices output that never arrived. Real cases include a default-on generator that produced about 168 images a day, displayed none of them, and ran until the account was out of credit; and a scheduled job that died on every host behind `catch (e) { process.exit(0) }` with nothing alerting anyone. Any feature that calls a paid API, or runs on a loop, cron or queue, ships with all of the following. Name each one in the Delivery Contract.
+
+- **Off by default or hard-capped.** Default-off, or a per-period budget cap, from the first commit.
+- **A killswitch the code reads at execution time.** A flag checked only at deploy time, or one nothing reads, is decoration. Name the flag and the line that reads it.
+- **Failure alerts a person.** Repeated failure, quota exhaustion and a dead schedule must reach someone who will act, not only `log.error`. Say where the alert goes.
+- **Attribution names the real caller.** Cost telemetry, event names and log prefixes identify the code path that actually spent the money, not the feature it borrowed.
+- **Output reaches the user.** For anything that generates something user-visible, prove it exists in the store *and* appears where the user actually looks. Generated but never displayed is a bug, whatever the tests say.
+
+---
+
 ## Enforcement
 
 | Layer | Control | Fails on |
