@@ -1,9 +1,11 @@
 ---
 prd_version: "1.0"
-# Leave empty until the file is named: board.sh's prd_id_for() falls back to
-# the filename stem when this is blank, so an unfilled placeholder here can
-# never collide with a real id. Once named, set this to match the filename
-# exactly: prd/YYYY-MM-DD-{slug}.md -> PRD-YYYY-MM-DD-{slug}.
+# The id that tracks this PRD's FRs on the board. Blank means the filename
+# stem (board.sh prd_id_for()), so an unfilled placeholder never collides.
+# To use the canonical PRD-YYYY-MM-DD-{slug} form (the stem with a PRD-
+# prefix), set it BEFORE the first `board.sh file-feature` for this PRD.
+# Never change it once any FR is tracked: tracking issues are keyed on it,
+# and a changed id makes every FR look untracked (see the prd-manager skill).
 prd_id: ""
 # Draft | Active | Complete | Superseded (add superseded_by) | Deprecated
 status: "Draft"

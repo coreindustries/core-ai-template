@@ -1319,7 +1319,12 @@ printf '%s\n' "$*" >> "$FAKE_GH_LOG"
 if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then
   full="$*"
   if printf '%s' "$full" | grep -q ' FR1]'; then
-    echo '[{"number":1,"title":"tracks FR1","url":"https://example/1","state":"OPEN"}]'
+    # A real tracking issue carries the exact bracketed token in its title.
+    search_arg="" prev=""
+    for a in "$@"; do [ "$prev" = "--search" ] && search_arg="$a"; prev="$a"; done
+    token="${search_arg%% in:*}"; token="${token#\"}"; token="${token%\"}"
+    jq -nc --arg t "$token tracks FR1" \
+      '[{number:1, title:$t, body:"", url:"https://example/1", state:"OPEN", labels:[{name:"lane:feature"}]}]'
   else
     echo '[]'
   fi
@@ -1394,7 +1399,7 @@ set -uo pipefail
 : "${FAKE_GH_LOG:=/dev/null}"
 printf '%s\n' "$*" >> "$FAKE_GH_LOG"
 if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then
-  echo '[{"number":55,"title":"already tracks this","url":"https://example/55","state":"OPEN"}]'
+  echo '[{"number":55,"title":"[PRD-fixture FR1] already tracks this","body":"","url":"https://example/55","state":"OPEN","labels":[{"name":"lane:feature"}]}]'
   exit 0
 fi
 if [ "${1:-}" = "issue" ] && [ "${2:-}" = "create" ]; then
@@ -1421,10 +1426,15 @@ fi
 # 10b. A `lane:prd` needs-decision issue must NOT be titled with the
 # bracketed `[<prd_id> FR<n>]` token: that literal string is `file-feature`'s
 # own dedup search token (see cmd_file_feature above — it searches
-# `"[<prd_id> FR<n>]" in:title,body`). This fake `gh` mimics GitHub's
-# full-text search as a literal substring match against a small corpus of
-# existing issue text, so it actually exercises the search-string shape
-# board.sh builds, not just a canned yes/no.
+# `"[<prd_id> FR<n>]" in:title,body`).
+#
+# This fake `gh` mimics REAL GitHub issue search, which ignores punctuation:
+# verified live — `"FEATURE Web dashboard users" in:title` and
+# `"[FEATURE] Web dashboard users" in:title` both return an issue titled
+# "[FEATURE] Web dashboard…". So the search is only a coarse filter, and
+# board.sh must check the exact bracketed token itself. The fake matches with
+# brackets stripped from both sides and returns the corpus issue's real
+# title, labels and state so board.sh's client-side filter is exercised.
 # ===========================================================================
 reset_env
 cat > "$FAKE_BIN/gh" <<'FAKE_GH_ND'
@@ -1439,16 +1449,13 @@ if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then
     [ "$prev" = "--search" ] && search_arg="$a"
     prev="$a"
   done
-  # search_arg is exactly `"[<prd_id> FR<n>]" in:title,body` (board.sh wraps
-  # the token in literal double quotes) — strip the ` in:title,body` suffix
-  # and the surrounding quotes to get the bare bracketed token, then check
-  # it as a literal substring of the fixture's issue corpus, the same way
-  # GitHub's real full-text search would match it against issue text.
   token="${search_arg%% in:*}"
   token="${token#\"}"
   token="${token%\"}"
-  if printf '%s' "${FAKE_ISSUE_CORPUS:-}" | grep -qF -- "$token"; then
-    echo '[{"number":9,"title":"decoy match","url":"https://example/9","state":"OPEN"}]'
+  loose() { printf '%s' "$1" | tr -d '[]'; }
+  if [ -n "${FAKE_ISSUE_CORPUS:-}" ] && grep -qF -- "$(loose "$token")" <<<"$(loose "$FAKE_ISSUE_CORPUS")"; then
+    jq -nc --arg t "$FAKE_ISSUE_CORPUS" --arg l "${FAKE_ISSUE_LABEL:-lane:prd}" --arg s "${FAKE_ISSUE_STATE:-OPEN}" \
+      '[{number:9, title:$t, body:"", url:"https://example/9", state:$s, labels:[{name:$l}]}]'
   else
     echo '[]'
   fi
@@ -1466,31 +1473,47 @@ chmod +x "$FAKE_BIN/gh"
 body_file2="$WORK/body2.md"
 printf 'Body text.\n' > "$body_file2"
 
-# (a) reproduces the bug: an OLD-style lane:prd issue titled with the
-# bracketed token blocks file-feature FOREVER, even once the decision is
-# made — this is exactly why the skills no longer instruct that title shape.
-export FAKE_ISSUE_CORPUS='[PRD-fixture FR2] widget export decision needed — needs decision'
-out_nd_bad="$(bash "$BOARD" file-feature --prd "$prd_fixture" --fr FR2 --priority P2 \
-  --title "widget export" --body-file "$body_file2" 2>&1)"
-rc_nd_bad=$?
-if [ "$rc_nd_bad" = "5" ]; then
-  pass "file-feature: (bug reproduction) a bracketed-token lane:prd title blocks filing forever"
-else
-  fail "file-feature: expected the bracketed-token corpus to reproduce the block (rc=$rc_nd_bad out=[$out_nd_bad])"
-fi
+# nd_case <name> <want-rc> — runs file-feature for FR2 against the current
+# FAKE_ISSUE_CORPUS / FAKE_ISSUE_LABEL / FAKE_ISSUE_STATE.
+nd_case() {
+  local name="$1" want="$2" out rc
+  : > "$FAKE_GH_LOG"
+  out="$(bash "$BOARD" file-feature --prd "$prd_fixture" --fr FR2 --priority P2 \
+    --title "widget export" --body-file "$body_file2" 2>&1)"
+  rc=$?
+  if [ "$rc" = "$want" ]; then
+    pass "file-feature: $name (exit $rc)"
+  else
+    fail "file-feature: $name — expected exit $want, got $rc (out=[$out] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+  fi
+}
 
-# (b) the fix: the SAME decision, filed as a lane:prd issue per the updated
-# skills (prd_id + FR cited UNBRACKETED), does not block file-feature.
+# Search ignores brackets, so an UNBRACKETED needs-decision reference is a
+# search hit. It must not count as tracking the FR, open or closed.
 reset_env
 export FAKE_ISSUE_CORPUS='PRD-fixture FR2 needs decision: widget export destination'
-out_nd_ok="$(bash "$BOARD" file-feature --prd "$prd_fixture" --fr FR2 --priority P2 \
-  --title "widget export" --body-file "$body_file2" 2>"$WORK/file-feature-nd.err")"
-rc_nd_ok=$?
-if [ "$rc_nd_ok" = "0" ] && grep -q '^issue create' "$FAKE_GH_LOG"; then
-  pass "file-feature: an unbracketed needs-decision reference does not block filing the FR once decided"
-else
-  fail "file-feature: unbracketed needs-decision non-block (rc=$rc_nd_ok out=[$out_nd_ok] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
-fi
+export FAKE_ISSUE_LABEL='lane:prd' FAKE_ISSUE_STATE='OPEN'
+nd_case "an open unbracketed lane:prd needs-decision issue does not block filing" 0
+export FAKE_ISSUE_STATE='CLOSED'
+nd_case "a closed unbracketed lane:prd needs-decision issue does not block filing" 0
+
+# Even an OLD-style lane:prd issue that carries the bracketed token is a
+# decision record, not a feature: it must not block filing either.
+export FAKE_ISSUE_CORPUS='[PRD-fixture FR2] widget export decision needed — needs decision'
+export FAKE_ISSUE_STATE='OPEN'
+nd_case "a lane:prd issue carrying the bracketed token does not block filing" 0
+
+# A non-prd issue that merely MENTIONS the FR without brackets (search still
+# hits it, punctuation ignored) is not tracking it.
+export FAKE_ISSUE_CORPUS='follow-up to PRD-fixture FR2 export work'
+export FAKE_ISSUE_LABEL='lane:bug'
+nd_case "a lane:bug issue mentioning the FR unbracketed does not block filing" 0
+
+# A real feature issue with the exact bracketed token IS tracking the FR.
+export FAKE_ISSUE_CORPUS='[PRD-fixture FR2] widget export'
+export FAKE_ISSUE_LABEL='lane:feature'
+nd_case "a lane:feature issue with the exact bracketed token blocks filing" 5
+unset FAKE_ISSUE_LABEL FAKE_ISSUE_STATE
 
 # ===========================================================================
 # 11. pr-status extracts the failing job name + error line

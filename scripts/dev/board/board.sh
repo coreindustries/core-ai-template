@@ -1653,6 +1653,8 @@ EOF
 # an unquoted value strips from the first ` #` onward, which means an
 # unquoted value must never itself contain a literal ` #` — every field this
 # function reads today (status/title/prd_id) never legitimately does.
+# Known limit: a backslash-escaped quote inside a double-quoted value
+# (`"a \"b\""`) ends the value at the first `\"`. Not a YAML parser.
 # ---------------------------------------------------------------------------
 prd_frontmatter_field() {
   awk -v field="$2" '
@@ -1746,7 +1748,7 @@ cmd_prd_scan() {
     for fr in $frs; do
       token="[${prd_id} ${fr}]"
 
-      hits="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 5 --json number,title,url,state 2>&1)" \
+      hits="$(_token_issue_hits "$token")" \
         || { echo "prd-scan SKIPPED issue search for token ${token}: gh issue list failed — treating as untracked (verify by hand)" >&2; hits="[]"; }
       pr_hits="$(gh pr list --state all --search "\"${token}\"" --limit 5 --json number,title,url,state 2>&1)" \
         || { echo "prd-scan SKIPPED PR search for token ${token}: gh pr list failed — treating as none found" >&2; pr_hits="[]"; }
@@ -1777,6 +1779,26 @@ cmd_prd_scan() {
   echo "(does NOT mean undeveloped — verify top candidates against code/PRs before filing)"
 }
 
+# _token_issue_hits <token> — issues that track <token> (`[<prd_id> FR<n>]`),
+# as a JSON array of {number,title,url,state}. Non-zero if gh/jq fails.
+#
+# GitHub issue search ignores punctuation, so `"[PRD-x FR2]"` also matches
+# `PRD-x FR2 needs decision…` (verified live: bracketed and unbracketed phrase
+# searches return the same issues). The search is therefore only a coarse
+# filter; a hit counts only if its title or body contains the EXACT bracketed
+# token, and never if it is a lane:prd decision record — those cite an FR,
+# they don't build it.
+_token_issue_hits() {
+  local token="$1" raw
+  raw="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 50 \
+    --json number,title,body,url,state,labels 2>&1)" || { printf '%s\n' "$raw" >&2; return 1; }
+  printf '%s' "$raw" | jq -c --arg tok "$token" '
+    [ .[]
+      | select(((.title // "") + "\n" + (.body // "")) | contains($tok))
+      | select([.labels[]?.name] | index("lane:prd") | not)
+      | {number, title, url, state} ]' || return 1
+}
+
 # ---------------------------------------------------------------------------
 # file-feature --prd <file> --fr <id> --priority P1 --title "..." --body-file <md>
 # ---------------------------------------------------------------------------
@@ -1802,7 +1824,9 @@ cmd_file_feature() {
   fr_norm="$(printf '%s' "$fr" | sed -E 's/^([A-Za-z]+)-?([0-9]+)$/\1\2/')"
   token="[${prd_id} ${fr_norm}]"
 
-  existing="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 5 --json number,title,url)"
+  # Fail closed: if we cannot check, do not risk filing a duplicate.
+  existing="$(_token_issue_hits "$token")" \
+    || die "file-feature: could not check whether ${token} is already tracked (issue search failed) — not filing" 6
   if [ "$(printf '%s' "$existing" | jq 'length')" -gt 0 ]; then
     echo "file-feature: token ${token} already tracked: $(printf '%s' "$existing" | jq -r '.[0] | "#\(.number) \(.url)"')" >&2
     exit 5

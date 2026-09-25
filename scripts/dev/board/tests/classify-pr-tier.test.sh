@@ -59,7 +59,15 @@ if [ "${1:-}" = "api" ]; then
     echo "fake gh: api call with no --jq filter: $*" >&2
     exit 1
   fi
-  printf '%s' "${FAKE_PR_FILES_JSON:-[]}" | jq -r "$jq_filter"
+  case "$*" in
+    */files*)
+      printf '%s' "${FAKE_PR_FILES_JSON:-[]}" | jq -r "$jq_filter" ;;
+    *)
+      # PR metadata (repos/<r>/pulls/<n>): changed_files defaults to the
+      # number of entries in FAKE_PR_FILES_JSON, i.e. a consistent PR.
+      meta="${FAKE_PR_META_JSON:-$(printf '%s' "${FAKE_PR_FILES_JSON:-[]}" | jq -c '{changed_files: length}')}"
+      printf '%s' "$meta" | jq -r "$jq_filter" ;;
+  esac
   exit 0
 fi
 
@@ -70,7 +78,7 @@ chmod +x "$FAKE_BIN/gh"
 export PATH="$FAKE_BIN:$PATH"
 
 reset_env() {
-  unset FAKE_PR_FILES_JSON FAKE_GH_API_FAIL PR_TITLE LABELS
+  unset FAKE_PR_FILES_JSON FAKE_PR_META_JSON FAKE_GH_API_FAIL PR_TITLE LABELS
   : > "$FAKE_GH_LOG"
 }
 
@@ -176,6 +184,58 @@ else
 fi
 
 # ===========================================================================
+# 7. prd/ path FIRST, then >64KB of other paths. Under pipefail,
+# `printf | grep -q` returned 141 here (grep exits on the first match, printf
+# gets SIGPIPE with >64KB still to write), so the prd/ guard read as "no
+# match" and the PR fell through to its title tier (chore -> tier 0).
+# ===========================================================================
+reset_env
+export PR_TITLE="🔧 chore: bulk move"
+files_json="$(python3 -c '
+import json
+files = [{"filename": "prd/2026-09-25-example.md"}]
+files += [{"filename": "src/some/fairly/long/directory/name/file-%05d.ts" % i} for i in range(2500)]
+print(json.dumps(files))
+')"
+export FAKE_PR_FILES_JSON="$files_json"
+out="$(run_classify 108 2>"$WORK/case7.err")"; rc=$?
+if [ "$rc" = "0" ] && [ "$out" = "tier=3" ]; then
+  pass "a prd/ path followed by >64KB of other paths still forces tier=3 (no SIGPIPE fail-open)"
+else
+  fail "sigpipe-large-list (rc=$rc out=[$out] err=[$(cat "$WORK/case7.err")])"
+fi
+
+# ===========================================================================
+# 8. The files endpoint returned fewer paths than the PR's changed_files
+# (truncated listing) -> fail closed: an unseen file could be under prd/.
+# ===========================================================================
+reset_env
+export PR_TITLE="🔧 chore: x"
+export FAKE_PR_FILES_JSON='[{"filename":"README.md"}]'
+export FAKE_PR_META_JSON='{"changed_files": 2}'
+out="$(run_classify 109 2>"$WORK/case8.err")"; rc=$?
+if [ "$rc" = "0" ] && [ "$out" = "tier=3" ] && grep -q '::warning' "$WORK/case8.err"; then
+  pass "a files listing shorter than changed_files fails closed to tier=3"
+else
+  fail "truncated-listing-fails-closed (rc=$rc out=[$out] err=[$(cat "$WORK/case8.err")])"
+fi
+
+# ===========================================================================
+# 9. A PR at the REST files cap (3000) -> fail closed: the endpoint cannot
+# list anything past 3000 files, so prd/ could be hiding beyond it.
+# ===========================================================================
+reset_env
+export PR_TITLE="🔧 chore: x"
+export FAKE_PR_FILES_JSON='[{"filename":"README.md"}]'
+export FAKE_PR_META_JSON='{"changed_files": 3000}'
+out="$(run_classify 110 2>"$WORK/case9.err")"; rc=$?
+if [ "$rc" = "0" ] && [ "$out" = "tier=3" ]; then
+  pass "a PR at the 3000-file API cap fails closed to tier=3"
+else
+  fail "files-cap-fails-closed (rc=$rc out=[$out] err=[$(cat "$WORK/case9.err")])"
+fi
+
+# ===========================================================================
 # MUTATION CHECK: break PRD_SENSITIVE_PATTERN (swap it for a pattern that can
 # never match anything real) and confirm case 1 above would then flip to a
 # non-3 tier — proving the prd/ assertions are actually exercising the
@@ -232,6 +292,14 @@ if printf '%s' "$WORKFLOW_TEXT" | grep -qE "steps\.tier\.outputs\.tier == '3'" \
   pass "auto-merge.yml revokes auto-merge on tier 3 (--disable-auto)"
 else
   fail "auto-merge.yml has no tier==3 step calling --disable-auto"
+fi
+
+enable_calls="$(grep -c -- '--auto --squash' <<<"$WORKFLOW_TEXT")"
+guarded_calls="$(grep -c -- '--auto --squash --match-head-commit' <<<"$WORKFLOW_TEXT")"
+if [ "$enable_calls" -ge 2 ] && [ "$enable_calls" = "$guarded_calls" ]; then
+  pass "every auto-merge enable call in auto-merge.yml pins --match-head-commit"
+else
+  fail "auto-merge.yml has an enable call without --match-head-commit (enable=$enable_calls guarded=$guarded_calls)"
 fi
 
 if printf '%s' "$WORKFLOW_TEXT" | grep -qE "ref:\s*\\\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}"; then

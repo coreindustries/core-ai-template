@@ -182,10 +182,10 @@ When a PRD with buildable FRs merges, or an update adds one:
    The body is the FR text, its acceptance checks, `depends_on`, and the reuse rung. `file-feature`
    refuses duplicates (exit 5).
 3. Don't file FRs marked `needs-decision`. List them for the operator in one `needs input:` message
-   instead — never a `[<prd_id> FR<n>]`-titled `lane:prd` issue (see §1's note): that literal
-   bracketed string is `file-feature`'s own dedup search token, so an issue titled with it makes
-   `file-feature` treat the FR as already tracked and refuse it forever, even once the decision is
-   made.
+   instead. If you open a `lane:prd` issue to track the question, cite the FR unbracketed; the
+   `[<prd_id> FR<n>]` token is reserved for the issue that builds it. (`file-feature` ignores
+   `lane:prd` issues and counts only exact-token matches, so a decision record never blocks the
+   FR from being filed.)
 4. **Once the operator answers a `needs-decision` question:** update the FR's acceptance check in
    the PRD with the decision, then immediately `board.sh file-feature` it per step 2 — a decision
    that only updates the PRD and never reaches FEATURES has not actually unblocked anything. Close

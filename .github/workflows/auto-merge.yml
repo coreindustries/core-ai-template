@@ -53,6 +53,12 @@ jobs:
       # branch-name-lint.yml / doc-id-lint.yml). No credentials are needed
       # here — `gh` authenticates separately via GH_TOKEN above, and this
       # step only reads files, never pushes.
+      #
+      # Limit: under `pull_request`, THIS workflow file is read from the PR's
+      # merge ref, so a same-repo PR can edit auto-merge.yml itself to skip
+      # the classifier. The base checkout protects the script, not the YAML.
+      # Put `.github/workflows/**` under CODEOWNERS / required review to
+      # close that.
       - name: Checkout base commit (anti-tamper)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -74,8 +80,11 @@ jobs:
             echo "tier=3" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          OUT="$(scripts/dev/board/classify-pr-tier.sh "$PR_NUMBER")"
-          rc=$?
+          # `|| rc=$?`: the step shell is `bash -e`, which would abort on a
+          # non-zero `$(...)` before a bare `rc=$?` ran, skipping the
+          # fail-closed branch below.
+          rc=0
+          OUT="$(scripts/dev/board/classify-pr-tier.sh "$PR_NUMBER")" || rc=$?
           if [ "$rc" -ne 0 ] || ! printf '%s' "$OUT" | grep -qE '^tier=[0-3]$'; then
             echo "::warning title=Auto-merge classifier failed::classify-pr-tier.sh exited ${rc} with output [${OUT}] — defaulting to tier 3 (needs-review)"
             OUT="tier=3"
@@ -91,22 +100,35 @@ jobs:
             1) LABEL="auto-merge-tier-1" ;;
             *) LABEL="needs-review" ;;
           esac
+          # A reclassified PR must not keep its old tier label.
+          for other in auto-merge-tier-0 auto-merge-tier-1 needs-review; do
+            [ "$other" = "$LABEL" ] || gh pr edit "$PR_NUMBER" --remove-label "$other" >/dev/null 2>&1 || true
+          done
           gh pr edit "$PR_NUMBER" --add-label "$LABEL" || true
 
-      - name: Disable auto-merge — Tier 3 (revoke anything enabled by an earlier, looser classification)
-        if: steps.tier.outputs.tier == '3'
+      - name: Disable auto-merge — Tier 2/3 (revoke anything enabled by an earlier, looser classification)
+        if: steps.tier.outputs.tier == '2' || steps.tier.outputs.tier == '3'
         run: |
           # A PR can start Tier 0/1 (auto-merge enabled) and then have a
-          # later push add a prd/ file or a protected-area label, making it
-          # Tier 3 on re-classification. Revoke here so a stale
-          # already-enabled auto-merge can't complete behind review's back.
-          # Tolerates "auto-merge is not enabled" — this runs unconditionally
-          # on every Tier-3 result, not only ones that were previously 0/1.
-          gh pr merge "$PR_NUMBER" --disable-auto || true
+          # later push make it Tier 2/3 (a feat, a prd/ file, a protected-area
+          # label). Revoke so a stale auto-merge can't complete behind
+          # review's back. Read the actual state first rather than matching
+          # gh's error text: nothing to do if auto-merge is off, and a failed
+          # revoke (or a failed state read) must fail the step loudly.
+          state="$(gh pr view "$PR_NUMBER" --json autoMergeRequest --jq '.autoMergeRequest != null')" || {
+            echo "::error title=Could not read auto-merge state::PR #${PR_NUMBER}"; exit 1; }
+          if [ "$state" = "true" ]; then
+            gh pr merge "$PR_NUMBER" --disable-auto || {
+              echo "::error title=Could not revoke auto-merge::PR #${PR_NUMBER} still has auto-merge enabled"; exit 1; }
+          fi
 
       - name: Enable auto-merge — Tier 0 (immediate)
         if: steps.tier.outputs.tier == '0'
-        run: gh pr merge "$PR_NUMBER" --auto --squash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # --match-head-commit: if a push lands between classification and
+        # this call, GitHub refuses rather than auto-merging an unclassified head.
+        run: gh pr merge "$PR_NUMBER" --auto --squash --match-head-commit "$EXPECTED_HEAD_SHA"
 
       - name: Enable auto-merge — Tier 1 (30-minute window)
         if: steps.tier.outputs.tier == '1'
@@ -129,7 +151,7 @@ jobs:
             echo "::notice title=Auto-merge Tier 1 skipped::PR #${PR_NUMBER} head moved from ${EXPECTED_HEAD_SHA} to ${CURRENT_HEAD_SHA} during the review window — a newer run already reclassified it; not enabling auto-merge here."
             exit 0
           fi
-          gh pr merge "$PR_NUMBER" --auto --squash
+          gh pr merge "$PR_NUMBER" --auto --squash --match-head-commit "$EXPECTED_HEAD_SHA"
 
       - name: Notify Slack — auto-merge enabled
         if: steps.tier.outputs.tier == '0' || steps.tier.outputs.tier == '1'

@@ -86,13 +86,35 @@ if [ "$rc" -ne 0 ]; then
   fail_closed "gh api repos/${GH_REPO}/pulls/${PR_NUMBER}/files failed (exit ${rc}): $(printf '%s' "$CHANGED_FILES" | head -1)"
 fi
 
-if printf '%s\n' "$CHANGED_FILES" | grep -qE "$PRD_SENSITIVE_PATTERN"; then
+# The listing must be complete, or an unseen file could be under prd/. The
+# REST files endpoint stops at 3000 files even with --paginate, so compare
+# against the PR's own changed_files count and fail closed on any shortfall.
+EXPECTED_COUNT="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.changed_files' 2>&1)"
+rc=$?
+if [ "$rc" -ne 0 ] || ! [[ "$EXPECTED_COUNT" =~ ^[0-9]+$ ]]; then
+  fail_closed "could not read changed_files for PR #${PR_NUMBER} (exit ${rc}): $(printf '%s' "$EXPECTED_COUNT" | head -1)"
+fi
+if [ "$EXPECTED_COUNT" -ge 3000 ]; then
+  fail_closed "PR #${PR_NUMBER} changes ${EXPECTED_COUNT} files — the files API lists at most 3000, so prd/ cannot be ruled out"
+fi
+# Distinct current filenames (rename sources add extra lines but are not
+# counted in changed_files).
+LISTED_COUNT="$(gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --jq '.[] | .filename' 2>/dev/null | grep -c '' || true)"
+if [ "${LISTED_COUNT:-0}" -lt "$EXPECTED_COUNT" ]; then
+  fail_closed "the files API listed ${LISTED_COUNT:-0} of ${EXPECTED_COUNT} changed files for PR #${PR_NUMBER} — prd/ cannot be ruled out"
+fi
+
+# Here-strings, never `printf … | grep -q`: under pipefail, grep -q exiting on
+# an early match makes printf die of SIGPIPE once the input exceeds the pipe
+# buffer (~64KB), the pipeline returns 141, and a matching guard reads as
+# "no match" — the PR would then fall through to its title tier.
+if grep -qE "$PRD_SENSITIVE_PATTERN" <<<"$CHANGED_FILES"; then
   echo "tier=3"
   exit 0
 fi
 
 # Tier 3: protected areas set by labeler.yml
-if printf '%s' "${LABELS:-}" | grep -qE '"area/(auth|billing|database|infra)"'; then
+if grep -qE '"area/(auth|billing|database|infra)"' <<<"${LABELS:-}"; then
   echo "tier=3"
   exit 0
 fi
@@ -100,13 +122,13 @@ fi
 TITLE="${PR_TITLE:-}"
 
 # Tier 0: chore, docs, style (with or without gitmoji prefix)
-if printf '%s' "$TITLE" | grep -qiE '^(🔧 chore|📝 docs|🎨 style|chore|docs|style):'; then
+if grep -qiE '^(🔧 chore|📝 docs|🎨 style|chore|docs|style):' <<<"$TITLE"; then
   echo "tier=0"
   exit 0
 fi
 
 # Tier 1: fix (with or without gitmoji prefix)
-if printf '%s' "$TITLE" | grep -qiE '^(🐛 fix|fix):'; then
+if grep -qiE '^(🐛 fix|fix):' <<<"$TITLE"; then
   echo "tier=1"
   exit 0
 fi
