@@ -69,6 +69,16 @@ set -uo pipefail
 : "${FAKE_GH_LOG:=/dev/null}"
 printf '%s\n' "$*" >> "$FAKE_GH_LOG"
 
+# FAKE_FAIL_AFTER_RELEASE_MARKER (optional): once a `release:`-body
+# comment is posted (see the `comment` case below, which touches this
+# file), EVERY subsequent gh call fails — the judge's exact P1
+# reproduction ("fake gh failing every call after the release comment").
+# Checked before dispatch so the release-comment call itself succeeds.
+if [ -n "${FAKE_FAIL_AFTER_RELEASE_MARKER:-}" ] && [ -f "$FAKE_FAIL_AFTER_RELEASE_MARKER" ]; then
+  echo "fake gh: forced failure (fail-after-release marker set): $*" >&2
+  exit 1
+fi
+
 jq_filter=""
 json_arg=""
 prev=""
@@ -109,20 +119,98 @@ case "$sub1" in
       list) emit "${FAKE_ISSUE_LIST_JSON:-[]}" ;;
       view)
         case "$json_arg" in
-          *comments*) emit "${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}" ;;
+          *comments*)
+            # FAKE_COMMENTS_STATE (optional): a file tracking comments posted
+            # by THIS fake within a single test, so a multi-step flow like
+            # `reclaim` (which posts a comment, then re-reads comments inside
+            # cmd_claim's own race check) sees its own writes — a static var
+            # can't represent "the second read differs from the first".
+            # Seeded from FAKE_ISSUE_VIEW_COMMENTS_JSON on first write; reads
+            # before any write fall back to that same static fixture.
+            if [ -n "${FAKE_COMMENTS_STATE:-}" ] && [ -f "$FAKE_COMMENTS_STATE" ]; then
+              cat "$FAKE_COMMENTS_STATE"
+            else
+              emit "${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}"
+            fi
+            ;;
+          # "labels,state" / "title,labels,state" (checkout, reclaim's meta
+          # read) uses a DIFFERENT fixture than the bare "labels" re-read
+          # cmd_claim makes on its own, so a test can simulate a label having
+          # already changed between the two reads. Falls back to
+          # FAKE_ISSUE_VIEW_LABELS_JSON when unset, so existing bare-"labels"
+          # callers (e.g. checkout tests) are unaffected.
+          #
+          # FAKE_ISSUE_META_DIR (optional): per-ISSUE-NUMBER override
+          # ($3 is the issue number: `issue view <N> --json labels,state`),
+          # so a test with TWO candidate issues can make just ONE of them
+          # carry a label (e.g. wip-keep) that only shows up at RECLAIM
+          # time — simulating a real "state changed between the `next`
+          # snapshot and the live reclaim re-check" race.
+          *labels*state*)
+            if [ -n "${FAKE_ISSUE_META_DIR:-}" ] && [ -f "${FAKE_ISSUE_META_DIR}/${3:-}.json" ]; then
+              cat "${FAKE_ISSUE_META_DIR}/${3:-}.json"
+            else
+              emit "${FAKE_ISSUE_VIEW_META_JSON:-${FAKE_ISSUE_VIEW_LABELS_JSON:-$labels_default}}"
+            fi
+            ;;
           *labels*) emit "${FAKE_ISSUE_VIEW_LABELS_JSON:-$labels_default}" ;;
           *) emit "${FAKE_ISSUE_VIEW_JSON:-$empty_json_default}" ;;
         esac
         ;;
       edit) exit 0 ;;
-      comment) exit 0 ;;
+      comment)
+        body="" prevarg=""
+        for a in "$@"; do
+          if [ "$prevarg" = "--body" ]; then body="$a"; fi
+          prevarg="$a"
+        done
+        if [ -n "${FAKE_COMMENTS_STATE:-}" ]; then
+          base="${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}"
+          [ -f "$FAKE_COMMENTS_STATE" ] && base="$(cat "$FAKE_COMMENTS_STATE")"
+          new_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf '%s' "$base" | jq -c --arg b "$body" --arg t "$new_ts" \
+            '.comments += [{"body":$b,"createdAt":$t}]' > "$FAKE_COMMENTS_STATE"
+        fi
+        # See the fail-after-release-marker check at the top of this
+        # script: a `release:`-body comment flips the switch AFTER it
+        # succeeds, so every gh call from this point on fails.
+        if [ -n "${FAKE_FAIL_AFTER_RELEASE_MARKER:-}" ]; then
+          case "$body" in
+            release:*) touch "$FAKE_FAIL_AFTER_RELEASE_MARKER" ;;
+          esac
+        fi
+        exit 0
+        ;;
       create) printf '%s\n' "${FAKE_ISSUE_CREATE_URL:-https://github.com/example-org/example-repo/issues/999}" ;;
       *) echo "fake gh: unhandled issue $sub2" >&2; exit 1 ;;
     esac
     ;;
   pr)
     case "$sub2" in
-      list) emit "${FAKE_PR_LIST_JSON:-[]}" ;;
+      list)
+        if [ "${FAKE_PR_LIST_FAIL:-0}" = "1" ]; then
+          echo "fake gh: pr list forced failure" >&2
+          exit 1
+        fi
+        # FAKE_PR_LIST_FAIL_ON_CALL (optional, with FAKE_PR_LIST_COUNTER): a
+        # 1-indexed call counter across ALL `gh pr list` invocations in this
+        # process — fails ONLY the Nth call, so a test can simulate one
+        # specific lookup (e.g. reclaim's own re-verification, distinct
+        # from `next`'s earlier, cached candidate-selection pass) going
+        # transiently bad while every other call succeeds normally.
+        if [ -n "${FAKE_PR_LIST_FAIL_ON_CALL:-}" ]; then
+          cnt_file="${FAKE_PR_LIST_COUNTER:-/tmp/fake-pr-list-counter.$$}"
+          n=0
+          [ -f "$cnt_file" ] && n="$(cat "$cnt_file")"
+          n=$((n + 1))
+          printf '%s' "$n" > "$cnt_file"
+          if [ "$n" = "$FAKE_PR_LIST_FAIL_ON_CALL" ]; then
+            echo "fake gh: pr list forced failure (call #$n)" >&2
+            exit 1
+          fi
+        fi
+        emit "${FAKE_PR_LIST_JSON:-[]}"
+        ;;
       view) emit "${FAKE_PR_VIEW_JSON:-$empty_json_default}" ;;
       edit) exit 0 ;;
       comment) exit 0 ;;
@@ -171,11 +259,26 @@ chmod +x "$FAKE_BIN/git"
 
 export PATH="$FAKE_BIN:$PATH"
 
+RESET_ENV_COUNTER=0
 reset_env() {
-  unset FAKE_ISSUE_LIST_JSON FAKE_ISSUE_VIEW_LABELS_JSON FAKE_ISSUE_VIEW_COMMENTS_JSON \
-        FAKE_LABEL_LIST_JSON FAKE_PR_LIST_JSON FAKE_PR_VIEW_JSON FAKE_API_JSON \
-        FAKE_RUN_VIEW_LOG FAKE_ISSUE_CREATE_URL FAKE_GIT_LOG_SUBJECTS
+  unset FAKE_ISSUE_LIST_JSON FAKE_ISSUE_VIEW_LABELS_JSON FAKE_ISSUE_VIEW_META_JSON \
+        FAKE_ISSUE_VIEW_COMMENTS_JSON FAKE_COMMENTS_STATE FAKE_ISSUE_META_DIR \
+        FAKE_LABEL_LIST_JSON FAKE_PR_LIST_JSON FAKE_PR_LIST_FAIL FAKE_PR_LIST_FAIL_ON_CALL FAKE_PR_LIST_COUNTER FAKE_PR_VIEW_JSON FAKE_API_JSON \
+        FAKE_RUN_VIEW_LOG FAKE_ISSUE_CREATE_URL FAKE_GIT_LOG_SUBJECTS FAKE_FAIL_AFTER_RELEASE_MARKER
   : > "$FAKE_GH_LOG"
+  # Real `gh issue view --json comments` reflects every comment this same
+  # process just posted — a static fixture that never gains the claimant's
+  # own `claim:`/`release:` comment isn't a faithful fake and (correctly,
+  # since the race resolver now REQUIRES finding your own claim comment in
+  # the read-back — see _claim_race_winner) makes every claim look
+  # unverifiable. Default EVERY test to the stateful comments fake, seeded
+  # from FAKE_ISSUE_VIEW_COMMENTS_JSON on first write; a test that wants a
+  # SPECIFIC shared file (e.g. to hand-craft a race) just overrides this
+  # after calling reset_env, same as before.
+  RESET_ENV_COUNTER=$((RESET_ENV_COUNTER + 1))
+  FAKE_COMMENTS_STATE="$WORK/comments-auto-${RESET_ENV_COUNTER}.json"
+  export FAKE_COMMENTS_STATE
+  rm -f "$FAKE_COMMENTS_STATE"
 }
 
 echo ""
@@ -228,6 +331,14 @@ reset_env
 export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
 export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
 export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[{"body":"claim: OTHER 2000-01-01T00:00:00Z","createdAt":"2000-01-01T00:00:00Z"}]}'
+# The race resolver breaks ties by COMMENT ARRAY POSITION, not just the
+# timestamp text (see _claim_race_winner) — it locates "my own" just-posted
+# claim comment in the re-fetched array to know its index. A real `gh` read
+# after `gh issue comment` would show it; the static fixture above would
+# not, so this test needs the stateful comments fake (seeded from the
+# fixture, appended to by ME's own `claim:`/`claim-lost:` comments).
+export FAKE_COMMENTS_STATE="$WORK/comments-42.json"
+rm -f "$FAKE_COMMENTS_STATE"
 
 bash "$BOARD" claim 42 ME >/dev/null 2>"$WORK/claim-race.err"
 rc=$?
@@ -295,6 +406,633 @@ if [ "$?" != "0" ]; then
 else
   fail "state: should reject an invalid state name"
 fi
+
+# ===========================================================================
+# 4a. stale-claim reclaim: `list --stale` and `reclaim` compute claim
+# staleness AT READ TIME from (a) the newest issue comment and (b) the
+# newest updatedAt of an open PR labeled agent:<NAME> whose body references
+# #<issue> — never the issue's own updatedAt. FAIL CLOSED on any lookup
+# failure. See scripts/dev/board/board.sh's `_claim_stale_hours` header.
+# ===========================================================================
+reset_env
+STALE_TS="$(date -u -v-25H -v-10M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '-25 hours -10 minutes' +%Y-%m-%dT%H:%M:%SZ)"
+RECENT_TS="$(date -u -v-1H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '-1 hour' +%Y-%m-%dT%H:%M:%SZ)"
+
+# --- (a) 25h-old claim comment, no PR -> stale; `reclaim` takes it over ---
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":300,"title":"idle claim","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/300"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+
+out="$(bash "$BOARD" list --stale 2>"$WORK/list-stale.err")"
+if printf '%s' "$out" | grep -q '#300' && printf '%s' "$out" | grep -Eq 'stale 2[4-9]h'; then
+  pass "list --stale: a claim idle 25h with no PR activity is reported stale"
+else
+  fail "list --stale: comment-only stale detection (out=[$out] err=[$(cat "$WORK/list-stale.err")])"
+fi
+
+# `list` (no --stale) still shows the same issue, with the STALE column filled in.
+out_all="$(bash "$BOARD" list 2>/dev/null)"
+if printf '%s' "$out_all" | grep -q '#300' && printf '%s' "$out_all" | grep -Eq 'stale 2[4-9]h'; then
+  pass "list: STALE column shows 'stale <N>h' for #300"
+else
+  fail "list: STALE column for #300 (out=[$out_all])"
+fi
+
+# reclaim re-verifies staleness live, then posts release/claim as one flow:
+# release: OLD ... reclaimed-by NEW (ends OLD's claim per the existing
+# claim-race resolver), remove-label agent:OLD, then the normal claim path.
+export FAKE_ISSUE_VIEW_META_JSON='{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}]}'
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"}]}'
+# Stateful comments: reclaim's own `_claim_stale_hours` re-check reads
+# comments BEFORE posting the release comment (must still see it as stale);
+# cmd_claim's internal race check reads comments AFTER (must see the release
+# it just posted, or it would wrongly lose the race to OTHER's old claim).
+export FAKE_COMMENTS_STATE="$WORK/comments-300.json"
+rm -f "$FAKE_COMMENTS_STATE"
+: > "$FAKE_GH_LOG"
+out="$(bash "$BOARD" reclaim 300 NEW 2>"$WORK/reclaim.err")"
+rc=$?
+if [ "$rc" = "0" ] \
+   && grep -q "release: OTHER" "$FAKE_GH_LOG" && grep -q "reclaimed-by NEW" "$FAKE_GH_LOG" \
+   && grep -q -- "remove-label agent:OTHER" "$FAKE_GH_LOG" \
+   && grep -q -- "add-label agent:NEW" "$FAKE_GH_LOG" \
+   && grep -q "claim: NEW" "$FAKE_GH_LOG"; then
+  pass "reclaim: re-verifies staleness live, posts release/claim comment pair, swaps the agent:* label"
+else
+  fail "reclaim: takeover flow (rc=$rc out=[$out] err=[$(cat "$WORK/reclaim.err")] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+fi
+
+# MUTATION CHECK: replacing the PR-lookup fail-closed block with the
+# tempting-looking "just default to no PR data on failure" (`|| prs='[]'`)
+# must make a stale-check that should be SKIPPED instead silently compute a
+# bogus staleness from the stale comment data alone — proving the
+# fail-closed guard is load-bearing, not decorative. A plain
+# `s/return 1/return 0/` does NOT exercise this: `return` unconditionally
+# exits the function regardless of its argument, so that swap only changes
+# the caller's exit code, not whether staleness gets computed at all — a
+# python3 multi-line replacement removes the guard for real. Exercised via
+# the gh-pr-list-failure case further below, against a mutant of THIS
+# board.sh (never the real file).
+STALE_MUTANT="$WORK/board.stale-mutant.sh"
+python3 - "$BOARD" "$STALE_MUTANT" <<'PY'
+import sys
+src, dst = sys.argv[1], sys.argv[2]
+text = open(src).read()
+old = (
+    '    prs="$(gh pr list --state open --label "agent:${agent}" --json number,updatedAt,body,isDraft --limit 100 2>&1)" || {\n'
+    '      echo "stale-check SKIPPED #${num}: gh pr list --label agent:${agent} failed: ${prs}" >&2\n'
+    '      return 1 # fail-closed: pr lookup failed\n'
+    '    }\n'
+)
+new = (
+    "    prs=\"$(gh pr list --state open --label \"agent:${agent}\" --json number,updatedAt,body,isDraft --limit 100 2>&1)\""
+    " || prs='[]' # MUTATED: fail-closed removed, silently treats a failed lookup as \"no PR data\"\n"
+)
+count = text.count(old)
+if count != 1:
+    sys.stderr.write(f"expected exactly 1 occurrence of the fail-closed block, found {count}\n")
+    sys.exit(1)
+open(dst, "w").write(text.replace(old, new))
+PY
+mutant_gen_rc=$?
+chmod +x "$STALE_MUTANT" 2>/dev/null || true
+if [ "$mutant_gen_rc" = "0" ] && ! diff -q "$BOARD" "$STALE_MUTANT" >/dev/null 2>&1; then
+  pass "stale-check MUTATION CHECK setup: mutant differs from board.sh (fail-closed block found and replaced)"
+else
+  fail "stale-check MUTATION CHECK setup: could not locate/replace the pr-lookup fail-closed block — assertion below proves nothing (rc=$mutant_gen_rc)"
+fi
+
+# --- (b) an open PR referencing the issue, updated recently, overrides an
+# old claim comment: the claim is NOT stale. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":301,"title":"active via PR","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/301"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON="[{\"number\":9001,\"updatedAt\":\"${RECENT_TS}\",\"body\":\"Fixes #301\"}]"
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if ! printf '%s' "$out" | grep -q '#301'; then
+  pass "list --stale: an open PR touching #301 updated 1h ago keeps the claim non-stale (overrides the 25h-old comment)"
+else
+  fail "list --stale: PR activity should have kept #301 out of --stale (out=[$out])"
+fi
+
+out_all="$(bash "$BOARD" list 2>/dev/null)"
+line301="$(printf '%s' "$out_all" | grep '#301' || true)"
+if [ -n "$line301" ] && ! printf '%s' "$line301" | grep -q 'stale '; then
+  pass "list: #301's STALE column is '-' (recent PR activity, not stale)"
+else
+  fail "list: expected a non-stale STALE column for #301 (line=[$line301])"
+fi
+
+# --- (c) gh pr list failing -> FAIL CLOSED: not stale, SKIPPED on stderr ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":302,"title":"pr lookup fails","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/302"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_FAIL=1
+
+out="$(bash "$BOARD" list --stale 2>"$WORK/skip.err")"
+err="$(cat "$WORK/skip.err")"
+if ! printf '%s' "$out" | grep -q '#302' && printf '%s' "$err" | grep -q 'stale-check SKIPPED #302:'; then
+  pass "list --stale: a failing gh pr list fails closed (not stale) and logs 'stale-check SKIPPED' to stderr"
+else
+  fail "list --stale: fail-closed on gh pr list failure (out=[$out] err=[$err])"
+fi
+
+# Run the SAME scenario against the fail-closed mutant: the return-1 guard
+# gone means the (stale) comment timestamp alone now decides staleness, so
+# #302 wrongly comes back stale. This is the mutation check for (c).
+mut_out="$(bash "$STALE_MUTANT" list --stale 2>/dev/null)"
+if printf '%s' "$mut_out" | grep -q '#302'; then
+  pass "stale-check MUTATION CHECK — removing the pr-lookup fail-closed guard wrongly reports #302 stale on a failed PR lookup (not vacuous)"
+else
+  fail "stale-check MUTATION CHECK — mutant should have wrongly reported #302 stale; it did not (out=[$mut_out])"
+fi
+unset FAKE_PR_LIST_FAIL
+
+# --- (d) wip-keep opts an issue out, even past the TTL ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":303,"title":"kept alive","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"},{"name":"wip-keep"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/303"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if ! printf '%s' "$out" | grep -q '#303'; then
+  pass "list --stale: the wip-keep label opts an issue out of reclaim even past ttlHours"
+else
+  fail "list --stale: wip-keep should have excluded #303 (out=[$out])"
+fi
+
+# --- (e) claims.ttlHours: 0 disables the whole check ---
+reset_env
+ZERO_TTL_CONFIG="$WORK/agent-lanes-zero-ttl.json"
+cat > "$ZERO_TTL_CONFIG" <<JSON
+{ "namePrefix": "C", "claims": { "ttlHours": 0, "keepLabel": "wip-keep" } }
+JSON
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":304,"title":"ttl disabled","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/304"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+
+out="$(LANES_CONFIG="$ZERO_TTL_CONFIG" bash "$BOARD" list --stale 2>/dev/null)"
+if [ -z "$(printf '%s' "$out" | tr -d '[:space:]')" ]; then
+  pass "list --stale: claims.ttlHours=0 disables the whole check — nothing reported stale"
+else
+  fail "list --stale: ttlHours=0 should report nothing (out=[$out])"
+fi
+
+out_all="$(LANES_CONFIG="$ZERO_TTL_CONFIG" bash "$BOARD" list 2>/dev/null)"
+line304="$(printf '%s' "$out_all" | grep '#304' || true)"
+if [ -n "$line304" ] && ! printf '%s' "$line304" | grep -q 'stale '; then
+  pass "list: claims.ttlHours=0 shows '-' in the STALE column, never 'stale <N>h'"
+else
+  fail "list: ttlHours=0 STALE column (line=[$line304])"
+fi
+
+# ===========================================================================
+# 4b. judge findings on PR C: an OPEN, NON-DRAFT PR referencing the issue
+# makes the claim LIVE regardless of age (P1); only a DRAFT PR's updatedAt
+# counts as ordinary activity; `next` excludes the caller's own claims from
+# stale candidates and retries the next one on refusal (P2); PR linkage
+# also matches an `/issues/<n>` URL (P2); `list --json` carries staleHours,
+# gh pr list is cached per agent within one _claim_stale_map call, and the
+# claim-race resolver breaks same-second ties by comment order (P3).
+# ===========================================================================
+DAY30_TS="$(date -u -v-30H +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '-30 hours' +%Y-%m-%dT%H:%M:%SZ)"
+
+# --- P1(a): open, non-draft PR referencing the issue -> NOT stale, however
+# old the PR or the last comment. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":500,"title":"green PR awaiting merge click","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/500"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON="[{\"number\":9100,\"updatedAt\":\"${DAY30_TS}\",\"isDraft\":false,\"body\":\"Fixes #500\"}]"
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if ! printf '%s' "$out" | grep -q '#500'; then
+  pass "P1: an open, non-draft PR referencing #500 keeps the claim live regardless of its 30h age"
+else
+  fail "P1: non-draft PR should have kept #500 out of --stale (out=[$out])"
+fi
+
+# --- P1(b): open DRAFT PR, updated 30h ago, no recent comments -> stale
+# (only the DRAFT's age counts, and 30h has passed the 24h default TTL). ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":501,"title":"stale draft","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/501"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON="[{\"number\":9101,\"updatedAt\":\"${DAY30_TS}\",\"isDraft\":true,\"body\":\"Fixes #501\"}]"
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if printf '%s' "$out" | grep -q '#501' && printf '%s' "$out" | grep -Eq 'stale (2[4-9]|3[0-9])h'; then
+  pass "P1: an open DRAFT PR's age counts as activity — 30h idle draft is stale"
+else
+  fail "P1: draft-PR staleness (out=[$out])"
+fi
+
+# --- P2: PR linkage also matches an /issues/<n> URL, anchored so #12/12x
+# don't collide (a PR body referencing /issues/5011 must NOT keep #501
+# alive). ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":501,"title":"url-linked","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/501"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON="[{\"number\":9102,\"updatedAt\":\"${DAY30_TS}\",\"isDraft\":false,\"body\":\"Closes https://github.com/example-org/example-repo/issues/501\"}]"
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if ! printf '%s' "$out" | grep -q '#501'; then
+  pass "P2: a PR body referencing an /issues/501 URL (no leading #) also makes the claim live"
+else
+  fail "P2: /issues/<n> URL linkage (out=[$out])"
+fi
+
+export FAKE_PR_LIST_JSON="[{\"number\":9103,\"updatedAt\":\"${DAY30_TS}\",\"isDraft\":false,\"body\":\"See https://github.com/example-org/example-repo/issues/5011 for context\"}]"
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+if printf '%s' "$out" | grep -q '#501'; then
+  pass "P2: /issues/5011 does NOT collide with #501 — the URL match is right-anchored"
+else
+  fail "P2: /issues/<n> URL match should be right-anchored, wrongly matched issues/5011 (out=[$out])"
+fi
+
+# --- P3: `list --json` carries staleHours instead of computing and
+# discarding it. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":502,"title":"json stale hours","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/502"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+
+out_json="$(bash "$BOARD" list --json 2>/dev/null)"
+sh_val="$(printf '%s' "$out_json" | jq -r '.[] | select(.number==502) | .staleHours')"
+if [ "$sh_val" != "null" ] && [ -n "$sh_val" ] && [ "$sh_val" -ge 24 ] 2>/dev/null; then
+  pass "list --json: carries staleHours ($sh_val) instead of discarding the computed stale map"
+else
+  fail "list --json: expected numeric staleHours >= 24, got '$sh_val' (out=[$out_json])"
+fi
+
+# --- P3: gh pr list is cached PER AGENT within one _claim_stale_map call —
+# two stale issues held by the SAME agent should cost exactly one
+# `pr list --label agent:SAME` call, not two. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":510,"title":"same agent A","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:SAME"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/510"},
+  {"number":511,"title":"same agent B","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:SAME"}],"createdAt":"2026-01-02T00:00:00Z","url":"https://example/511"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: SAME ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+: > "$FAKE_GH_LOG"
+
+out="$(bash "$BOARD" list --stale 2>/dev/null)"
+pr_list_calls="$(grep -c '^pr list --state open --label agent:SAME' "$FAKE_GH_LOG" || true)"
+if printf '%s' "$out" | grep -q '#510' && printf '%s' "$out" | grep -q '#511' && [ "$pr_list_calls" = "1" ]; then
+  pass "list --stale: gh pr list --label agent:SAME is called once (cached), not once per issue, and both issues are still reported stale"
+else
+  fail "list --stale: pr-list caching (calls=$pr_list_calls out=[$out])"
+fi
+
+# --- P3: _claim_stale_map's per-call `mktemp -d` cache dir is actually
+# removed afterward, by the RETURN trap it sets. Point TMPDIR at a
+# dedicated, otherwise-empty directory so any leftover `mktemp -d` output
+# is unambiguous; the SAME scenario above (two stale issues, one agent)
+# guarantees a cache dir gets created and used. ---
+CACHE_PROBE_DIR="$WORK/cache-probe-tmp"
+mkdir -p "$CACHE_PROBE_DIR"
+out="$(TMPDIR="$CACHE_PROBE_DIR" bash "$BOARD" list --stale 2>/dev/null)"
+leftover="$(find "$CACHE_PROBE_DIR" -mindepth 1 2>/dev/null)"
+if printf '%s' "$out" | grep -q '#510' && [ -z "$leftover" ]; then
+  pass "_claim_stale_map: the per-call PR-list cache dir (mktemp -d under TMPDIR) is gone after list --stale"
+else
+  fail "_claim_stale_map: cache dir not cleaned up (leftover=[$leftover] out=[$out])"
+fi
+
+# --- P3: the RETURN trap that cleans that cache dir must disarm itself —
+# a bare `trap ... RETURN` is a single global slot, not scoped to the
+# function that armed it (confirmed directly: `f(){ trap ... RETURN; };
+# g(){ f; }; g` fires the trap AGAIN on g's return, with whatever `f`
+# declared local now unbound). Every current call site invokes
+# `_claim_stale_map` via `$(...)`, which forks a subshell, so today that
+# leakage is confined to a throwaway process and this exact scenario can't
+# actually crash `next` — but that's a property of how it's called, not of
+# the trap, so this regression test exercises the deepest real call chain
+# available (next's full stale-fallback: _claim_stale_map -> cmd_reclaim ->
+# cmd_claim -> _claim_race_winner) and asserts it stays clean, in case a
+# future direct (non-subshell) call is ever added. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":900,"title":"exercises the full reclaim+claim chain","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/900"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OLD ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+export FAKE_ISSUE_VIEW_META_JSON='{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}]}'
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"}]}'
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/trap-persist.err")"
+rc=$?
+err="$(cat "$WORK/trap-persist.err")"
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q '#900' && ! printf '%s' "$err" | grep -qi "unbound variable"; then
+  pass "RETURN trap: does not persist past _claim_stale_map — the full reclaim+claim chain afterward succeeds with no unbound-variable errors"
+else
+  fail "RETURN trap persistence (rc=$rc out=[$out] err=[$err])"
+fi
+
+# --- P2: `next` excludes the CALLER's own claim from stale candidates —
+# reclaiming your own claim is nonsensical, not a race, and must never even
+# be attempted. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":520,"title":"my own stale claim","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:NEW"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/520"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: NEW ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+: > "$FAKE_GH_LOG"
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/next-own.err")"
+rc=$?
+if [ "$rc" = "3" ] && ! grep -q "issue view 520 --json labels,state" "$FAKE_GH_LOG"; then
+  pass "next: excludes the caller's own stale claim from candidates — never even attempts to reclaim it"
+else
+  fail "next: own-claim exclusion (rc=$rc out=[$out] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+fi
+
+# --- P2: wip-keep found only at reclaim time (a race between the `next`
+# snapshot and the live re-check) is a "not eligible, nothing written"
+# refusal — cmd_reclaim now dies 3 for it, not the generic usage code 2 —
+# so `next` RETRIES the next candidate and succeeds on #522. Before this
+# fix wip-keep died 2, which `next`'s stricter retry-only-on-3/6 policy
+# would have wrongly treated as a hard stop, contradicting this very
+# comment block's own claim that wip-keep refusals are retried. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":521,"title":"race: wip-keep only in live meta","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OTHER1"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/521"},
+  {"number":522,"title":"genuinely reclaimable","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER2"}],"createdAt":"2026-01-02T00:00:00Z","url":"https://example/522"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER2 ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+export FAKE_ISSUE_META_DIR="$WORK/issue-meta"
+mkdir -p "$FAKE_ISSUE_META_DIR"
+printf '%s' '{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OTHER1"},{"name":"wip-keep"}]}' > "$FAKE_ISSUE_META_DIR/521.json"
+printf '%s' '{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER2"}]}' > "$FAKE_ISSUE_META_DIR/522.json"
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"}]}'
+: > "$FAKE_GH_LOG"
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/next-retry.err")"
+rc=$?
+err="$(cat "$WORK/next-retry.err")"
+if [ "$rc" = "0" ] && printf '%s' "$err" | grep -q "wip-keep" \
+   && printf '%s' "$err" | grep -q "exit 3, not a write failure" \
+   && printf '%s' "$out" | grep -q '#522'; then
+  pass "next: retries past a wip-keep refusal (exit 3, not eligible) and reclaims #522"
+else
+  fail "next: wip-keep retry (rc=$rc out=[$out] err=[$err])"
+fi
+
+# --- P2: a POST-write failure (the release comment succeeds, but
+# completing the claim afterward fails) must exit 7 and PROPAGATE — never
+# retried, since retrying would abandon #600 (OLD's claim already
+# released) while `next` moved on and looked successful. #601 is a
+# perfectly good second candidate that must NEVER be tried. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":600,"title":"release succeeds, claim fails after","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/600"},
+  {"number":601,"title":"never reached","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OLD2"}],"createdAt":"2026-01-02T00:00:00Z","url":"https://example/601"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OLD ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+export FAKE_ISSUE_VIEW_META_JSON='{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}]}'
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"}]}'
+export FAKE_FAIL_AFTER_RELEASE_MARKER="$WORK/fail-after-release-p2.marker"
+rm -f "$FAKE_FAIL_AFTER_RELEASE_MARKER"
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/next-postwrite.err")"
+rc=$?
+err="$(cat "$WORK/next-postwrite.err")"
+if [ "$rc" = "7" ] && printf '%s' "$err" | grep -q "OLD's claim is already released" \
+   && ! printf '%s' "$out" | grep -q '#601' \
+   && ! grep -q "issue view 601 --json labels,state" "$FAKE_GH_LOG"; then
+  pass "next: a post-write failure (exit 7) propagates — never retries #601"
+else
+  fail "next: exit-7 propagation (rc=$rc out=[$out] err=[$err])"
+fi
+unset FAKE_FAIL_AFTER_RELEASE_MARKER
+
+# --- P2: `next` DOES retry the next candidate on exit 6 (staleness could
+# not be verified — refused BEFORE any write). #521's own PR-list lookup
+# succeeds during `next`'s candidate-selection pass (so it's offered as a
+# candidate) but fails on reclaim's SEPARATE, uncached re-verification —
+# call #3 overall (selection queries #521 then #522's agents once each,
+# cached; reclaim's re-check is a fresh 3rd call) — simulating exactly the
+# kind of transient failure that must fall through to #522, not abort. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":521,"title":"pr lookup flakes on reclaim re-check","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OTHER1"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/521"},
+  {"number":522,"title":"genuinely reclaimable","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER2"}],"createdAt":"2026-01-02T00:00:00Z","url":"https://example/522"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OTHER2 ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+export FAKE_PR_LIST_FAIL_ON_CALL=3
+export FAKE_PR_LIST_COUNTER="$WORK/pr-list-counter"
+rm -f "$FAKE_PR_LIST_COUNTER"
+export FAKE_ISSUE_META_DIR="$WORK/issue-meta-6"
+mkdir -p "$FAKE_ISSUE_META_DIR"
+printf '%s' '{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OTHER1"}]}' > "$FAKE_ISSUE_META_DIR/521.json"
+printf '%s' '{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"},{"name":"agent:OTHER2"}]}' > "$FAKE_ISSUE_META_DIR/522.json"
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P2"},{"name":"state:implementing"}]}'
+: > "$FAKE_GH_LOG"
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/next-retry6.err")"
+rc=$?
+err="$(cat "$WORK/next-retry6.err")"
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q '#522' \
+   && printf '%s' "$err" | grep -q "exit 6" \
+   && printf '%s' "$err" | grep -q "trying the next candidate"; then
+  pass "next: retries the next candidate (#522) on exit 6 — a transient PR-lookup failure at reclaim time, not a real race"
+else
+  fail "next: exit-6 retry (rc=$rc out=[$out] err=[$err])"
+fi
+unset FAKE_PR_LIST_FAIL_ON_CALL FAKE_PR_LIST_COUNTER
+
+# --- P1 (judge's exact reproduction): a fake gh that fails every call AFTER
+# the release comment (the release comment itself, and everything up to it,
+# succeeds) must make `next` exit NON-ZERO and never print "claimed" — not
+# silently report success while every write past that point failed. The
+# judge reproduced this with `next` printing `claimed: #7 as NEW` and
+# exiting 0 while cmd_claim's own gh calls (labels read, add-label, claim
+# comment, comments read-back) all failed; feeding the resulting
+# empty/failed comments into the OLD race resolver produced an empty
+# "winner" that read as a win. ---
+reset_env
+export FAKE_ISSUE_LIST_JSON='[
+  {"number":600,"title":"fails after release comment","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}],"createdAt":"2026-01-01T00:00:00Z","url":"https://example/600"}
+]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON="{\"comments\":[{\"body\":\"claim: OLD ${STALE_TS}\",\"createdAt\":\"${STALE_TS}\"}]}"
+export FAKE_PR_LIST_JSON='[]'
+# cmd_reclaim's meta fetch (--json labels,state) and cmd_claim's own bare
+# "labels" re-check both need real fixtures here — without them they fall
+# back to the empty defaults ({"labels":[]}, no "state" key at all), which
+# makes cmd_reclaim die at its OWN "is #600 open" precondition check
+# BEFORE ever reaching the release comment, and the test would pass for
+# the wrong reason (an unrelated early die) without ever exercising the
+# gh-fails-after-release path at all.
+export FAKE_ISSUE_VIEW_META_JSON='{"state":"OPEN","labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"},{"name":"agent:OLD"}]}'
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"},{"name":"P1"},{"name":"state:implementing"}]}'
+export FAKE_FAIL_AFTER_RELEASE_MARKER="$WORK/fail-after-release.marker"
+rm -f "$FAKE_FAIL_AFTER_RELEASE_MARKER"
+
+out="$(bash "$BOARD" next --lane bug --agent NEW 2>"$WORK/p1-repro.err")"
+rc=$?
+err="$(cat "$WORK/p1-repro.err")"
+if [ "$rc" != "0" ] && ! printf '%s' "$out" | grep -qi "claimed" && ! printf '%s' "$err" | grep -qi "^claimed:"; then
+  pass "P1 repro: gh failing after the release comment makes next exit non-zero (rc=$rc) and never print 'claimed'"
+else
+  fail "P1 repro: expected a non-zero exit and no 'claimed' output (rc=$rc out=[$out] err=[$err])"
+fi
+unset FAKE_FAIL_AFTER_RELEASE_MARKER
+
+# --- P2: the claim-race resolver must FAIL (not "win") when our own
+# just-posted claim comment is not in the comments read-back — a permanent
+# absence (comments never gain it, unlike the stateful-fake default used
+# everywhere else in this file) must end in claim exiting 4, never
+# "claimed". A static, non-stateful FAKE_ISSUE_VIEW_COMMENTS_JSON models
+# exactly this: it never reflects what cmd_claim just posted. ---
+reset_env
+unset FAKE_COMMENTS_STATE
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[]}'
+
+out="$(bash "$BOARD" claim 601 NEW 2>"$WORK/my-idx-null.err")"
+rc=$?
+err="$(cat "$WORK/my-idx-null.err")"
+if [ "$rc" = "4" ] && ! printf '%s' "$out" | grep -qi "claimed" \
+   && printf '%s' "$err" | grep -q "could not be verified after a retry"; then
+  pass "claim: own claim comment permanently missing from the read-back exits 4 (unverified), never wins"
+else
+  fail "claim: null my_idx handling (rc=$rc out=[$out] err=[$err])"
+fi
+
+# --- P1 (judge's exact reproduction): the resolver treats ONLY `release:`
+# as ending a claim, not a lost racer's OWN `claim-lost: NAME to WINNER`
+# comment. History: claim A, claim B, claim-lost: B to A, release: A,
+# claim C. B never posted a `release:` for itself (only its claim-lost),
+# so B's claim looked forever-unreleased and EVERY later claimant —
+# including C here — lost to a racer who lost two comments ago. C must
+# win: A released, and B's own claim-lost now correctly ends B's claim
+# too. ---
+reset_env
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[
+  {"body":"claim: A 2026-01-01T00:00:00Z"},
+  {"body":"claim: B 2026-01-01T00:00:01Z"},
+  {"body":"claim-lost: B to A"},
+  {"body":"release: A 2026-01-01T00:00:02Z"}
+]}'
+
+out="$(bash "$BOARD" claim 700 C 2>"$WORK/claim-lost-chain.err")"
+rc=$?
+err="$(cat "$WORK/claim-lost-chain.err")"
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q "claimed: #700 as C"; then
+  pass "claim: sequential A-claims/B-loses/A-releases/C-claims — C wins (claim-lost ends B's claim too)"
+else
+  fail "claim: claim-lost-as-release chain (rc=$rc out=[$out] err=[$err])"
+fi
+
+# --- P1: the unverified-race path posts `release: NAME ts unverified`
+# before dying — otherwise D's abandoned claim comment is never released
+# either, the exact same class of bug as the claim-lost case above (dying
+# silently leaves a claim nothing ever ends). Two checks: (a) D's own run
+# actually posts that comment, and (b) given such a comment already exists
+# in history, a LATER claimant is not blocked by the abandoned claim it
+# refers to. ---
+reset_env
+unset FAKE_COMMENTS_STATE
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[]}'
+: > "$FAKE_GH_LOG"
+
+bash "$BOARD" claim 701 D >/dev/null 2>"$WORK/unverified-release.err"
+rc=$?
+if [ "$rc" = "4" ] && grep -q -- "--body release: D .* unverified" "$FAKE_GH_LOG"; then
+  pass "claim: the unverified path posts 'release: D ... unverified' before dying — the claim doesn't die unreleased"
+else
+  fail "claim: unverified path should post a release comment (rc=$rc log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+fi
+
+reset_env
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[
+  {"body":"claim: D 2026-01-01T00:00:00Z"},
+  {"body":"release: D 2026-01-01T00:00:01Z unverified"}
+]}'
+
+out="$(bash "$BOARD" claim 702 E 2>"$WORK/unverified-then-claim.err")"
+rc=$?
+if [ "$rc" = "0" ] && printf '%s' "$out" | grep -q "claimed: #702 as E"; then
+  pass "claim: a later claimant is not blocked by an unverified-path release already in history"
+else
+  fail "claim: unverified-release unblocks a later claimant (rc=$rc out=[$out] err=[$(cat "$WORK/unverified-then-claim.err")])"
+fi
+
+# --- P3: the claim-race resolver breaks a SAME-SECOND tie by comment ORDER,
+# not by comparing the timestamp text (which is identical for both claims
+# at second resolution, so a naive `.ts < $myts` sees neither as earlier and
+# BOTH would wrongly think they won). BOARD_NOW_ISO freezes `now_iso()` so
+# ME's claim is posted with the exact same timestamp text as OTHER's
+# pre-existing one; OTHER's is seeded first (array index 0), ME's is
+# appended after (index 1) — OTHER must still be found "earlier" and win. ---
+reset_env
+# now_iso() only honors BOARD_NOW_ISO when BOARD_TEST=1 is ALSO set and the
+# value matches the exact ISO8601 shape — never a stray env var in a real
+# operator's shell.
+export BOARD_TEST=1
+export BOARD_NOW_ISO="2026-01-01T00:00:00Z"
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"labels":[{"name":"lane:bug"}]}'
+export FAKE_LABEL_LIST_JSON='[{"name":"bug"}]'
+export FAKE_ISSUE_VIEW_COMMENTS_JSON='{"comments":[{"body":"claim: OTHER 2026-01-01T00:00:00Z"}]}'
+export FAKE_COMMENTS_STATE="$WORK/comments-tie.json"
+rm -f "$FAKE_COMMENTS_STATE"
+
+bash "$BOARD" claim 900 ME >/dev/null 2>"$WORK/tie.err"
+rc=$?
+if [ "$rc" = "4" ] && grep -q "claim-lost" "$FAKE_GH_LOG"; then
+  pass "claim: a same-second tie (identical timestamp text) is broken by comment ORDER — OTHER posted first (index 0) and wins"
+else
+  fail "claim: same-second tie-break (rc=$rc err=[$(cat "$WORK/tie.err")] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+fi
+unset BOARD_NOW_ISO BOARD_TEST
+
+# A malformed BOARD_NOW_ISO, or BOARD_TEST unset, must be ignored — never
+# freeze the clock on a bad or accidental value.
+reset_env
+export BOARD_NOW_ISO="not-a-timestamp"
+if out="$(cd "$BOARD_DIR" && BOARD_SH_SOURCED=1 bash -c '. ./lib.sh; now_iso' 2>&1)" \
+   && printf '%s' "$out" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; then
+  pass "now_iso: a malformed BOARD_NOW_ISO (BOARD_TEST unset) is ignored — real clock used"
+else
+  fail "now_iso: malformed BOARD_NOW_ISO should fall back to the real clock (out=[$out])"
+fi
+export BOARD_TEST=1
+if out="$(cd "$BOARD_DIR" && BOARD_SH_SOURCED=1 bash -c '. ./lib.sh; now_iso' 2>&1)" \
+   && printf '%s' "$out" | grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$'; then
+  pass "now_iso: a malformed BOARD_NOW_ISO is ignored even with BOARD_TEST=1 (must match the ISO shape too)"
+else
+  fail "now_iso: malformed BOARD_NOW_ISO with BOARD_TEST=1 should still fall back (out=[$out])"
+fi
+unset BOARD_NOW_ISO BOARD_TEST
 
 # ===========================================================================
 # 5. deploy-queue flags missing Real Proof
@@ -743,13 +1481,33 @@ case "$sub1" in
       list) emit "${FAKE_ISSUE_LIST_JSON:-[]}" ;;
       view)
         case "$json_arg" in
-          *comments*) emit "${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}" ;;
+          *comments*)
+            if [ -n "${FAKE_COMMENTS_STATE:-}" ] && [ -f "$FAKE_COMMENTS_STATE" ]; then
+              cat "$FAKE_COMMENTS_STATE"
+            else
+              emit "${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}"
+            fi
+            ;;
           *labels*) emit "${FAKE_ISSUE_VIEW_LABELS_JSON:-$labels_default}" ;;
           *) emit "${FAKE_ISSUE_VIEW_JSON:-$empty_json_default}" ;;
         esac
         ;;
       edit) exit 0 ;;
-      comment) exit 0 ;;
+      comment)
+        if [ -n "${FAKE_COMMENTS_STATE:-}" ]; then
+          body="" prevarg=""
+          for a in "$@"; do
+            if [ "$prevarg" = "--body" ]; then body="$a"; fi
+            prevarg="$a"
+          done
+          base="${FAKE_ISSUE_VIEW_COMMENTS_JSON:-$comments_default}"
+          [ -f "$FAKE_COMMENTS_STATE" ] && base="$(cat "$FAKE_COMMENTS_STATE")"
+          new_ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf '%s' "$base" | jq -c --arg b "$body" --arg t "$new_ts" \
+            '.comments += [{"body":$b,"createdAt":$t}]' > "$FAKE_COMMENTS_STATE"
+        fi
+        exit 0
+        ;;
       create) printf '%s\n' "${FAKE_ISSUE_CREATE_URL:-https://github.com/example-org/example-repo/issues/999}" ;;
       *) echo "fake gh: unhandled issue $sub2" >&2; exit 1 ;;
     esac

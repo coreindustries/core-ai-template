@@ -69,7 +69,8 @@ workflow has measured.
 | Transition | Who | Command |
 |---|---|---|
 | filed → `state:backlog` | anyone. Features: `board.sh file-feature`. Bugs: `gh issue create --label lane:bug --label P<n> --label state:backlog`. Adopting an unclaimed issue with no lane: add those three labels — the only raw label edit allowed. | — |
-| claim | the lane agent | `board.sh next --lane <l> --agent <NAME>` (highest P, oldest; exit 3 = nothing, 4/5 = lost a race → run `next` again) |
+| claim | the lane agent | `board.sh next --lane <l> --agent <NAME>` (highest P, oldest; exit 3 = nothing, 4/5 = lost a race → run `next` again). If nothing is unclaimed, `next` falls back to the stale claims in the lane — excluding any already held by the caller — trying each in priority/age order. It retries the next candidate ONLY on exit 3 (not eligible) or 6 (could not verify) — both refuse before any write. Everything else propagates immediately: 4/5 (a real race), 2 (a usage error), and — critically — 7 (a write happened but the claim afterward failed anyway), where retrying would silently abandon a partially-released claim. |
+| reclaim a stale claim | any agent, when `next` finds nothing unclaimed | `board.sh reclaim <n> <NAME>` — re-verifies staleness live, ends the old claim, takes it over. **Exit codes:** `2` usage error (bad args, already claimed by you — a real mistake, `next` never hits this since it excludes your own claims); `3` NOT ELIGIBLE, refused before any write (issue closed, `agent:*` label already gone, state changed, `wip-keep` present, `claims.ttlHours` is 0, an open non-draft PR makes the claim live, or activity is still under the TTL); `4`/`5` a real claim race, same meaning as `claim`; `6` COULD NOT VERIFY, also refused before any write (a gh/jq lookup failed — the issue fetch, the config read, the staleness check, or the release comment itself); `7` a write DID happen (the release comment landed) but completing the claim afterward failed for any other reason — never safe to retry, since OLD's claim is already gone. `next`'s fallback retries the next candidate only on 3 or 6. If OLD still has an open (draft) PR referencing the issue, reclaim names it (`old-pr: #n ...`) in its release comment and its own stdout — as the reclaimer, either close it (it was abandoned) or adopt it (`board.sh pr-own <pr> <NAME>` after the operator or OLD swaps its `agent:*` label to you); never leave two PRs open on the same issue. |
 | → `implementing` | claimer, at claim | `board.sh state <n> implementing` (or `board.sh checkout <n> <NAME> --worktree`, which claims, sets the state and cuts a worktree) |
 | → `blocked` | claimer | `board.sh state <n> blocked` plus a comment naming the blocker and the ONE unblocking action |
 | → `built` | claimer, when its PR merges | `board.sh state <n> built`; label the PR `needs-deploy` if it touches `deploy.boundPaths` |
@@ -89,6 +90,21 @@ State lives on the issue, not in your context:
   Never `/clear` mid-ticket.
 - **Resuming:** `board.sh list --agent <NAME>` and `board.sh my-prs <NAME>`; read the latest
   `handoff:` comment before re-deriving anything from code.
+- **Claims expire — unless a live PR says otherwise.** A claim with no activity for
+  `claims.ttlHours` (`.claude/agent-lanes.json`, default 24h) becomes reclaimable by another agent
+  via `board.sh reclaim` (or automatically, the next time `board.sh next` finds nothing unclaimed).
+  **Any comment on the issue resets the timer** — a progress note, a `state:` transition, the claim
+  itself — so post one rather than going quiet on genuinely long-running work. **An open, non-draft
+  PR referencing the issue keeps the claim live regardless of age** — a green PR sitting on the
+  operator's merge click has no reason to accumulate comments, and it must not get pulled out from
+  under you. A draft PR's own age counts as ordinary activity (same as a comment), so a draft you
+  stop touching still goes stale. `board.sh list --stale` shows what has expired. Opt a specific
+  issue out with the `wip-keep` label.
+- **If you see an `unclaimed` event on your own issue** (someone else was allowed to reclaim it —
+  which only happens once you've gone quiet past the TTL with no live PR): **stop working it
+  immediately**. Either close your PR (if any) or hand it off with a comment naming its state —
+  never keep pushing to a PR whose issue someone else now owns; that produces two competing PRs on
+  one issue.
 - Durable lessons go in `docs/solutions/` (`/compound`) or your lane's SKILL.md, not session memory.
 
 ## 5. Tools — ask a tool before a model, and read narrowly
