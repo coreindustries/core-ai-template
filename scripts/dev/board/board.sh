@@ -1788,10 +1788,15 @@ cmd_prd_scan() {
 # filter; a hit counts only if its title or body contains the EXACT bracketed
 # token, and never if it is a lane:prd decision record — those cite an FR,
 # they don't build it.
+#
+# Known limit: only the first 50 search hits are checked. More than 50 loose
+# matches for one "<prd_id> FR<n>" phrase would be needed to push an exact
+# hit out, which a single PRD id + FR number does not realistically produce.
 _token_issue_hits() {
   local token="$1" raw
+  # stderr kept out of $raw: a gh warning on success would corrupt the JSON.
   raw="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 50 \
-    --json number,title,body,url,state,labels 2>&1)" || { printf '%s\n' "$raw" >&2; return 1; }
+    --json number,title,body,url,state,labels)" || return 1
   printf '%s' "$raw" | jq -c --arg tok "$token" '
     [ .[]
       | select(((.title // "") + "\n" + (.body // "")) | contains($tok))

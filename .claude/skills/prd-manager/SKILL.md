@@ -180,7 +180,8 @@ When a PRD with buildable FRs merges, or an update adds one:
 2. For each unbuilt FR whose acceptance checks are complete and whose decisions are settled, file it:
    `board.sh file-feature --prd <file> --fr <id> --priority P<n> --title "<outcome>" --body-file <md>`.
    The body is the FR text, its acceptance checks, `depends_on`, and the reuse rung. `file-feature`
-   refuses duplicates (exit 5).
+   refuses duplicates (exit 5). Exit 6 means it could not check for a duplicate (issue search
+   failed) and filed nothing: retry once, then report it rather than filing by hand.
 3. Don't file FRs marked `needs-decision`. List them for the operator in one `needs input:` message
    instead. If you open a `lane:prd` issue to track the question, cite the FR unbracketed; the
    `[<prd_id> FR<n>]` token is reserved for the issue that builds it. (`file-feature` ignores

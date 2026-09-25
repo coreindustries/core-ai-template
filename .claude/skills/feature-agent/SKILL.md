@@ -39,7 +39,8 @@ You never deploy or merge.
 4. File each `unbuilt` / `partial`:
    `board.sh file-feature --prd <file> --fr <id> --priority P<n> --title "<outcome>" --body-file <md>`
    with the requirement text, the evidence, the missing piece and the PRD's acceptance check.
-   `file-feature` refuses duplicates (exit 5), so several feature agents can refill safely.
+   `file-feature` refuses duplicates (exit 5), so several feature agents can refill safely. Exit 6
+   means it could not check (issue search failed) and filed nothing: retry once, then report it.
 5. `needs-decision` items: don't file a blocked `lane:feature` issue for these — the PRD manager
    (`prd-manager` skill) owns product decisions and batches them to the operator. File a `lane:prd`
    issue instead, `state:backlog`, citing the PRD id and FR **unbracketed** in the title. The

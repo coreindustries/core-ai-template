@@ -23,7 +23,9 @@ name: Auto-Merge Policy
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    # edited/labeled/unlabeled: a retitle (chore: -> feat:) or a protected
+    # area label changes the tier without a push, so they must reclassify.
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 
 permissions:
   pull-requests: write
@@ -100,24 +102,31 @@ jobs:
             1) LABEL="auto-merge-tier-1" ;;
             *) LABEL="needs-review" ;;
           esac
-          # A reclassified PR must not keep its old tier label.
-          for other in auto-merge-tier-0 auto-merge-tier-1 needs-review; do
+          # A reclassified PR must not keep a stale auto-merge tier label.
+          # Only the tier labels this workflow owns are removed: needs-review
+          # is also a hand-applied reviewer hold marker, so it is never removed.
+          for other in auto-merge-tier-0 auto-merge-tier-1; do
             [ "$other" = "$LABEL" ] || gh pr edit "$PR_NUMBER" --remove-label "$other" >/dev/null 2>&1 || true
           done
           gh pr edit "$PR_NUMBER" --add-label "$LABEL" || true
 
       - name: Disable auto-merge — Tier 2/3 (revoke anything enabled by an earlier, looser classification)
         if: steps.tier.outputs.tier == '2' || steps.tier.outputs.tier == '3'
+        env:
+          TIER: ${{ steps.tier.outputs.tier }}
         run: |
-          # A PR can start Tier 0/1 (auto-merge enabled) and then have a
-          # later push make it Tier 2/3 (a feat, a prd/ file, a protected-area
-          # label). Revoke so a stale auto-merge can't complete behind
+          # A PR can start Tier 0/1 (auto-merge enabled) and then become
+          # Tier 2/3: a push adding a prd/ file, a retitle to feat:, or a
+          # protected-area label. Revoke so a stale auto-merge can't complete behind
           # review's back. Read the actual state first rather than matching
           # gh's error text: nothing to do if auto-merge is off, and a failed
           # revoke (or a failed state read) must fail the step loudly.
           state="$(gh pr view "$PR_NUMBER" --json autoMergeRequest --jq '.autoMergeRequest != null')" || {
             echo "::error title=Could not read auto-merge state::PR #${PR_NUMBER}"; exit 1; }
           if [ "$state" = "true" ]; then
+            # Also removes auto-merge a person enabled by hand: Tier 2/3 PRs
+            # need a human merge click (ADR 0006). Say so on the run.
+            echo "::notice title=Auto-merge revoked::PR #${PR_NUMBER} is Tier ${TIER} and needs a human merge; auto-merge was turned off."
             gh pr merge "$PR_NUMBER" --disable-auto || {
               echo "::error title=Could not revoke auto-merge::PR #${PR_NUMBER} still has auto-merge enabled"; exit 1; }
           fi

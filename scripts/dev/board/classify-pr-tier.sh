@@ -79,27 +79,36 @@ PRD_SENSITIVE_PATTERN='^prd/'
 # `--paginate` (all pages) and the `--jq` emits BOTH the current filename and
 # (when the entry is a rename) the pre-rename name on its own line, so a
 # rename either into or out of prd/ still produces a prd/ line here.
-CHANGED_FILES="$(gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" \
-  --jq '.[] | .filename, (.previous_filename // empty)' 2>&1)"
+#
+# One call feeds both the prd/ guard and the completeness count below, so a
+# truncated listing can't pass the count check while the guard reads a
+# different response. Each line is tagged: `F\t<filename>` (counted) or
+# `P\t<previous_filename>` (rename source, not counted in changed_files).
+# stderr goes to a file so gh warnings never corrupt the listing.
+ERR_FILE="$(mktemp)"
+trap 'rm -f "$ERR_FILE"' EXIT
+TAGGED="$(gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" \
+  --jq '.[] | "F\t\(.filename)", (.previous_filename // empty | "P\t\(.)")' 2>"$ERR_FILE")"
 rc=$?
 if [ "$rc" -ne 0 ]; then
-  fail_closed "gh api repos/${GH_REPO}/pulls/${PR_NUMBER}/files failed (exit ${rc}): $(printf '%s' "$CHANGED_FILES" | head -1)"
+  fail_closed "gh api repos/${GH_REPO}/pulls/${PR_NUMBER}/files failed (exit ${rc}): $(head -1 "$ERR_FILE")"
 fi
+# cut, not sed '\t': BSD sed does not reliably read \t, and a tag left on
+# every line would make the ^prd/ guard never match (fail open).
+CHANGED_FILES="$(cut -f2- <<<"$TAGGED")"
+LISTED_COUNT="$(cut -f1 <<<"$TAGGED" | grep -c '^F$' || true)"
 
 # The listing must be complete, or an unseen file could be under prd/. The
 # REST files endpoint stops at 3000 files even with --paginate, so compare
 # against the PR's own changed_files count and fail closed on any shortfall.
-EXPECTED_COUNT="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.changed_files' 2>&1)"
+EXPECTED_COUNT="$(gh api "repos/${GH_REPO}/pulls/${PR_NUMBER}" --jq '.changed_files' 2>"$ERR_FILE")"
 rc=$?
 if [ "$rc" -ne 0 ] || ! [[ "$EXPECTED_COUNT" =~ ^[0-9]+$ ]]; then
-  fail_closed "could not read changed_files for PR #${PR_NUMBER} (exit ${rc}): $(printf '%s' "$EXPECTED_COUNT" | head -1)"
+  fail_closed "could not read changed_files for PR #${PR_NUMBER} (exit ${rc}): $(head -1 "$ERR_FILE")"
 fi
 if [ "$EXPECTED_COUNT" -ge 3000 ]; then
   fail_closed "PR #${PR_NUMBER} changes ${EXPECTED_COUNT} files — the files API lists at most 3000, so prd/ cannot be ruled out"
 fi
-# Distinct current filenames (rename sources add extra lines but are not
-# counted in changed_files).
-LISTED_COUNT="$(gh api --paginate "repos/${GH_REPO}/pulls/${PR_NUMBER}/files" --jq '.[] | .filename' 2>/dev/null | grep -c '' || true)"
 if [ "${LISTED_COUNT:-0}" -lt "$EXPECTED_COUNT" ]; then
   fail_closed "the files API listed ${LISTED_COUNT:-0} of ${EXPECTED_COUNT} changed files for PR #${PR_NUMBER} — prd/ cannot be ruled out"
 fi
