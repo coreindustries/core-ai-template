@@ -1,0 +1,7 @@
+{
+  "output": "This fixture contains lorem ipsum text on purpose so the regex scorer has something real to catch.",
+  "provenance": "hand-written defect for the harness self-test — intentionally trips no-lorem-ipsum",
+  "expect": {
+    "shouldFail": ["no-lorem-ipsum"]
+  }
+}

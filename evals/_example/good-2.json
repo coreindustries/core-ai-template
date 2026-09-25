@@ -1,0 +1,7 @@
+{
+  "output": "Another clean sample fixture used only by the harness's self-test, with adequate length and no trailing spaces.",
+  "provenance": "hand-written for the harness self-test — evals/_example is not tied to a real feature",
+  "expect": {
+    "shouldFail": []
+  }
+}

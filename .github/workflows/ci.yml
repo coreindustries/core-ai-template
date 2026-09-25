@@ -61,6 +61,20 @@ jobs:
       - name: Run ratchet.mjs's own test suite
         run: node --test 'scripts/tests/*.test.mjs'
 
+      # Unconditional: the eval harness scores fixture artifacts, not app code
+      # (scripts/eval/run-eval.mjs), so it runs even on an uninitialized
+      # template. --no-judge here means only deterministic scorers run in CI
+      # by default — no ANTHROPIC_API_KEY is available on a key-less runner,
+      # and a skipped judge is excluded from the aggregate rather than
+      # silently failing the gate (see .claude/references/llm-evals.md).
+      - name: Run LLM output quality evals (deterministic scorers)
+        run: node scripts/eval/run-eval.mjs --no-judge
+
+      - name: Run eval harness unit tests
+        # A quoted glob, not a directory: Node 22 treats `node --test <dir>` as a
+        # file path and fails with MODULE_NOT_FOUND.
+        run: node --test 'scripts/eval/tests/*.test.mjs'
+
       - name: Check project initialized
         id: init
         run: |

@@ -205,6 +205,10 @@
         {
           "covers": ["scripts/tests/*.test.mjs"],
           "by": "node --test 'scripts/tests/*.test.mjs'"
+        },
+        {
+          "covers": ["scripts/eval/tests/*.test.mjs"],
+          "by": "node --test 'scripts/eval/tests/*.test.mjs'"
         }
       ]
     }

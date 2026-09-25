@@ -1,0 +1,7 @@
+{
+  "output": "a ",
+  "provenance": "hand-written defect for the harness self-test — too short and has trailing whitespace",
+  "expect": {
+    "shouldFail": ["min-length", "no-trailing-whitespace"]
+  }
+}

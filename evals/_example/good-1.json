@@ -1,0 +1,7 @@
+{
+  "output": "This is a clean example used to validate the harness's good-fixture path end to end.",
+  "provenance": "hand-written for the harness self-test — evals/_example is not tied to a real feature",
+  "expect": {
+    "shouldFail": []
+  }
+}
