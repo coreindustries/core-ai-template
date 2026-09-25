@@ -24,6 +24,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 │   ├── _changelog_template.md → Changelog with breaking change policy
 │   └── tasks/                 → Long-running feature progress tracking
 ├── docs/
+│   ├── codex.md                → Codex runtime guide: skills, subagents, worktrees, hooks
 │   ├── adopt-best-practices.md → Self-contained kit to land into ANY existing repo
 │   ├── decisions/              → ADRs: read before proposing architectural changes
 │   ├── coordination/           → Cross-repo coordination tracking (incoming/outgoing)
@@ -34,7 +35,9 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/skills/            → 36 slash commands (invoke with /name)
 ├── .claude/agents/            → 11 specialized agents (see _template.md for structure)
 ├── .claude/agent-lanes.json   → Agent lanes config (environment ladder, PRD layout, name prefix)
-└── .claude/mcp.json           → MCP server configuration template
+├── .claude/mcp.json           → MCP server configuration template
+├── .agents/skills             → Symlink to .claude/skills, for Codex's skill discovery
+└── .codex/hooks.json          → Codex project hooks (UserPromptSubmit lane-role adapter)
 ```
 
 **Key**: `.claude/rules/*.md` files are **automatically loaded** into context — do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, secrets hygiene, dependency security, database migrations, delivery contract, AI agent patterns, quality checks, task management, guardrails). Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.

@@ -2,6 +2,17 @@
 
 Security and behavioral standards for all AI coding agents working in this repository.
 
+## Codex
+
+Read [docs/codex.md](docs/codex.md) once at the start of a Codex task — it translates this
+template's skills, subagent, worktree and hook workflow into Codex's own primitives. Skills live
+in `.agents/skills`, a symlink to `.claude/skills` (one source of truth; invoke with `/skills` or
+`$skill-name`). The standards below and in `.claude/rules/` apply exactly as written — Codex has
+no separate policy. Claude-only syntax referenced elsewhere in this repo (`Agent`, `subagent_type`,
+model aliases like `sonnet`/`opus`, `isolation: "worktree"`, `EnterWorktree`/`ExitWorktree`,
+`Monitor`, `SendMessage`, `TaskCreate`, `AskUserQuestion`, the `Skill` tool call) is not a Codex
+API — see `docs/codex.md` section 7 for the full list and its equivalents.
+
 ## Security Standards
 
 ### Files AI Tools Must Never Access
@@ -68,6 +79,7 @@ See `.claude/rules/dependency-security.md` (auto-loaded) for the full directive.
 | Tool | Exclusion File | Notes |
 |------|---------------|-------|
 | Claude Code | `.claude/settings.json` | Deny rules + PreToolUse hook |
+| Codex | `.codex/hooks.json` (requires `/hooks` trust) | Skills via `.agents/skills` symlink; see `docs/codex.md` |
 | Cursor | `.cursorignore` | Add if using Cursor |
 | Roo Code | `.rooignore` | Add if using Roo Code |
 | GitHub Copilot | Org settings | Configure in GitHub admin |

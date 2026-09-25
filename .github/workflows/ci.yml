@@ -46,6 +46,13 @@ jobs:
       - name: Check agent model pins match agent-models.json
         run: node scripts/sync-agent-models.mjs --check
 
+      # Unconditional: catches the Codex skill-discovery symlink (.agents/skills
+      # -> .claude/skills) going missing/broken/re-pointed, or a SKILL.md losing
+      # its `name`/`description` frontmatter — both silent until a Codex session
+      # tries to load skills and finds none. See docs/codex.md.
+      - name: Check Codex skills symlink and frontmatter
+        run: scripts/check-codex-skills.sh
+
       # Unconditional for the same reason as the model-pin check above: these
       # ratchet gates (silent exception swallowing, orphaned test files) scan
       # src/ tests/ scripts/ generically and run fine against an
