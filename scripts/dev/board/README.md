@@ -1,8 +1,9 @@
 # scripts/dev/board — agent-lanes tooling
 
-Deterministic tools for the Release Manager, Feature and Bugfix agent lanes. GitHub Issues are the
-single source of truth; these scripts do the repetitive coordination (claims, state labels, PR/CI
-diagnosis, deploys, log triage) so no model call has to rediscover state it could ask `gh` for.
+Deterministic tools for the Release Manager, Feature, Bugfix and PRD-manager agent lanes. GitHub
+Issues are the single source of truth; these scripts do the repetitive coordination (claims, state
+labels, PR/CI diagnosis, deploys, log triage) so no model call has to rediscover state it could ask
+`gh` for.
 
 - The workflow they serve: `.claude/skills/_shared/agent-protocol.md`.
 - Every project-specific value: `.claude/agent-lanes.json` (validate with `lanes-config.sh check`).
@@ -31,8 +32,8 @@ scripts/dev/board/board.sh <subcommand> [args...]      # board.sh help for the f
 | Subcommand | What it does |
 |---|---|
 | `init-labels [--dry-run]` | Creates the lane taxonomy from the "Agent lanes" section of `.github/labels.yml` (the one source). `agent:<NAME>` labels are created on demand. `make lanes-init` runs this. |
-| `list [--lane b\|f\|r] [--state s] [--agent NAME] [--unclaimed] [--stale] [--json]` | Open `lane:*` issues, P0→P3 then oldest first. A `STALE` column shows `stale <N>h` for claims idle past `claims.ttlHours`; `--stale` filters to only those; `--json` carries a `staleHours` field (null when not stale). |
-| `next --lane b\|f --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. Falls back to the lane's stale claims (via `reclaim`), oldest/highest-priority first, excluding any already held by the caller. A refused candidate is skipped in favor of the next one ONLY on exit 3 (not eligible) or 6 (could not verify) — both refuse before any write; every other code, including 7, propagates immediately. |
+| `list [--lane b\|f\|r\|p] [--state s] [--agent NAME] [--unclaimed] [--stale] [--json]` | Open `lane:*` issues, P0→P3 then oldest first. A `STALE` column shows `stale <N>h` for claims idle past `claims.ttlHours`; `--stale` filters to only those; `--json` carries a `staleHours` field (null when not stale). |
+| `next --lane b\|f\|p --agent NAME` | Claims the highest-priority, oldest unclaimed issue. Exit 3 = none; 4/5 = lost a race. Falls back to the lane's stale claims (via `reclaim`), oldest/highest-priority first, excluding any already held by the caller. A refused candidate is skipped in favor of the next one ONLY on exit 3 (not eligible) or 6 (could not verify) — both refuse before any write; every other code, including 7, propagates immediately. |
 | `claim <issue> <NAME>` | `agent:<NAME>` + a `claim:` comment, then a race check: an earlier unreleased claim wins and this call backs off (exit 4). Refuses (exit 5) if another agent holds it. Same-second ties (two claims posted in the same wall-clock second, so their timestamps are byte-identical) are broken by comment ORDER, not by comparing that identical timestamp text. A claim ends on either a `release:` comment OR a lost racer's own `claim-lost: NAME to WINNER` — treating only the first as a release let a racer who had already lost block every later claimant forever. If the race outcome can't be verified even after one retry (the comments read-back is invalid, or the claimant's own just-posted comment never shows up), `claim` posts `release: NAME ts unverified` before exiting 4 — dying silently would leave that same kind of never-released ghost claim. |
 | `release <issue> <NAME> [--reason ...]` | Drops the claim with a `release:` comment. |
 | `reclaim <issue> <NAME>` | Takes over a claim idle past `claims.ttlHours`. Re-checks staleness live; an OPEN, NON-DRAFT PR referencing the issue makes the claim live regardless of age (a green PR awaiting the operator's merge click has no reason to comment); only a DRAFT PR's age counts as ordinary activity. Posts `release: OLD ... reclaimed-by NEW` (naming any open PR OLD still has, so it isn't silently orphaned), removes `agent:OLD`, then runs the normal `claim` path. **Exit codes:** `2` usage error (bad args, already claimed by you); `3` NOT ELIGIBLE, refused before any write (closed, `agent:*` label gone, state changed, `wip-keep`, `claims.ttlHours` is 0, a live PR, or still under the TTL); `4`/`5` a real claim race, same as `claim`; `6` COULD NOT VERIFY, also refused before any write (a gh/jq lookup failed, including the release comment itself); `7` a write happened (the release comment landed) but the claim afterward failed anyway — never retried. |
@@ -66,6 +67,15 @@ repo variable. `.github/workflows/board-project-sync.yml` then syncs on every la
 (per-issue concurrency, so a label burst cannot cancel other issues' syncs) plus an hourly reconcile,
 and reports on every run whether that scheduled reconcile is actually firing. Before relying on it,
 `board.sh project-sync --self-check --number <N>` prints the real JSON keys `gh` returns.
+
+**Adding a new lane (e.g. `prd`) to an already-created project:** `gh` CLI cannot add an option to an
+existing single-select field — only create the field with its initial option list, or edit an item's
+value against options that already exist. When a new lane is added to `field_defs`'s Lane CSV after
+the Lane field already exists on the live project, `project-sync` detects the mismatch and only
+**WARNs** (`field 'Lane' ... has no option 'prd' — leaving unset`); it never mutates or breaks the
+sync for other issues. A human adds the option by hand once: project Settings → Fields → **Lane** →
+add option → `prd`. One-time per new lane, not recurring — `project-sync` picks it up automatically
+on its next field-list read once it exists.
 
 The project is for people. Agents read their queue from Issues, never from the project.
 

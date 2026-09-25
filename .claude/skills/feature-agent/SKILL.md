@@ -39,9 +39,16 @@ You never deploy or merge.
 4. File each `unbuilt` / `partial`:
    `board.sh file-feature --prd <file> --fr <id> --priority P<n> --title "<outcome>" --body-file <md>`
    with the requirement text, the evidence, the missing piece and the PRD's acceptance check.
-   `file-feature` refuses duplicates (exit 5), so several feature agents can refill safely.
-5. `needs-decision` items: file at `state:blocked` with the question, and list them for the operator
-   in one `needs input:` message. Never guess a product decision.
+   `file-feature` refuses duplicates (exit 5), so several feature agents can refill safely. Exit 6
+   means it could not check (issue search failed) and filed nothing: retry once, then report it.
+5. `needs-decision` items: don't file a blocked `lane:feature` issue for these — the PRD manager
+   (`prd-manager` skill) owns product decisions and batches them to the operator. File a `lane:prd`
+   issue instead, `state:backlog`, citing the PRD id and FR **unbracketed** in the title. The
+   bracketed `[<prd_id> FR<n>]` token is reserved for the one issue that builds the FR:
+   `prd-scan`/`file-feature` count an FR as tracked only when an issue contains that exact token and
+   is not `lane:prd` (GitHub search ignores brackets, so board.sh re-checks the hits itself):
+   `gh issue create --label lane:prd --label P<n> --label state:backlog --title "<prd_id> FR<n> needs
+   decision: <outcome>" --body "<question>"`. Never guess a product decision yourself.
 
 ## 3. Build the claimed feature
 
@@ -74,5 +81,8 @@ You never deploy or merge.
 - **One feature per context.** Don't widen a PR's scope; file a follow-up issue instead.
 - The operator decides product scope. Anything the PRD leaves open → `state:blocked` + `needs input:`.
 - UI work isn't done without evidence from the real app (a screenshot from a real device or browser).
+- A PRD that is wrong, ambiguous, or has an FR with no id or no runnable acceptance check: file a
+  `lane:prd` issue for the PRD manager (`<P>-PRD`) with the FR and what's missing. Don't rewrite the
+  PRD yourself.
 - A bug found along the way: file it `lane:bug` and keep going. Fix it in your PR only if it blocks
   the feature.

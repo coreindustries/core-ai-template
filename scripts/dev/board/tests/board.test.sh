@@ -1319,7 +1319,12 @@ printf '%s\n' "$*" >> "$FAKE_GH_LOG"
 if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then
   full="$*"
   if printf '%s' "$full" | grep -q ' FR1]'; then
-    echo '[{"number":1,"title":"tracks FR1","url":"https://example/1","state":"OPEN"}]'
+    # A real tracking issue carries the exact bracketed token in its title.
+    search_arg="" prev=""
+    for a in "$@"; do [ "$prev" = "--search" ] && search_arg="$a"; prev="$a"; done
+    token="${search_arg%% in:*}"; token="${token#\"}"; token="${token%\"}"
+    jq -nc --arg t "$token tracks FR1" \
+      '[{number:1, title:$t, body:"", url:"https://example/1", state:"OPEN", labels:[{name:"lane:feature"}]}]'
   else
     echo '[]'
   fi
@@ -1344,6 +1349,47 @@ else
 fi
 
 # ===========================================================================
+# 9b. prd_frontmatter_field strips an inline ` # comment` instead of leaking
+# it into the value — exactly the shape prd/_PRD_TEMPLATE.md's own `status`
+# and `prd_id` fields carry. Before this fix, a status comment that merely
+# LISTS "Superseded"/"Deprecated" as options made the *`case`* pattern match
+# and skip the PRD entirely, hiding every FR from prd-scan.
+# ===========================================================================
+reset_env
+prd_commented="$WORK/PRD-commented.md"
+cat > "$prd_commented" <<'PRDEOF2'
+---
+prd_id: PRD-2026-09-25-example # must match the filename: prd/YYYY-MM-DD-{slug}.md
+status: "Draft" # Draft | Active | Complete | Superseded (add superseded_by) | Deprecated
+---
+
+### FR1 – only requirement
+Some text.
+PRDEOF2
+
+export FAKE_LABEL_LIST_JSON='[]'
+cat > "$FAKE_BIN/gh" <<'FAKE_GH_CMT'
+#!/usr/bin/env bash
+set -uo pipefail
+: "${FAKE_GH_LOG:=/dev/null}"
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then echo '[]'; exit 0; fi
+if [ "${1:-}" = "pr" ] && [ "${2:-}" = "list" ]; then echo '[]'; exit 0; fi
+echo "fake gh (comment-pollution mode): unhandled $*" >&2
+exit 1
+FAKE_GH_CMT
+chmod +x "$FAKE_BIN/gh"
+
+out="$(bash "$BOARD" prd-scan --json --prd "$prd_commented" 2>"$WORK/prd-scan-cmt.err")"
+fr_count="$(printf '%s' "$out" | jq 'length')"
+token="$(printf '%s' "$out" | jq -r '.[0].token // empty')"
+if [ "$fr_count" = "1" ] && [ "$token" = "[PRD-2026-09-25-example FR1]" ]; then
+  pass "prd_frontmatter_field: an inline status/prd_id comment does not hide the PRD or pollute its id"
+else
+  fail "prd_frontmatter_field: comment pollution (fr_count=[$fr_count] token=[$token] out=[$out])"
+fi
+
+# ===========================================================================
 # 10. file-feature refuses a duplicate token
 # ===========================================================================
 reset_env
@@ -1353,7 +1399,7 @@ set -uo pipefail
 : "${FAKE_GH_LOG:=/dev/null}"
 printf '%s\n' "$*" >> "$FAKE_GH_LOG"
 if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then
-  echo '[{"number":55,"title":"already tracks this","url":"https://example/55","state":"OPEN"}]'
+  echo '[{"number":55,"title":"[PRD-fixture FR1] already tracks this","body":"","url":"https://example/55","state":"OPEN","labels":[{"name":"lane:feature"}]}]'
   exit 0
 fi
 if [ "${1:-}" = "issue" ] && [ "${2:-}" = "create" ]; then
@@ -1375,6 +1421,99 @@ if [ "$rc" = "5" ] && ! grep -q '^issue create' "$FAKE_GH_LOG"; then
 else
   fail "file-feature: duplicate-token refusal (rc=$rc log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
 fi
+
+# ===========================================================================
+# 10b. A `lane:prd` needs-decision issue must NOT be titled with the
+# bracketed `[<prd_id> FR<n>]` token: that literal string is `file-feature`'s
+# own dedup search token (see cmd_file_feature above — it searches
+# `"[<prd_id> FR<n>]" in:title,body`).
+#
+# This fake `gh` mimics REAL GitHub issue search, which ignores punctuation:
+# verified live — `"FEATURE Web dashboard users" in:title` and
+# `"[FEATURE] Web dashboard users" in:title` both return an issue titled
+# "[FEATURE] Web dashboard…". So the search is only a coarse filter, and
+# board.sh must check the exact bracketed token itself. The fake matches with
+# brackets stripped from both sides and returns the corpus issue's real
+# title, labels and state so board.sh's client-side filter is exercised.
+# ===========================================================================
+reset_env
+cat > "$FAKE_BIN/gh" <<'FAKE_GH_ND'
+#!/usr/bin/env bash
+set -uo pipefail
+: "${FAKE_GH_LOG:=/dev/null}"
+printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+if [ "${1:-}" = "issue" ] && [ "${2:-}" = "list" ]; then
+  search_arg=""
+  prev=""
+  for a in "$@"; do
+    [ "$prev" = "--search" ] && search_arg="$a"
+    prev="$a"
+  done
+  token="${search_arg%% in:*}"
+  token="${token#\"}"
+  token="${token%\"}"
+  loose() { printf '%s' "$1" | tr -d '[]'; }
+  if [ -n "${FAKE_ISSUE_CORPUS:-}" ] && grep -qF -- "$(loose "$token")" <<<"$(loose "$FAKE_ISSUE_CORPUS")"; then
+    jq -nc --arg t "$FAKE_ISSUE_CORPUS" --arg l "${FAKE_ISSUE_LABEL:-lane:prd}" --arg s "${FAKE_ISSUE_STATE:-OPEN}" \
+      '[{number:9, title:$t, body:"", url:"https://example/9", state:$s, labels:[{name:$l}]}]'
+  else
+    echo '[]'
+  fi
+  exit 0
+fi
+if [ "${1:-}" = "issue" ] && [ "${2:-}" = "create" ]; then
+  echo "https://example/999"
+  exit 0
+fi
+echo "fake gh (needs-decision mode): unhandled $*" >&2
+exit 1
+FAKE_GH_ND
+chmod +x "$FAKE_BIN/gh"
+
+body_file2="$WORK/body2.md"
+printf 'Body text.\n' > "$body_file2"
+
+# nd_case <name> <want-rc> — runs file-feature for FR2 against the current
+# FAKE_ISSUE_CORPUS / FAKE_ISSUE_LABEL / FAKE_ISSUE_STATE.
+nd_case() {
+  local name="$1" want="$2" out rc
+  : > "$FAKE_GH_LOG"
+  out="$(bash "$BOARD" file-feature --prd "$prd_fixture" --fr FR2 --priority P2 \
+    --title "widget export" --body-file "$body_file2" 2>&1)"
+  rc=$?
+  if [ "$rc" = "$want" ]; then
+    pass "file-feature: $name (exit $rc)"
+  else
+    fail "file-feature: $name — expected exit $want, got $rc (out=[$out] log=$(tr '\n' '|' < "$FAKE_GH_LOG"))"
+  fi
+}
+
+# Search ignores brackets, so an UNBRACKETED needs-decision reference is a
+# search hit. It must not count as tracking the FR, open or closed.
+reset_env
+export FAKE_ISSUE_CORPUS='PRD-fixture FR2 needs decision: widget export destination'
+export FAKE_ISSUE_LABEL='lane:prd' FAKE_ISSUE_STATE='OPEN'
+nd_case "an open unbracketed lane:prd needs-decision issue does not block filing" 0
+export FAKE_ISSUE_STATE='CLOSED'
+nd_case "a closed unbracketed lane:prd needs-decision issue does not block filing" 0
+
+# Even an OLD-style lane:prd issue that carries the bracketed token is a
+# decision record, not a feature: it must not block filing either.
+export FAKE_ISSUE_CORPUS='[PRD-fixture FR2] widget export decision needed — needs decision'
+export FAKE_ISSUE_STATE='OPEN'
+nd_case "a lane:prd issue carrying the bracketed token does not block filing" 0
+
+# A non-prd issue that merely MENTIONS the FR without brackets (search still
+# hits it, punctuation ignored) is not tracking it.
+export FAKE_ISSUE_CORPUS='follow-up to PRD-fixture FR2 export work'
+export FAKE_ISSUE_LABEL='lane:bug'
+nd_case "a lane:bug issue mentioning the FR unbracketed does not block filing" 0
+
+# A real feature issue with the exact bracketed token IS tracking the FR.
+export FAKE_ISSUE_CORPUS='[PRD-fixture FR2] widget export'
+export FAKE_ISSUE_LABEL='lane:feature'
+nd_case "a lane:feature issue with the exact bracketed token blocks filing" 5
+unset FAKE_ISSUE_LABEL FAKE_ISSUE_STATE
 
 # ===========================================================================
 # 11. pr-status extracts the failing job name + error line
@@ -1756,6 +1895,19 @@ if [ "$rc4" = "0" ] \
   pass "checkout --worktree: empty/non-ASCII title falls back to slug 'issue'"
 else
   fail "checkout --worktree: slug fallback (rc=$rc4 out=[$out4])"
+fi
+
+# 5. lane:prd issue -> docs/ branch prefix (PRD-manager lane, C-PRD): a PRD
+# PR's commit-prefix convention is docs(prd)/feat(prd) (prd-manager SKILL.md
+# §6), so its worktree branch defaults to the docs/ prefix too.
+export FAKE_ISSUE_VIEW_LABELS_JSON='{"title":"groom prd/2026-09-25-example.md","state":"OPEN","labels":[{"name":"lane:prd"},{"name":"agent:ME"},{"name":"state:implementing"}]}'
+out5="$(PATH="$WT_TEST_PATH" LANES_CONFIG="$LANES_FIXTURE" LANES_REPO_ROOT="$REPO_ROOT" bash "$BOARD" checkout 4244 ME --worktree 2>&1)"; rc5=$?
+if [ "$rc5" = "0" ] \
+   && printf '%s' "$out5" | grep -qF "checkout: worktree ${WT_MAIN}/.worktrees/4244-groom-prd-2026-09-25-example-md on docs/4244-groom-prd-2026-09-25-example-md" \
+   && [ -d "${WT_MAIN}/.worktrees/4244-groom-prd-2026-09-25-example-md" ]; then
+  pass "checkout --worktree: lane:prd issue uses the docs/ branch prefix"
+else
+  fail "checkout --worktree: lane:prd docs/ prefix (rc=$rc5 out=[$out5])"
 fi
 
 unset BOARD_REPO BOARD_ISSUE_DIR FAKE_API_JSON BOARD_MAIN_ROOT

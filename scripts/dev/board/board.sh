@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # board.sh — deterministic GitHub-Issues coordination CLI for the bugfix/
-# feature/release-manager agent lanes. GitHub Issues are the single source of
-# truth for coordinated work; the repetitive coordination is done by this TOOL,
-# not by model calls that rediscover state.
+# feature/release-manager/PRD-manager agent lanes. GitHub Issues are the
+# single source of truth for coordinated work; the repetitive coordination is
+# done by this TOOL, not by model calls that rediscover state.
 #
 # Every subcommand shells `gh` (never a hand-rolled REST client) so this
 # stays in lockstep with whatever `gh` itself supports, and every subcommand
@@ -15,7 +15,7 @@
 #
 # Label taxonomy (.claude/skills/_shared/agent-protocol.md §2; created by
 # `board.sh init-labels`):
-#   lane:bug | lane:feature | lane:release   — which agent lane owns the issue
+#   lane:bug | lane:feature | lane:release | lane:prd   — which agent lane owns the issue
 #   P0..P3                                    — priority
 #   state:backlog|implementing|built|deployed|verifying|blocked|dropped|done
 #   agent:<NAME>                              — current claimant (0 or 1)
@@ -37,7 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 DEFAULT_BRANCH="$(lanes_cfg '.defaultBranch' main)"
 
 VALID_STATES="backlog implementing built deployed verifying done blocked dropped"
-VALID_LANES="bug feature release"
+VALID_LANES="bug feature release prd"
 
 # ---------------------------------------------------------------------------
 # Stale-claim reclaim — shared by `list --stale`, `render` and `reclaim`.
@@ -416,7 +416,7 @@ EOF
 }
 
 # ---------------------------------------------------------------------------
-# list [--lane bug|feature|release] [--state <s>] [--agent <NAME>] [--unclaimed] [--json]
+# list [--lane bug|feature|release|prd] [--state <s>] [--agent <NAME>] [--unclaimed] [--json]
 # ---------------------------------------------------------------------------
 cmd_list() {
   require_gh; require_jq
@@ -493,7 +493,7 @@ cmd_list() {
 }
 
 # ---------------------------------------------------------------------------
-# next --lane bug|feature --agent <NAME>
+# next --lane bug|feature|prd --agent <NAME>
 # ---------------------------------------------------------------------------
 cmd_next() {
   require_gh; require_jq
@@ -938,7 +938,7 @@ cmd_handoff() {
 
 # ---------------------------------------------------------------------------
 # show <issue> [issue-fetch.sh options] — issue text + downloaded screenshots
-# watch --agent <NAME> [--lane bug|feature] [...] — issue events for Monitor
+# watch --agent <NAME> [--lane bug|feature|prd] [...] — issue events for Monitor
 #
 # Both `exec` into a child script and never return to this process — bash
 # does NOT run EXIT traps on a successful exec (the process image is simply
@@ -1025,6 +1025,7 @@ cmd_checkout() {
     case "$labels" in
       *lane:feature*) prefix=feat ;;
       *lane:bug*) prefix=fix ;;
+      *lane:prd*) prefix=docs ;;
       *) prefix=chore ;;
     esac
     slug="$(printf '%s' "$title" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed -e 's/^-//' -e 's/-$//' | cut -c1-40 | sed 's/-$//')"
@@ -1177,7 +1178,7 @@ HTML_HEAD
 <script>
 (function () {
   var data = JSON.parse(document.getElementById('board-data').textContent);
-  var lanes = ['bug', 'feature', 'release'];
+  var lanes = ['bug', 'feature', 'release', 'prd'];
   var states = ['backlog', 'implementing', 'built', 'deployed', 'verifying', 'blocked'];
   var root = document.getElementById('root');
   lanes.forEach(function (lane) {
@@ -1425,7 +1426,7 @@ cmd_project_sync() {
     || die "project-sync: gh project field-list failed for project #${number}: ${fields_json}" 2
 
   # name|type|csv-options (csv empty for TEXT)
-  local field_defs="Lane|SINGLE_SELECT|bug,feature,release
+  local field_defs="Lane|SINGLE_SELECT|bug,feature,release,prd
 State|SINGLE_SELECT|backlog,implementing,built,deployed,verifying,blocked,done,dropped
 Priority|SINGLE_SELECT|P0,P1,P2,P3
 Agent|TEXT|"
@@ -1640,6 +1641,20 @@ EOF
 
 # ---------------------------------------------------------------------------
 # prd_frontmatter_field <file> <field> — shared helper for prd-scan/file-feature
+#
+# Strips a trailing ` # comment` from the raw value before returning it — the
+# PRD template documents each field's allowed values with an inline comment
+# (`status: "Draft" # Draft | Active | ... | Deprecated`), and without this,
+# the comment text itself leaks into the returned value: a `status` comment
+# that merely LISTS "Superseded"/"Deprecated" as options made prd-scan treat
+# every PRD using that comment as already superseded/deprecated and skip it
+# entirely (judge finding, 2026-09). Quoted values only strip what follows
+# the closing quote (so a value can legitimately contain a `#` if quoted);
+# an unquoted value strips from the first ` #` onward, which means an
+# unquoted value must never itself contain a literal ` #` — every field this
+# function reads today (status/title/prd_id) never legitimately does.
+# Known limit: a backslash-escaped quote inside a double-quoted value
+# (`"a \"b\""`) ends the value at the first `\"`. Not a YAML parser.
 # ---------------------------------------------------------------------------
 prd_frontmatter_field() {
   awk -v field="$2" '
@@ -1648,7 +1663,13 @@ prd_frontmatter_field() {
     infm && $0 == "---" { exit }
     infm && $0 ~ ("^" field ":") {
       sub("^" field ":[[:space:]]*", "")
-      gsub(/^"|"$/, "")
+      if ($0 ~ /^"/) {
+        sub(/^"/, "")
+        sub(/".*/, "")
+      } else {
+        sub(/[[:space:]]+#.*$/, "")
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+      }
       print
       exit
     }
@@ -1727,7 +1748,7 @@ cmd_prd_scan() {
     for fr in $frs; do
       token="[${prd_id} ${fr}]"
 
-      hits="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 5 --json number,title,url,state 2>&1)" \
+      hits="$(_token_issue_hits "$token")" \
         || { echo "prd-scan SKIPPED issue search for token ${token}: gh issue list failed — treating as untracked (verify by hand)" >&2; hits="[]"; }
       pr_hits="$(gh pr list --state all --search "\"${token}\"" --limit 5 --json number,title,url,state 2>&1)" \
         || { echo "prd-scan SKIPPED PR search for token ${token}: gh pr list failed — treating as none found" >&2; pr_hits="[]"; }
@@ -1758,6 +1779,31 @@ cmd_prd_scan() {
   echo "(does NOT mean undeveloped — verify top candidates against code/PRs before filing)"
 }
 
+# _token_issue_hits <token> — issues that track <token> (`[<prd_id> FR<n>]`),
+# as a JSON array of {number,title,url,state}. Non-zero if gh/jq fails.
+#
+# GitHub issue search ignores punctuation, so `"[PRD-x FR2]"` also matches
+# `PRD-x FR2 needs decision…` (verified live: bracketed and unbracketed phrase
+# searches return the same issues). The search is therefore only a coarse
+# filter; a hit counts only if its title or body contains the EXACT bracketed
+# token, and never if it is a lane:prd decision record — those cite an FR,
+# they don't build it.
+#
+# Known limit: only the first 50 search hits are checked. More than 50 loose
+# matches for one "<prd_id> FR<n>" phrase would be needed to push an exact
+# hit out, which a single PRD id + FR number does not realistically produce.
+_token_issue_hits() {
+  local token="$1" raw
+  # stderr kept out of $raw: a gh warning on success would corrupt the JSON.
+  raw="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 50 \
+    --json number,title,body,url,state,labels)" || return 1
+  printf '%s' "$raw" | jq -c --arg tok "$token" '
+    [ .[]
+      | select(((.title // "") + "\n" + (.body // "")) | contains($tok))
+      | select([.labels[]?.name] | index("lane:prd") | not)
+      | {number, title, url, state} ]' || return 1
+}
+
 # ---------------------------------------------------------------------------
 # file-feature --prd <file> --fr <id> --priority P1 --title "..." --body-file <md>
 # ---------------------------------------------------------------------------
@@ -1783,7 +1829,9 @@ cmd_file_feature() {
   fr_norm="$(printf '%s' "$fr" | sed -E 's/^([A-Za-z]+)-?([0-9]+)$/\1\2/')"
   token="[${prd_id} ${fr_norm}]"
 
-  existing="$(gh issue list --state all --search "\"${token}\" in:title,body" --limit 5 --json number,title,url)"
+  # Fail closed: if we cannot check, do not risk filing a duplicate.
+  existing="$(_token_issue_hits "$token")" \
+    || die "file-feature: could not check whether ${token} is already tracked (issue search failed) — not filing" 6
   if [ "$(printf '%s' "$existing" | jq 'length')" -gt 0 ]; then
     echo "file-feature: token ${token} already tracked: $(printf '%s' "$existing" | jq -r '.[0] | "#\(.number) \(.url)"')" >&2
     exit 5
@@ -2002,7 +2050,7 @@ board.sh — deterministic GitHub-Issues coordination CLI
   handoff <issue> --file <md>
   comment <issue> --file <md>
   show <issue> [--out DIR] [--no-comments]     (text + screenshots, via issue-fetch.sh)
-  watch --agent <NAME> [--lane bug|feature]    (issue events for Monitor, via issue-watch.sh)
+  watch --agent <NAME> [--lane bug|feature|prd]    (issue events for Monitor, via issue-watch.sh)
   checkout <issue> <NAME> [--worktree]         (claim + implementing + show [+ worktree])
   deploy-queue [--json]
   render --out <file.html> [--hash-file <path>]

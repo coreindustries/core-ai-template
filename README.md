@@ -67,7 +67,7 @@ See `REPO_SETUP.md` for one-time GitHub configuration (auto-merge setting, branc
 
 ### Agent Lanes
 
-A standing team of Claude Code sessions — one Release Manager plus parallel Feature and Bugfix agents — coordinating through GitHub Issues, configured by one file (`.claude/agent-lanes.json`). Deploys are verified by the SHA actually running, logs are redacted by the tool before any model or issue sees them, and every agent babysits its own PRs to merged. See [Running the agent lanes](#running-the-agent-lanes).
+A standing team of Claude Code sessions — one Release Manager, one PRD Manager, plus parallel Feature and Bugfix agents — coordinating through GitHub Issues, configured by one file (`.claude/agent-lanes.json`). Deploys are verified by the SHA actually running, logs are redacted by the tool before any model or issue sees them, and every agent babysits its own PRs to merged. See [Running the agent lanes](#running-the-agent-lanes).
 
 ### Adopt Into Any Existing Repo
 - `docs/adopt-best-practices.md` - **Self-contained** markdown file you can hand to any Claude Code (or compatible) agent in another repo to land this template's tooling discipline (secret scanning, Conventional Commits, PR template, ADR/PRD/coordination workflows) in a single PR
@@ -129,6 +129,7 @@ A standing team of Claude Code sessions — one Release Manager plus parallel Fe
 | `/release-manager` | Walk merged `needs-deploy` PRs up the environment ladder, triage logs before/after, file redacted bugs |
 | `/feature-agent` | Find unbuilt PRD requirements, file and claim them, build through architect → judge → PR |
 | `/bugfix-agent` | Take the highest-priority `lane:bug`, reproduce, fix the class, babysit the PR to merged |
+| `/prd-manager` | Write and groom PRDs so every requirement is honest and testable, hand buildable FRs to FEATURES |
 
 **Knowledge & Discovery**
 | Skill | Purpose |
@@ -318,10 +319,10 @@ git checkout -b feat/my-feature
 ## Running the agent lanes
 
 A standing team of Claude Code sessions that coordinate through GitHub Issues: one **Release
-Manager** and any number of parallel **Feature** and **Bugfix** agents. Every task is an issue with
-one `lane:*`, one `P0`–`P3`, exactly one `state:*` (`backlog → implementing → built → deployed →
-verifying → done`, or `blocked` / `dropped`) and, while claimed, `agent:<NAME>`. Nobody self-merges —
-you click merge. Only the Release Manager deploys.
+Manager**, one **PRD Manager**, and any number of parallel **Feature** and **Bugfix** agents. Every
+task is an issue with one `lane:*`, one `P0`–`P3`, exactly one `state:*` (`backlog → implementing →
+built → deployed → verifying → done`, or `blocked` / `dropped`) and, while claimed, `agent:<NAME>`.
+Nobody self-merges — you click merge. Only the Release Manager deploys.
 
 **Set up once per repo:**
 
@@ -338,6 +339,7 @@ you click merge. Only the Release Manager deploys.
 | `You are the Release Manager` | `C-RELEASE` — walks merged `needs-deploy` PRs up the ladder, reads logs before and after every deploy, files redacted `lane:bug` issues for new errors |
 | `You are the Feature manager` (or `You are feature agent 2`) | `C-FEATURE-<id>` — finds unbuilt PRD requirements, files and claims them, architect → planner → implement → judge → PR |
 | `You handle bug fixes` (or `You are bugfix agent 3`) | `C-BUGFIX-<id>` — takes the highest-priority `lane:bug`, reproduces it, fixes the class, same review and PR loop |
+| `You are the PRD manager` | `C-PRD` — writes and grooms PRDs, keeps every requirement honest and testable, hands buildable FRs to the Feature lane |
 
 A hook records the role and re-injects it after every compaction, so a lane survives long sessions
 (`CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude` compacts early). Each agent babysits its own PRs to

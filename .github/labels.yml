@@ -232,6 +232,10 @@
   color: "5319e7"
   description: "Release-manager lane"
 
+- name: lane:prd
+  color: "1d76db"
+  description: "PRD-manager lane"
+
 - name: state:backlog
   color: "ededed"
   description: "Lane state: filed, not started"

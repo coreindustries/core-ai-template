@@ -1,11 +1,22 @@
 ---
 prd_version: "1.0"
-status: "Draft" # Draft | Active | Deprecated
-priority: "P1" # P0 (Critical) | P1 (High) | P2 (Medium) | P3 (Low)
+# The id that tracks this PRD's FRs on the board. Blank means the filename
+# stem (board.sh prd_id_for()), so an unfilled placeholder never collides.
+# To use the canonical PRD-YYYY-MM-DD-{slug} form (the stem with a PRD-
+# prefix), set it BEFORE the first `board.sh file-feature` for this PRD.
+# Never change it once any FR is tracked: tracking issues are keyed on it,
+# and a changed id makes every FR look untracked (see the prd-manager skill).
+prd_id: ""
+# Draft | Active | Complete | Superseded (add superseded_by) | Deprecated
+status: "Draft"
+# P0 (Critical) | P1 (High) | P2 (Medium) | P3 (Low)
+priority: "P1"
 last_updated: "YYYY-MM-DD"
 owner: "@github-handle"
-depends_on: [] # e.g., ["PRD-2026-09-01-auth", "PRD-03"] (legacy numbered IDs stay valid)
-estimated_effort: "S" # S (<1 day) | M (1-3 days) | L (3-5 days) | XL (1-2 weeks)
+# e.g., ["PRD-2026-09-01-auth", "PRD-03"] (legacy numbered IDs stay valid)
+depends_on: []
+# S (<1 day) | M (1-3 days) | L (3-5 days) | XL (1-2 weeks)
+estimated_effort: "S"
 ---
 
 # PRD-YYYY-MM-DD-{slug} – {Feature Name}

@@ -690,7 +690,38 @@ else
 fi
 
 # ===========================================================================
-# 18. .intake.excludeLabels config wiring: the configured exclude list must
+# 18. --lane validation mirrors board.sh's VALID_LANES minus release ("bug
+# feature prd") — every lane agent that watches the issue queue runs
+# `watch --lane <l>` (agent-protocol.md §5); the PRD-manager lane (C-PRD)
+# needs `--lane prd` accepted, not rejected as it was before that lane
+# existed. `--lane bug`/`--lane feature` acceptance is already exercised
+# throughout this file (see case 2 onward); this covers `prd` and the
+# rejection path specifically. Placed BEFORE the excludeLabels case below,
+# which permanently swaps $FAKE_BIN/gh for a capture-only stub that never
+# answers a real FAKE_QUEUE_TSV_* lookup.
+# ===========================================================================
+reset_env
+SD_PRD="$(new_state_dir)"
+export FAKE_FRESH_TSV=""
+export FAKE_QUEUE_TSV_prd=$'401\tP2\tGroom a PRD'
+out_prd="$(run_watch "$SD_PRD" --agent C-PRD --lane prd 2>&1)"; rc_prd=$?
+if [ "$rc_prd" = "0" ] && printf '%s' "$out_prd" | grep -qF "WATCH-ARMED agent=C-PRD lane=prd claimed=0 untriaged=0 queue=1"; then
+  pass "--lane prd: accepted (PRD-manager lane)"
+else
+  fail "--lane prd (rc=$rc_prd out=[$out_prd])"
+fi
+
+reset_env
+SD_BAD="$(new_state_dir)"
+out_bad="$(run_watch "$SD_BAD" --agent C-BAD --lane nonsense 2>&1)"; rc_bad=$?
+if [ "$rc_bad" = "2" ] && printf '%s' "$out_bad" | grep -q -- "--lane must be one of"; then
+  pass "--lane nonsense: rejected with a clear error, exit 2"
+else
+  fail "--lane nonsense (rc=$rc_bad out=[$out_bad])"
+fi
+
+# ===========================================================================
+# 19. .intake.excludeLabels config wiring: the configured exclude list must
 # reach the REAL --jq argument issue-watch.sh hands to `gh api`, end to end —
 # not just via a hand-copied re-implementation. A special-purpose fake `gh`
 # captures the --jq argument of the fetch_fresh()-shaped call (no `-f
