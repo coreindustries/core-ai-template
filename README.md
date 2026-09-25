@@ -348,6 +348,15 @@ merged — red checks, conflicts, stale branches — and asks you only for the m
 The workflow: `.claude/skills/_shared/agent-protocol.md`. The tools: `scripts/dev/board/README.md`.
 Tests: `make lanes-test`.
 
+## Using This Template With Codex
+
+Every skill, rule and lane in this template works from OpenAI Codex too: `.agents/skills` is a
+symlink to `.claude/skills` (Codex's own discovery path), and `.claude/skills/_shared/agent-protocol.md`
+is runtime-neutral. Start a Codex session, then read [docs/codex.md](docs/codex.md) once — it
+translates the Claude-specific tool calls (`Agent`, worktree isolation, hooks) into Codex's
+`spawn_agent`/`git worktree`/`.codex/hooks.json` equivalents and gives exact architect → planner →
+worker → judge spawn briefs.
+
 ## Adopting Into An Existing Repo
 
 `docs/adopt-best-practices.md` is a self-contained playbook for landing
@@ -836,6 +845,7 @@ See `.claude/references/rules-guide.md` for the full guide.
 |----------|---------|--------------|
 | `README.md` | Project overview and setup | Start here |
 | `CLAUDE.md` | AI agent project guidance | Customize for your project |
+| `docs/codex.md` | Codex runtime guide (skills, subagents, worktrees, hooks) | Working in Codex |
 | `CONTRIBUTING.md` | Contributor workflow and standards | Before contributing |
 | `.claude/rules/` | Universal standards (auto-loaded) | Source of truth |
 | `.claude/rules-available/` | Platform rules (opt-in) | Enable for your stack |

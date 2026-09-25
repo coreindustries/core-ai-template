@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || exit 0; exec \"$root/.claude/hooks/agent-role-codex.sh\"",
+            "timeout": 5,
+            "statusMessage": "Checking prompt for a lane-agent role assignment"
+          }
+        ]
+      }
+    ]
+  }
+}
