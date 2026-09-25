@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"$(git rev-parse --show-toplevel)\"/.claude/hooks/agent-role-codex.sh",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || exit 0; exec \"$root/.claude/hooks/agent-role-codex.sh\"",
             "timeout": 5,
             "statusMessage": "Checking prompt for a lane-agent role assignment"
           }

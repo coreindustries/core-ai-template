@@ -30,6 +30,8 @@
 # prompt text.
 set -uo pipefail
 
+# Reserved: nothing reads this yet. It marks the runtime for any future
+# Codex-specific branch in agent-role.sh without changing the Claude path.
 export AGENT_HOOK_RUNTIME=codex
 
 exec "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/agent-role.sh"

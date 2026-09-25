@@ -52,7 +52,7 @@ underlying thing a different way when there's no direct equivalent.
 | `ScheduleWakeup` / `run_in_background: true` (Bash) | the shell tool's background/continuation mechanism | Use the session id the shell tool returns and its documented continuation call; do not restart a command because it yielded control. There is no scheduled-future-wakeup primitive — the parent must actively re-check. |
 | `SendMessage` | `send_message` (to a running child) / `followup_task` (to an idle child) | Only reaches a **live local** child in the same session tree. For durable, cross-session coordination (lane agents, hand-offs), use GitHub issue/PR comments via `scripts/dev/board/board.sh` — the same channel Claude Code lane agents use, already runtime-neutral. |
 | `TaskCreate` | none — use `scripts/dev/board/board.sh` (GitHub Issues) or `prd/tasks/*.md` | There is no built-in shared task-list UI in Codex. The lane protocol already treats GitHub Issues as the only source of truth, so nothing changes here between runtimes. |
-| `AskUserQuestion` | ask in plain response text and keep working on what doesn't depend on the answer | No structured question/choice UI. Follow `docs/codex-astra.md`-style guidance (carry the task through): resolve routine reversible choices yourself, ask a focused question only when a missing answer changes the outcome, and don't block unrelated progress on it. |
+| `AskUserQuestion` | ask in plain response text and keep working on what doesn't depend on the answer | No structured question/choice UI. Carry the task through (`.claude/rules/ai-agent-patterns.md` → Bias to Action): resolve routine reversible choices yourself, ask a focused question only when a missing answer changes the outcome, and don't block unrelated progress on it. |
 | `Skill` (tool call) | `/skills`, `$skill-name`, or implicit selection | See §1. |
 
 `list_agents` before fan-out: Codex's observed concurrency is **4 active agent slots including
@@ -144,11 +144,19 @@ in `judge.md`'s own "Inputs" section, which assumes a Claude Code session that a
 diff in context):
 
 ```sh
+# Resolve the base branch: the remote's default, else a local main/master.
+BASE="$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)" \
+  || BASE="$(git rev-parse -q --verify main >/dev/null && echo main || echo master)"
 git status --porcelain
-git diff "$(git merge-base HEAD origin/main)"
+git diff "$(git merge-base HEAD "$BASE")"
 git diff --cached
 git ls-files --others --exclude-standard
 ```
+
+With no remote at all (a fresh copy of the template), `BASE` falls back to the local `main`
+(or `master`). If `HEAD` *is* that branch, there is no branch diff: review the working-tree and
+staged changes plus the commits you were asked about (`git log -p <from>..HEAD`), and say which
+range you reviewed.
 
 `git ls-files --others --exclude-standard` prints **paths only** — it does not show untracked
 file contents. The judge must `Read` (or `cat`) every path it lists before issuing a verdict; an
@@ -163,6 +171,9 @@ file that was already dirty without changing its status). For anything you're tr
 read-only verdict on, fingerprint the worktree before and after:
 
 ```sh
+git rev-parse HEAD            # a commit on a clean tree changes nothing else below
+git for-each-ref              # new or moved branches/tags
+git stash list                # a stash hides edits from every other line
 git status --porcelain
 git diff --binary
 git diff --cached --binary
@@ -181,8 +192,8 @@ Same invariant as Claude Code, different mechanics for getting there:
 - Codex children **share the parent's checkout by default.** There is no `isolation: "worktree"`
   flag and no `EnterWorktree`/`ExitWorktree` session switch.
 - Every **concurrent writer** needs its own `git worktree`, created by the **parent** with
-  `git worktree add <path> <branch>` (this repo's convention: under `.claude/worktrees/` when the
-  runtime manages it, `.worktrees/` otherwise — see `.claude/rules/ai-agent-patterns.md`), plus
+  `git worktree add <path> <branch>` (under the directory named by `worktreeDir` in
+  `.claude/agent-lanes.json`; isolation rules in `.claude/rules/ai-agent-patterns.md`), plus
   **exclusive ownership of its declared files.** Two children must never be told to edit the same
   file, lockfile, or generated artifact.
 - Pass the **absolute worktree path** in every writer's brief and tell it to confirm location
@@ -199,8 +210,9 @@ Same invariant as Claude Code, different mechanics for getting there:
 
 The four standing lanes (`release-manager`, `feature-agent`, `bugfix-agent`, `prd-manager`) are
 skills, not a separate Codex concept — `.claude/skills/_shared/agent-protocol.md` is the shared
-protocol every one of them loads, and it is entirely runtime-neutral (GitHub Issues, `board.sh`,
-PR babysitting). To start one in Codex:
+protocol every one of them loads. Its coordination (GitHub Issues, `board.sh`, PR babysitting) is
+runtime-neutral; its §6 delegation table uses Claude vocabulary (`isolation: "worktree"`,
+`general-purpose`, pinned models), which you translate with §2 above. To start one in Codex:
 
 | Say | Loads | Becomes |
 |---|---|---|
@@ -223,8 +235,8 @@ is also wired and trusted, because:
 
 Everything after role assignment — claiming work, `board.sh` state transitions, saving progress,
 PR babysitting, communication — is identical to the Claude Code lane workflow, because
-`agent-protocol.md` and `scripts/dev/board/board.sh` were already written runtime-neutral (shell +
-`gh`, no Claude-specific tool calls).
+`scripts/dev/board/board.sh` is shell + `gh` with no Claude-specific tool calls. Only the
+delegation steps need the §2 translation.
 
 ## 6. UserPromptSubmit hook (lane role detection)
 
@@ -239,7 +251,7 @@ PR babysitting, communication — is identical to the Claude Code lane workflow,
         "hooks": [
           {
             "type": "command",
-            "command": "\"$(git rev-parse --show-toplevel)\"/.claude/hooks/agent-role-codex.sh",
+            "command": "root=\"$(git rev-parse --show-toplevel 2>/dev/null)\" || exit 0; exec \"$root/.claude/hooks/agent-role-codex.sh\"",
             "timeout": 5,
             "statusMessage": "Checking prompt for a lane-agent role assignment"
           }
@@ -250,14 +262,19 @@ PR babysitting, communication — is identical to the Claude Code lane workflow,
 }
 ```
 
-`.claude/hooks/agent-role-codex.sh` is a thin adapter: it sets `AGENT_HOOK_RUNTIME=codex` and
+Outside a git repository the command exits 0 without running anything, so it never blocks or
+errors a Codex turn. `.claude/hooks/agent-role-codex.sh` is a thin adapter: it sets `AGENT_HOOK_RUNTIME=codex` (reserved: nothing reads it yet) and
 execs the **same** `.claude/hooks/agent-role.sh` Claude Code runs — one source of truth for the
 role-matching regexes, not a fork. `.claude/settings.json`'s Claude wiring is untouched.
 
 **Trust step:** Codex project hooks are inert until the user runs `/hooks` and explicitly trusts
-this exact hook definition. Codex records trust against the hook's current file hash, so any
-future edit to `agent-role-codex.sh` or `.codex/hooks.json` re-triggers the review requirement.
-Nothing breaks if the hook is never trusted — see §5, the `$skill-name` invocation is the primary
+the hook definition in `.codex/hooks.json`. What trust covers is **not verified** here. Assume it
+covers only that JSON: the command resolves the repo root at run time and executes
+`.claude/hooks/agent-role-codex.sh`, which runs `.claude/hooks/agent-role.sh` and
+`.claude/hooks/lib/agent-state.sh` **from whatever branch is checked out**. Trusting the hook
+therefore means trusting future versions of those three scripts on any branch you open in Codex,
+without a new prompt. Review changes to them like any other code that runs on your machine.
+Nothing breaks if the hook is never trusted: §5's `$skill-name` invocation is the primary
 mechanism and works regardless.
 
 **Contract verification status — read before relying on this:**
@@ -279,6 +296,12 @@ mechanism and works regardless.
   CLI/desktop session in this task. If the observed behavior differs (e.g. a stricter JSON-only
   output requirement, a different exit-code-for-block convention), the fallback in §5 (explicit
   `$skill-name` invocation) still assigns the role correctly with no hook involved.
+- **Unverified: the state-file write.** `agent-role.sh` records the role under
+  `<git-common-dir>/claude-agent-roles/`. Codex's workspace-write sandbox commonly protects `.git`,
+  and in a linked worktree the common dir sits outside the workspace. If that write is refused,
+  the role message may not be printed at all. To prove it: trust the hook, send "You are the PRD
+  manager" in a Codex session, confirm the developer message appears, and check that the state
+  file exists. Until then, rely on §5.
 - **Known adjacent issue, not applicable to this wiring**: `SessionStart` hook `additionalContext`
   injection is reported broken (openai/codex#45999). This repo does not use `SessionStart` for
   role detection — only `UserPromptSubmit` — so that bug does not affect this hook. It does mean

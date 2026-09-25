@@ -48,6 +48,10 @@ fail() {
 # --- 1 & 2: the symlink must exist, be a symlink, and resolve to .claude/skills ---
 if [ ! -e "$SKILLS_LINK" ] && [ ! -L "$SKILLS_LINK" ]; then
   fail "$SKILLS_LINK is missing — Codex will not discover any skills. Create it with: ln -s ../.claude/skills $SKILLS_LINK"
+elif [ -f "$SKILLS_LINK" ] && [ "$(cat "$SKILLS_LINK")" = "../$SKILLS_TARGET" ]; then
+  # git with core.symlinks=false (Windows default without Developer Mode)
+  # writes a symlink as a plain file holding its target path.
+  fail "$SKILLS_LINK was checked out as a plain text file, not a symlink (git core.symlinks=false, typical on Windows). Fix: enable Windows Developer Mode, run 'git config core.symlinks true', then 'git checkout -- $SKILLS_LINK'."
 elif [ ! -L "$SKILLS_LINK" ]; then
   fail "$SKILLS_LINK exists but is not a symlink — it must be a symlink to $SKILLS_TARGET, not a real directory (a real copy drifts from .claude/skills silently)."
 else
@@ -76,41 +80,55 @@ if [ -d "$SKILLS_TARGET" ]; then
       continue
     fi
 
-    # Frontmatter is the block between the first two lines that are exactly
-    # "---". Extract it, then look for non-empty `name:`/`description:` keys.
-    # Handles both single-line (`description: foo`) and YAML block-scalar
-    # (`description: >-` / `description: |`, value on following indented
-    # lines) forms already used across this repo's SKILL.md files.
-    frontmatter="$(awk '
-      /^---[[:space:]]*$/ { c++; next }
-      c == 1 { print }
-      c >= 2 { exit }
+    # One awk pass validates the frontmatter as a whole, printing one line per
+    # problem (nothing when valid). Rules, each a real way a skill silently
+    # drops out of Codex while a looser check stays green:
+    #   - line 1 is `---` and a closing `---` follows (no late or
+    #     unterminated block);
+    #   - `name:` is lowercase letters, digits and hyphens (quotes stripped);
+    #   - `description:` is non-empty after stripping quotes, or is a block
+    #     scalar (`>`, `>-`, `|`, `|-`) whose NEXT line is indented text.
+    problems="$(awk '
+      function unquote(v) {
+        sub(/^[ \t]+/, "", v); sub(/[ \t]+$/, "", v)
+        if (v ~ /^".*"$/ || v ~ /^\047.*\047$/) v = substr(v, 2, length(v) - 2)
+        return v
+      }
+      NR == 1 {
+        if ($0 !~ /^---[ \t]*$/) { print "frontmatter must start on line 1 with ---"; bad = 1; exit }
+        infm = 1; next
+      }
+      infm && /^---[ \t]*$/ { closed = 1; infm = 0; exit }
+      infm {
+        if (pending) {
+          if ($0 ~ /^[ \t]+[^ \t]/) desc_ok = 1
+          pending = 0
+        }
+        if ($0 ~ /^name:/) {
+          v = $0; sub(/^name:/, "", v); v = unquote(v)
+          have_name = 1
+          if (v !~ /^[a-z0-9][a-z0-9-]*$/) { name_invalid = 1; name_bad = v }
+        } else if ($0 ~ /^description:/) {
+          v = $0; sub(/^description:/, "", v); sub(/^[ \t]+/, "", v)
+          have_desc = 1
+          if (v ~ /^[>|]/) pending = 1
+          else if (unquote(v) != "") desc_ok = 1
+        }
+      }
+      END {
+        if (bad) exit
+        if (!closed) { print "frontmatter is not closed with a --- line"; exit }
+        if (!have_name) print "has no name: field"
+        else if (name_invalid) print "name \"" name_bad "\" must be non-empty lowercase letters, digits and hyphens"
+        if (!have_desc) print "has no description: field"
+        else if (!desc_ok) print "description: is empty (or a block scalar with no indented text after it)"
+      }
     ' "$skill_md")"
-
-    if [ -z "$frontmatter" ]; then
-      fail "$skill_md has no --- frontmatter block."
-      continue
+    if [ -n "$problems" ]; then
+      while IFS= read -r p; do
+        [ -n "$p" ] && fail "$skill_md: $p"
+      done <<<"$problems"
     fi
-
-    name_line="$(printf '%s\n' "$frontmatter" | grep -E '^name:[[:space:]]*' | head -1)"
-    name_val="$(printf '%s' "$name_line" | sed -E 's/^name:[[:space:]]*//; s/^["'"'"']//; s/["'"'"']$//')"
-    if [ -z "$name_val" ]; then
-      fail "$skill_md has no non-empty 'name:' frontmatter field."
-    fi
-
-    desc_line="$(printf '%s\n' "$frontmatter" | grep -E '^description:[[:space:]]*' | head -1)"
-    desc_rest="$(printf '%s' "$desc_line" | sed -E 's/^description:[[:space:]]*//')"
-    case "$desc_rest" in
-      '>'*|'|'*)
-        # Block scalar: the description text is the next non-empty indented
-        # line(s), not the `>-`/`|` marker itself.
-        next_val="$(printf '%s\n' "$frontmatter" | awk '/^description:[[:space:]]*[>|]/{f=1;next} f && NF{print; exit}')"
-        [ -z "$next_val" ] && fail "$skill_md 'description:' uses a block scalar but has no following text."
-        ;;
-      '')
-        fail "$skill_md has no non-empty 'description:' frontmatter field."
-        ;;
-    esac
   done
 else
   fail "$SKILLS_TARGET does not exist."
