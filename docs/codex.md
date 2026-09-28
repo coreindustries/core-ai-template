@@ -113,7 +113,7 @@ Not a shared role file — a parent-composed brief per §2's delegation contract
 `.claude/rules/ai-agent-patterns.md` → "Delegating to Subagents" and
 `.claude/skills/_shared/agent-protocol.md` §6). Every worker brief states: the goal and the
 invariant; the files it **owns** (exclusive) vs. may only read; its absolute worktree path;
-"no git — the parent commits"; "mutation-check every fix"; and "report in ≤400 words with
+"no git — the parent commits"; "use negative controls for material regressions per `.claude/rules/testing.md`"; and "report in ≤400 words with
 `file:line`, no file dumps." Give every **concurrent writer** its own `git worktree`, created by
 the parent, with disjoint file ownership — Codex children share the checkout by default and have
 no automatic isolation.

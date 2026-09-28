@@ -183,9 +183,9 @@ Batch logical edits together, not repeated micro-edits.
 
 ## Delegating to Subagents
 
-The orchestrating session decides; subagents read, implement and prove. Pick the cheapest tier that can do the job (CLAUDE.md → Agent Routing), always pass `model:` explicitly to built-in agents, and keep the subagent's verdict rather than its file dumps.
+Handle direct lookups and routine edits locally; delegate concrete independent work when useful. Follow CLAUDE.md role routing, including mandatory judge review, and the active runtime capacity. Claude Code uses the configured model tiers and explicit `model:` on built-in agents; Codex follows `docs/codex.md`. Keep compact evidence rather than file dumps.
 
-**Every brief states:** the goal and the invariant; the files the agent owns versus may only read; its worktree path; "mutation-check every fix"; and "report in ≤400 words with `file:line`, no file dumps".
+**Every brief states:** the goal and the invariant; the files the agent owns versus may only read; its worktree path; "use negative controls for material regressions per `.claude/rules/testing.md`"; and "report in ≤400 words with `file:line`, no file dumps".
 
 **Isolation for code-writing subagents.** The failure to prevent is an *isolation leak*: a subagent editing the parent's worktree instead of its own.
 
@@ -224,7 +224,7 @@ If you're unsure whether your current understanding matches the original task:
 - Re-read the task file in `prd/tasks/`
 - Re-read relevant ADRs in `docs/decisions/`
 - Do not continue from memory alone after long sessions
-- If no task file exists and the feature is non-trivial, create one before proceeding
+- Resume from the authoritative issue/PR or task file; create a task file only when it is the chosen progress owner
 
 ### Max Iteration Policy
 

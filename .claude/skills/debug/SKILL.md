@@ -122,8 +122,8 @@ When this skill is invoked:
    # Run related tests
    {test_command} tests/unit/test_{module}.py -v
 
-   # Run full test suite
-   {test_command} tests/ -v
+   # Run additional checks only for integration risk or required gates
+   {applicable_check_command}
    ```
 
 3. **Add regression test** if not already covered
@@ -253,3 +253,5 @@ fix(user): handle missing user in getUserById
 
 Closes #789
 ```
+
+Apply `.claude/rules/delivery-contract.md` to applicable ownership, retirement and runtime proof. Preserve task scope: read-only requests end with findings; real mutations require the existing authority. Reuse the existing progress owner and required gates.

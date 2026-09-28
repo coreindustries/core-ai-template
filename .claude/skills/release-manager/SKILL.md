@@ -105,3 +105,7 @@ tool never baselines anything.
 - Re-render after each rung and each batch of state changes, not after every comment.
 - Messages to the operator: lead with the outcome, a table of PR / environment status, then
   `needs input:` with the exact click, command or decision.
+
+## Artifact promotion and isolation
+
+Apply `.claude/rules/delivery-contract.md`: promote the verified artifact and configuration inputs, verifying digest/content as well as the configured SHA check. Rebuild only for changed inputs, unavailable/invalid artifacts or requested reproducibility; changed artifacts need fresh proof. Preserve this lane's ladder, locks, journal, log triage and authorization rules. Identify durable-state compatibility and rollback before replacement. Independent feature work can proceed in isolated files and runtime resources; serialize shared publication and production mutations. Repeated failure returns to diagnosis rather than blind retry.

@@ -5,7 +5,7 @@
 ## When to Create Plans
 
 **Skip Plans For:**
-- Straightforward tasks (easiest ~25% of work)
+- Straightforward tasks
 - Single-step changes
 - Obvious fixes
 
@@ -28,80 +28,20 @@ Plans MUST be reconciled before finishing a task.
    - **Cancelled**: With reason for cancellation
 4. No in_progress or pending items when finishing
 
-**Deliverable is Working Code:**
-- Never end with only a plan
-- Implement, test, and verify before completion
+## Deliver the requested outcome
 
-## Task Tracking for Long-Running Features
+Implementation requests require appropriately verified working changes. Reviews, audits, design, dry runs and PRD-only requests end with the requested findings or artifact and do not authorize implementation or runtime mutation.
 
-Long-running features that span multiple sessions require persistent task tracking to survive context compression.
+## Long-running work
 
-**When to Create Task Files:**
-- Feature will span multiple agent sessions
-- Feature has >5 distinct tasks
-- Feature is marked "In Progress" in PRD index
+Keep one authoritative progress record: the existing issue/PR or a task file. Lanes follow their shared protocol's issue ownership. Other documents link to that record instead of maintaining duplicate status or percentages. Use `prd/_task_template.md` only when a task file is the chosen owner.
 
-**Location:** `prd/tasks/{feature_name}_tasks.md`
+Update after material decisions, proof or handoff with the outcome, exact artifacts, next step and remaining uncertainty. Resume from this record before re-investigating. Follow `delivery-contract.md` for applicable ownership and retirement decisions.
 
-**Template:** Use `prd/_task_template.md` as starting point
+## PRD implementation and completion
 
-**Key Sections:**
-1. **Context** - High-level overview and key decisions (critical for recovery)
-2. **Tasks** - Hierarchical checklist with phase grouping
-3. **Progress Summary** - Percentage complete per phase
-4. **Next Session Priorities** - What to do immediately when resuming
-5. **Decisions Made** - Architectural decisions with rationale
+Read the relevant PRD, `prd/00_technology.md` and applicable project rules. Use the existing locked setup commands and authorized test resources; do not assume a database migration or dependency installation is necessary.
 
-**Maintenance:**
-- Update every 30-60 minutes during active development
-- Use `/checkpoint` skill to update automatically
+Review the actual branch, tracked/staged changes and untracked files. Resolve the repository's default branch; fetch when current upstream state matters. Integrate upstream changes only when required, honoring branch ownership; do not automatically rebase or rewrite shared history.
 
-**Context Compression Recovery:**
-1. Read `prd/00_index.md` to find "In Progress" features
-2. Read corresponding task file
-3. Start from "Next Session Priorities"
-
-## PRD Implementation Workflow
-
-### Before Starting Implementation
-
-**Read PRDs thoroughly:**
-1. Review the PRD document for the feature you're implementing
-2. Understand dependencies on other PRDs
-3. Review `.claude/rules/` for coding and security requirements
-
-**Setup development environment:**
-```bash
-{package_manager} install
-{start_dependencies}
-{db_generate}
-{db_migrate}
-```
-
-### Before Creating Pull Request
-
-**Final verification:**
-```bash
-# 1. Ensure you're up to date with main
-git fetch origin
-git rebase origin/main
-
-# 2. Run full test suite
-{test_all}
-
-# 3. Verify coverage
-{test_with_coverage}
-
-# 4. Review your changes
-git log origin/main..HEAD
-git diff origin/main
-```
-
-**Pull Request Checklist:**
-- [ ] All tests pass
-- [ ] Coverage is maintained or improved
-- [ ] Linting passes
-- [ ] Type checking passes
-- [ ] Security scan passes
-- [ ] All functions have type annotations
-- [ ] All public functions have docstrings
+Complete affected verification and existing required gates under `testing.md` and `quality-checks.md`, including the mandatory judge. Preserve security and coverage requirements. Report remaining gaps accurately; passing focused checks is not proof the entire product was tested.

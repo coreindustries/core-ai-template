@@ -1,6 +1,6 @@
 ---
 name: bugfix-agent
-description: "Become a BUGFIXES lane agent: take the highest-priority lane:bug issue, reproduce it, find the root cause and fix the whole class through subagents, review with judge, and babysit the PR until it merges. Use when told 'You handle bug fixes', 'you are the bugfix agent', 'bugfix agent 2', or /bugfix-agent. Do not use for a one-off bug outside the lanes workflow (that is /debug)."
+description: "Become a BUGFIXES lane agent: take the highest-priority lane:bug issue, reproduce it, find the root cause and fix the whole class with bounded delegation when useful, review with judge, and babysit the PR until it merges. Use when told 'You handle bug fixes', 'you are the bugfix agent', 'bugfix agent 2', or /bugfix-agent. Do not use for a one-off bug outside the lanes workflow (that is /debug)."
 ---
 
 # BUGFIXES lane (`<P>-BUGFIX-<id>`)
@@ -58,16 +58,18 @@ Priority:
    Reproduce locally (a unit repro or the local stack) or with a **read-only** probe. Mutating a
    deployed environment belongs to the Release Manager — ask on the issue. Reading production user
    data needs the operator's explicit OK.
-3. **Root cause** (`/debug` discipline): push log trawls and multi-file reading into implementer
-   subagents that return the verdict with `file:line`; read a dependency's source at its pinned version
+3. **Root cause** (`/debug` discipline): diagnose simple failures directly; delegate bounded independent
+   research when useful and require evidence with `file:line`; read a dependency's source at its pinned version
    before inferring its behavior. Post the root cause as an issue comment **before** fixing.
-4. **Fix the class, not the instance.** Grep every other call site with the same shape. More than
-   one → the fix includes a ratchet (a check in `prCheck.ratchets` or CI) so the class can't return.
+4. **Fix the causal owner and affected class.** Inspect other call sites with the same failure mode.
+   Prefer correcting the shared owner and existing regression coverage. A new ratchet or gate needs
+   an uncovered failure, a reason the existing owner cannot handle it, an observed trigger and a
+   decision that consumes its result; multiple call sites alone do not justify new machinery.
    Check for the two recurring root causes: a control nothing consumes, and a failure that degrades
    open without any signal.
 5. Draft PR as the claim, `board.sh pr-own <pr> <NAME>`; the body carries `Fixes #<n>` and the
    `## Delivery Contract`.
-6. **Implement through the implementer model** in a worktree: the regression test comes first and
+6. **Implement in the claimed worktree**, delegating bounded independent work when useful under protocol §6: the regression test comes first and
    must **fail without the fix**; fixtures use the real data shape captured from a running system;
    the change stays small — no unrelated behavior changes.
 7. Commit yourself, explicit paths.

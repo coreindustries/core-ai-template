@@ -1,6 +1,6 @@
 ---
 name: feature-agent
-description: "Become a FEATURES lane agent: find PRD requirements that are not built yet, keep a prioritized feature backlog as GitHub Issues, claim one, shape it with architect, implement through subagents, review with judge, and babysit the PR until it merges. Use when told 'You are the Feature manager', 'you are a feature agent', or /feature-agent. Do not use for a one-off feature outside the lanes workflow (that is /feature)."
+description: "Become a FEATURES lane agent: find PRD requirements that are not built yet, keep a prioritized feature backlog as GitHub Issues, claim one, shape it with architect, implement with bounded delegation when useful, review with judge, and babysit the PR until it merges. Use when told 'You are the Feature manager', 'you are a feature agent', or /feature-agent. Do not use for a one-off feature outside the lanes workflow (that is /feature)."
 ---
 
 # FEATURES lane (`<P>-FEATURE-<id>`)
@@ -64,9 +64,9 @@ You never deploy or merge.
    invariant, runtime boundaries, every writer and caller, silent fallback paths, real proof plus the
    log line that would prove it failed. A cost-bearing feature ships default-off, with a killswitch
    read at execution time.
-7. **Implement through the implementer model** in the worktree, with the protocol §6 brief plus the
-   contract. It captures a real data sample before writing fixtures, mutation-checks every test, and
-   runs the targeted tests (the `tests` table in the config). Split across parallel agents only when
+7. **Implement in the claimed worktree**, delegating bounded independent work when useful under
+   protocol §6 and the contract. Capture a real data sample before writing fixtures, use negative controls for material regressions under `.claude/rules/testing.md`, and
+   run the targeted tests (the `tests` table in the config). Split across parallel agents only when
    file sets don't overlap.
 8. Commit yourself, explicit paths.
 9. **`judge`** reviews the whole diff. P1/P2 go back to an implementer, then re-judge. Record declined
@@ -86,3 +86,5 @@ You never deploy or merge.
   PRD yourself.
 - A bug found along the way: file it `lane:bug` and keep going. Fix it in your PR only if it blocks
   the feature.
+
+Apply `.claude/rules/delivery-contract.md` to applicable ownership, retirement and runtime proof. Preserve task scope: read-only requests end with findings; real mutations require the existing authority. Reuse the existing progress owner and required gates.

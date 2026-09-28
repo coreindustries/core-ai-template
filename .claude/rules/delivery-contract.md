@@ -91,6 +91,76 @@ The cost and background surfaces from Rule 1 fail in a particular way: invisibly
 
 ---
 
+## Ownership, retirement, and delivery cost
+
+Apply the following decisions to the affected boundary before implementation.
+Record answers in the existing plan and delivery-contract fields; do not add a
+second PR template, registry, approval loop, or CI workflow. A small local edit
+needs only the decisions it actually touches. These rules do not grant deployment,
+production-data, external-message, or destructive-operation authority.
+
+1. **Ship an observable outcome.** Name the customer result, or the specific
+   recurring engineering cost this cut removes. Keep independent feature lines
+   moving; a platform rebuild is not an implicit prerequisite or feature freeze.
+   Do not invent a refactor merely to make every feature delete code.
+2. **One authority per responsibility.** Name the authoritative state owner and
+   every writer/launcher before and after. Multiple workers may share a service's
+   concurrency contract; two independent schedulers, config writers, release
+   publishers, or runtime launchers cannot be left to reconcile indefinitely.
+   Prefer supported interfaces and existing modules. A third mechanism to keep two
+   overlapping mechanisms aligned needs a demonstrated unmet requirement.
+3. **Retirement is part of replacement.** Include superseded callers, launch paths,
+   flags, compatibility code, tests and documentation in the removal plan. If
+   coexistence is necessary, name its owner, observable removal condition and
+   rollback implications in the existing issue/PR. Do not claim extraction or
+   migration complete while the old authority remains active unintentionally.
+4. **Build once, promote the verified artifact.** Use the owning committed lock
+   and native workspace layout; do not delete a lock or resolve fresh dependencies
+   to make a build pass. Reuse the existing build implementation. Verify published
+   image digests and release inputs (including skill/package pins and configuration),
+   not just a source SHA or tag. Rebuild only when required inputs changed, the
+   artifact is unavailable/invalid, or the user requests a reproducibility check.
+   Changed artifacts require new proof before promotion; preserve existing gates.
+5. **Separate durable state from release assets and caches.** Identify which data
+   survives worker/image replacement and who may migrate or delete it. Prove
+   upgrades against representative existing state, not only empty fixtures. For
+   dependency/artifact publication, exercise stale-state removal, interrupted
+   copy/write, readiness stamped only after success, retry and rollback where
+   consequential. Never treat customer records or the sole copy of memory as cache.
+6. **Test the risky seam early.** Before broad implementation, run the smallest
+   authorized probe that can invalidate the design against the actual SDK, image,
+   caller, storage or UI. A green mock, generated artifact, or disabled flag is
+   not proof of delivery. Name remaining proof explicitly; follow
+   `testing.md` and this contract without duplicating their procedures.
+7. **Fix causes before adding machinery.** A repeated failure first requires a
+   causal explanation. Do not paper over it with retries, longer timeouts,
+   watchdogs, repair loops, another reviewer, or another gate. A new control needs
+   an uncovered failure, a reason the current owner cannot handle it, an observed
+   trigger and a result consumed by the actual decision maker. Bounded retries
+   need evidence of a transient condition and safe replay; repeated failure stops
+   blind retry and returns to diagnosis. Keep required checks until a reviewed
+   replacement preserves their guarantee.
+8. **Measure before adding boundaries.** A Rust rewrite, repository/service split,
+   provider layer or microVM harness needs a measured bottleneck or demonstrated
+   isolation/release-ownership requirement, a simpler alternative, compatibility
+   costs and an incremental exit/retirement path. When evidence is missing, run a
+   bounded experiment; do not present a language or hosting change as a speedup.
+   Token, tool-call and cost claims require actual usage records; output bytes or
+   file/PR counts are not substitutes for those metrics or engineering effort.
+9. **Isolate before coordinating.** Independent features get exclusive file
+   ownership and independent writable test resources, ports, volumes and image
+   tags. Use the active runtime's capacity limits. Shared contracts have one
+   integrator; shared artifact publication and production mutations keep their
+   existing owner/locks. A Git worktree alone does not isolate Docker or a database.
+
+**Enforcement:** architect proposals and planner steps must resolve applicable
+ownership, retirement and proof gaps before implementation; the judge must return
+`HOLD` for unresolved material violations, with a concrete failure mode and the
+existing P1/P2 severity rubric. New files or a higher line count alone are not a
+finding. Fix within authorized scope; do not create a new permission ceremony or
+demand unrelated cleanup. No claim of general productivity gain follows merely
+from adopting these instructions.
+
 ## Enforcement
 
 | Layer | Control | Fails on |
