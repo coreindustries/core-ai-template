@@ -9,6 +9,9 @@ description: >-
 
 # /docs
 
+Apply [Simplest complete solution](../../rules/code-quality.md#simplest-complete-solution)
+to planning, implementation, documentation and review.
+
 Generate and update project documentation.
 
 ## Usage
@@ -21,7 +24,8 @@ Generate and update project documentation.
 
 - `target`: Specific file, module, or "all" (default: changed files)
 - `--type`: Documentation type (api, readme, changelog, jsdoc, docstring)
-- `--update`: Update existing docs instead of regenerating
+- `--update`: Explicitly request an incremental update; updating the existing
+  authoritative document is also the default when this flag is omitted.
 
 ## Instructions
 
@@ -51,7 +55,10 @@ When this skill is invoked:
    - Note formatting conventions
    - Identify required sections
 
-3. **Generate documentation** based on type
+3. **Update the authoritative documentation** based on type; create a new document
+   only when no existing owner fits. Reconcile affected instructions and mark
+   historical decisions superseded with a replacement link. The examples below
+   illustrate format, not mandatory length or sections.
 
 ### Documentation Types
 

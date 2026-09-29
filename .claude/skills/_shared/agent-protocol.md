@@ -1,5 +1,8 @@
 # Agent lanes — the shared protocol
 
+Apply [Simplest complete solution](../../rules/code-quality.md#simplest-complete-solution)
+to planning, implementation, documentation and review.
+
 **Not a skill.** The architecture that `release-manager`, `feature-agent`, `bugfix-agent` and
 `prd-manager` all load. Anything shared lives here exactly once; a lane's SKILL.md holds only what
 is specific to that lane. Project-specific values (environments, commands, PRD layout, name prefix)

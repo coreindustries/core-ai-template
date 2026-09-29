@@ -2,14 +2,36 @@
 
 **Scope:** Code quality standards (DRY, typing, naming, docs, project organization)
 
+## Simplest complete solution
+
+- **Fix root causes, not symptoms.** Establish the cause from evidence and correct
+  it at the owning boundary. Temporary mitigation must be labeled with its
+  limitation and follow-up; it is not a completed root-cause fix. Apply the
+  retry/control requirements in `delivery-contract.md` before adding machinery.
+- **Favor subtraction over addition.** Remove unnecessary code, states,
+  dependencies and processes; prefer correction or reuse of the existing owner.
+  Choose the simplest solution that meets every requested outcome. Justify added
+  complexity with a concrete unmet need. Preserve correctness, security and
+  required compatibility; deletion counts are not a success criterion.
+- **Keep documentation concise.** Update the existing authoritative document.
+  State the decision, rationale, usage and necessary caveats; retain evidence
+  needed to verify consequential claims. Link to shared guidance instead of
+  duplicating it, and remove obsolete instructions and unnecessary narration.
+- **Leave one consistent, current truth.** Reconcile affected code, comments, CI,
+  tests, ADRs, PRDs, skills and tools in the same change. Remove obsolete guidance
+  and superseded mechanisms; verify that instructions, assertions and behavior
+  agree. Mark historical decisions as superseded and link their replacement
+  without rewriting historical evidence. Keep reconciliation within the affected
+  responsibility; necessary coexistence follows `delivery-contract.md`.
+
+
 ## DRY Principle (Don't Repeat Yourself)
 
-Extract shared behavior rather than duplicating it — duplicated logic drifts, and
-the copies stop agreeing without anyone noticing.
-
-- Extract common functionality into reusable functions or modules
-- Search for an existing implementation before writing a new one
-- Refactor duplication when a review surfaces it
+Search for existing implementations before creating new code. Reuse the owner of
+the behavior instead of copying it. Consolidate duplication in the affected scope
+when it prevents drift; do not create a universal abstraction for unrelated
+behavior or expand a feature into opportunistic cleanup. Apply the ownership and
+retirement requirements in `delivery-contract.md` before adding another mechanism.
 
 ## Static Typing Requirements
 
@@ -37,31 +59,9 @@ Document what a reader cannot infer from the code itself.
 - Public functions carry a docstring covering arguments, return, and what they raise
 - Complex algorithms carry inline comments explaining *why*, not what
 
-**Example structure (language-agnostic):**
-
-```javascript
-/**
- * Module: User data processing
- *
- * This module provides utilities for validating and transforming user data.
- */
-
-/**
- * User class representing a system user.
- *
- * @property id - Unique identifier
- * @property email - User's email address
- * @property name - Display name
- */
-
-/**
- * Validates an email address format.
- *
- * @param email - The email address to validate
- * @returns True if valid, false otherwise
- * @throws ValueError if email is empty
- */
-```
+Keep required docstrings concise: explain purpose, contracts, non-obvious behavior
+and necessary caveats without narrating the implementation. Use examples when
+they clarify usage; do not pad every docstring with a full template.
 
 ## Project Organization
 
@@ -87,10 +87,6 @@ Code review verifies:
 - [ ] Docstrings on all public functions and classes
 - [ ] DRY principle followed
 - [ ] Naming conventions followed
-- [ ] No code duplication
+- [ ] Duplication within the affected responsibility reconciled without needless abstraction
 - [ ] Modern syntax used
 - [ ] Project organization followed
-
-## Complexity and ownership
-
-Prefer supported interfaces and existing modules with one owner per responsibility. Follow `delivery-contract.md` for replacement retirement, causal fixes and measured boundaries. Do not add a coordinator or repair loop merely to keep overlapping authorities aligned. New controls need an uncovered failure and an actual consumer; preserve existing guarantees.

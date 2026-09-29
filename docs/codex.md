@@ -1,5 +1,8 @@
 # Codex runtime guide
 
+Apply [Simplest complete solution](../.claude/rules/code-quality.md#simplest-complete-solution)
+to planning, implementation, documentation and review.
+
 This is the Codex-specific companion to `CLAUDE.md` and `.claude/rules/`. Those remain the
 source of truth for standards (code quality, testing, security, git workflow); this file
 translates the parts of the workflow that are expressed as Claude Code tool calls — skills,
