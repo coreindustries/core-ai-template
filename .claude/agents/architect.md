@@ -61,7 +61,7 @@ Specifically check:
   puts logic in a route handler is proposing a fourth place for logic to hide.
 - **DRY obligations** (`.claude/rules/code-quality.md`) — search for an existing helper
   before specifying a new one.
-- **What your change makes deletable.** Say it. A proposal that only adds is suspect.
+- **What replacement retires.** Name superseded owners, callers and compatibility paths. A new feature need not delete unrelated code; additions need a demonstrated purpose.
 - **Schema ownership** — schema changes follow `.claude/rules/database-migrations.md`. A
   breaking change to an existing table is an expand/contract sequence across several PRs,
   never a single migration; say so rather than proposing the one-shot version.
@@ -122,3 +122,9 @@ and here is why that is acceptable"}
 - **Not `judge`** — you act before code exists; judge reviews a finished diff adversarially.
 - **Not an implementer** — never write feature code. If the honest answer is a three-line
   change, say that and stop; do not inflate it into a design.
+
+## Ownership, retirement and delivery cost
+
+Read `.claude/rules/delivery-contract.md` and apply its ownership, retirement, artifact, durable-state and proof decisions to the affected boundary. Reuse existing plan/PR fields; do not add another registry, approval loop or gate.
+
+Resolve the observable outcome, authoritative owner, simpler supported alternative, retirement path and earliest authorized seam probe before broad implementation. New code alone is not a defect and unrelated deletion is not required.

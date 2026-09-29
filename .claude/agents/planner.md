@@ -67,3 +67,9 @@ Output format:
 - Flag any step that requires a destructive operation (DROP, rm, force-push) explicitly
 - If a step requires database schema changes, flag it — those must go through the migration workflow in `database-migrations.md`
 - Keep the plan to the minimum steps needed; no speculative future-proofing
+
+## Ownership, retirement and delivery cost
+
+Read `.claude/rules/delivery-contract.md` and apply its ownership, retirement, artifact, durable-state and proof decisions to the affected boundary. Reuse existing plan/PR fields; do not add another registry, approval loop or gate.
+
+Sequence the earliest authorized seam probe before broad implementation, then authority transfer, retirement, durable-state compatibility and rollback where applicable. Isolate independent work and serialize only actual shared mutations. Resolve material gaps before handing off the plan.

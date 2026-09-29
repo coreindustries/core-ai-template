@@ -90,3 +90,7 @@ Code review verifies:
 - [ ] No code duplication
 - [ ] Modern syntax used
 - [ ] Project organization followed
+
+## Complexity and ownership
+
+Prefer supported interfaces and existing modules with one owner per responsibility. Follow `delivery-contract.md` for replacement retirement, causal fixes and measured boundaries. Do not add a coordinator or repair loop merely to keep overlapping authorities aligned. New controls need an uncovered failure and an actual consumer; preserve existing guarantees.

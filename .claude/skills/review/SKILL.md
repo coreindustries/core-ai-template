@@ -28,15 +28,15 @@ Multi-perspective code review against project standards with P1/P2/P3 severity c
 - `--fix`: After generating the report, implement all P1 and P2 fixes, run tests, commit, push, and open a PR
 - `--strict`: Treat P3 findings as P2 (require fixes before merge)
 
-## Specialist delegation (token budget)
+## Optional specialist delegation
 
 | Perspective    | Inline? | Claude Code              | Cursor                                      |
 |----------------|---------|--------------------------|---------------------------------------------|
 | Code Quality   | yes     | (same)                   | (same)                                      |
 | Architecture   | yes     | (same)                   | (same)                                      |
-| Performance    | no      | `Agent` with `haiku`     | `Task` with `subagent_type: "perf-auditor"` |
-| Security       | no      | `Agent` with `sonnet`    | `Task` with `subagent_type: "security-reviewer"` |
-| Simplicity + Data Integrity | no | one `Agent` with `sonnet` (combined prompt) | one `Task` (combined prompt; see Step 3) |
+| Performance    | when useful | `Agent` with `haiku`     | `Task` with `subagent_type: "perf-auditor"` |
+| Security       | when useful | `Agent` with `sonnet`    | `Task` with `subagent_type: "security-reviewer"` |
+| Simplicity + Data Integrity | when useful | one `Agent` with `sonnet` (combined prompt) | one `Task` (combined prompt; see Step 3) |
 
 In **Cursor**, do not pass `model: "haiku"` / `"sonnet"` unless the user asked for an explicit model slug your environment supports. Default subagent models are fine.
 
@@ -83,7 +83,7 @@ Do these yourself directly against the diff:
 
 ### Step 3 — Spawn specialist reviewers in parallel
 
-Send **three** delegations in a **single assistant turn** so they run concurrently. Paste the same `<diff>` into each prompt.
+Select only specialist perspectives needed by the changed surface and unresolved risks; a small review can remain inline. Delegate bounded independent reviews within the active runtime capacity, with relevant evidence rather than duplicating the entire context. Preserve the mandatory judge under `CLAUDE.md`. The following prompts are optional examples.
 
 **Claude Code** — three `Agent` calls:
 
@@ -213,3 +213,5 @@ If a P1 finding reveals a non-obvious root cause (e.g. a framework gotcha, a sub
 3. Re-run `/lint` and quality checks
 4. Request re-review if needed
 ```
+
+Apply `.claude/rules/delivery-contract.md` to applicable ownership, retirement and runtime proof. Preserve task scope: read-only requests end with findings; real mutations require the existing authority. Reuse the existing progress owner and required gates.

@@ -7,6 +7,10 @@ live in `.claude/agent-lanes.json` — never in this file or a SKILL.md.
 
 `<P>` below is `namePrefix` from that config (default `C`).
 
+Read `.claude/rules/delivery-contract.md`, including Ownership, retirement, and delivery cost,
+for applicable changes. Resolve those decisions in existing issue/PR fields before broad
+implementation; preserve this protocol's ownership and release authority.
+
 ## 0. Starting a session
 
 The operator opens `claude` in the main checkout and says one sentence:
@@ -134,14 +138,13 @@ on long operations with `run_in_background` or Monitor, not a polling loop; call
 
 ## 6. Delegation
 
-You decide and orchestrate. Reading, implementing and proving happen in subagents; only their
-verdicts come back to your context.
+Handle direct lookups locally. Delegate concrete independent work when it reduces contention or context cost; retain synthesis and shared mutations with the parent. Follow mandatory architect/planner/judge routing and the active runtime capacity limit.
 
 | Step | Agent | Model |
 |---|---|---|
 | "does this need to exist / what shape" | `architect` | pinned in `.claude/agent-models.json` — never override |
 | ordering a change across >2 modules, a schema, or unclear sequencing | `planner` | pinned |
-| implementing, research, log trawls, proof checklists, reading >~2 files | `general-purpose` | `models.implementer` from `.claude/agent-lanes.json` |
+| bounded implementation, research or proof work that benefits from delegation | `general-purpose` | `models.implementer` from `.claude/agent-lanes.json` |
 | lookups | `codebase-researcher` | pinned |
 | CI failure triage | `ci-triage` | pinned |
 | review of every diff before the PR leaves draft, and again after fixes | `judge` | pinned |
@@ -152,7 +155,7 @@ Every brief states:
 - its worktree path and "`pwd` first";
 - "no git — the parent commits";
 - "no mutations of deployed environments";
-- "mutation-check every fix" (break it, see the test fail, restore);
+- "use negative controls for material regressions per `.claude/rules/testing.md`" (break it, see the test fail, restore);
 - "report ≤400 words with `file:line`, no file dumps".
 
 Code-writing subagents get their own worktree (`isolation: "worktree"`, or a dedicated
@@ -180,7 +183,7 @@ Ownership runs from `gh pr create` to merged.
 
    | event | do |
    |---|---|
-   | `check-failed` | spawn `ci-triage` and act on its class: **stale-branch** → `board.sh pr-update <pr>`; **code** → fix, pr-check, push; **flake** → `gh run rerun <id> --failed`, once; **contract** → fix the body, pr-check, `gh pr edit --body-file` |
+   | `check-failed` | inspect the first actionable failure on the current head; diagnose simple failures directly and delegate bounded `ci-triage` when useful. **stale-branch** → `board.sh pr-update <pr>`; **code** → fix, pr-check, push; **transient** → only with evidence and safe replay, `gh run rerun <id> --failed`, once, then return to diagnosis if it repeats; **contract** → fix the body, pr-check, `gh pr edit --body-file` |
    | `check-cancelled` | a gate was cancelled and never re-ran on this head. Re-run it (`gh run rerun <id>`). A cancelled run is not a pass |
    | `conflict` / `behind` | merge the default branch into yours (never rebase or force-push), resolve keeping both sides' intent, run the targeted tests, push |
    | `draft-green` | **not green yet** — a draft runs a subset of CI. Run `judge` if not done since the last change; fix P1/P2; then `gh pr ready <pr>` and keep watching |

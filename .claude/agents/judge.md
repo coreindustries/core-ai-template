@@ -91,3 +91,9 @@ Report findings and the evidence behind them. Don't narrate your reasoning proce
 - Don't propose refactors outside what changed.
 - Don't re-raise anything `docs/solutions/` already records as a known limitation.
 - A SHIP verdict with an empty "What I attacked" is not a review. Fill it in or change the verdict.
+
+## Ownership, retirement and delivery cost
+
+Read `.claude/rules/delivery-contract.md` and apply its ownership, retirement, artifact, durable-state and proof decisions to the affected boundary. Reuse existing plan/PR fields; do not add another registry, approval loop or gate.
+
+Return `HOLD` for unresolved material violations with a concrete failure mode and the existing P1/P2 rubric. Check all writers and callers, required retirement, artifact identity and real seam evidence. File counts alone are not findings; do not demand unrelated cleanup or invent a new permission ceremony.
