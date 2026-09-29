@@ -9,6 +9,9 @@ description: >-
 
 # /refactor
 
+Apply [Simplest complete solution](../../rules/code-quality.md#simplest-complete-solution)
+to planning, implementation, documentation and review.
+
 Safely refactor code with test-driven approach.
 
 ## Usage

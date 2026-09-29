@@ -7,6 +7,9 @@ tools: Read, Grep, Glob, Bash
 
 # Simplicity Reviewer Agent
 
+Apply [Simplest complete solution](../rules/code-quality.md#simplest-complete-solution)
+to planning, implementation, documentation and review.
+
 Counterbalances over-engineering by reviewing code for unnecessary complexity. Focuses on keeping code simple, readable, and maintainable.
 
 ## When to Use
@@ -46,12 +49,15 @@ Read in parallel:
 **Code Clarity:**
 - [ ] Functions doing too many things (> 1 clear responsibility)
 - [ ] Excessive nesting (> 3 levels deep)
-- [ ] Clever code that requires comments to explain
+- [ ] Avoidable cleverness that obscures behavior; required docstrings and useful rationale are not complexity findings
 - [ ] Naming that requires context to understand
 - [ ] Boolean parameters that obscure intent
 - [ ] Magic numbers or strings without constants
 
 **Right-Sizing:**
+Use these as investigation prompts, not automatic findings or split requirements.
+A finding needs a concrete maintenance or correctness cost in the affected scope.
+
 - [ ] Files > 300 lines (consider splitting)
 - [ ] Functions > 30 lines (consider extracting)
 - [ ] Classes > 10 public methods (consider splitting)
@@ -127,8 +133,8 @@ formatted = user.name.strip().title()
 
 | Severity | Criteria | Action |
 |----------|----------|--------|
-| **P1** | Adds significant complexity with no measurable benefit | Remove before merge |
-| **P2** | Could be simpler; current approach works but costs readability | Simplify in this PR or next |
+| **P1** | Unnecessary mechanism creates a concrete serious correctness or security failure | Fix before merge |
+| **P2** | Avoidable complexity creates a demonstrated maintenance or reliability cost in the affected responsibility | Simplify within scope |
 | **P3** | Minor style improvement, no functional impact | Consider for future cleanup |
 
 ## Authority Bounds

@@ -9,6 +9,9 @@ description: >-
 
 # /review
 
+Apply [Simplest complete solution](../../rules/code-quality.md#simplest-complete-solution)
+to planning, implementation, documentation and review.
+
 Multi-perspective code review against project standards with P1/P2/P3 severity classification.
 
 **Runtimes:** Use the blocks labeled **Claude Code** or **Cursor** below. Steps 2, 4, and 6 are identical for both.

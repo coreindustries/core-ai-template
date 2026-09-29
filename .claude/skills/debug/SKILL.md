@@ -9,6 +9,9 @@ description: >-
 
 # /debug
 
+Apply [Simplest complete solution](../../rules/code-quality.md#simplest-complete-solution)
+to planning, implementation, documentation and review.
+
 Systematic debugging workflow: reproduce, isolate, fix, and verify.
 
 ## Usage
