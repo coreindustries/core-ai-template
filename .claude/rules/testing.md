@@ -61,6 +61,19 @@ A green unit test alone is not runtime-seam evidence. It only shows the code agr
 - **Integration** (`tests/integration/`): Real DB, use fixtures
 - **Markers**: Use test framework markers for categorization
 
+## Speeding Up a Slow Suite
+
+Speed work is a change like any other: it must not lose coverage, and it needs proof.
+
+- **Measure first.** Run `pytest --durations=30` and fix the few largest causes before touching test files. Typical causes: fixed waits (a server `shutdown()` that waits for its poll interval, real `sleep`), the same constant data re-validated on every call, and schema migration or app construction per test. Removing tests is the smallest lever.
+- **Order of work.** Remove waits and repeated setup, then run in parallel (pytest-xdist), then fold redundant tests.
+- **Prove nothing was lost.** A green run is not proof. Compare per-file line and branch coverage (`--cov-branch`, JSON report) between the base commit and the branch, for each test scope (unit, integration). For folded tests, also mutate the code under test and run the old and new tests: no mutation the old tests killed may survive. Keep every original assertion; fold by parametrizing, or by merging tests that build the same state.
+- **Shared database.** Tests that share one database go in one xdist group (`--dist loadgroup`). Set the marker in a `tryfirst` `pytest_collection_modifyitems` hook, because xdist reads it in its own hook of that name. If the schema is migrated once per process, any test that rolls it back re-applies it in `finally`, or one failure cascades into unrelated tests.
+- **Shortened timeouts need a stress run.** After shortening a deadline or sleep, run the suite about 10 times with all cores busy (for example, one busy loop per core).
+- **Report honest numbers.** Measure "before" on a clean checkout of the base commit with all extras installed. Report test count, time and total coverage for both. A smaller test count is not the goal.
+- **Subagents.** Give each its own worktree, file list and database. Put the brief in a file, pass the worktree path, and have the agent confirm it with `pwd` before editing. Have it report a table mapping each folded test to its originals. The judge reviews the combined result.
+- **Local gates.** Run the project's security scan (for example Bandit) yourself; a PR-check target may not include it.
+
 ## Testing Checklist
 
 - [ ] Meaningful coverage for new behavior and non-trivial fixes
@@ -73,6 +86,7 @@ A green unit test alone is not runtime-seam evidence. It only shows the code agr
 - [ ] Test markers used correctly
 - [ ] Tests are independent
 - [ ] Test data cleaned up after each run
+- [ ] Speed-up changes carry a coverage diff, and folded tests a mutation check (see "Speeding Up a Slow Suite")
 
 ## Before Pull Request
 
