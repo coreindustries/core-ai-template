@@ -17,7 +17,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ## Features
 
 ### Context-Optimized Rules System
-- `.claude/rules/` - 13 universal rules, auto-loaded (~17K tokens)
+- `.claude/rules/` - 13 universal rules: 10 always loaded, 3 loaded only when a matching file is touched
 - `.claude/rules-available/` - 9 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
 - Only loads what your project needs — a minimal backend stack auto-loads ~18K vs ~45K for every rule, about **59% less context**
@@ -760,14 +760,14 @@ AI agents have limited context windows. This template is designed to minimize wa
 ### Three-Tier Rule System
 
 ```
-.claude/rules/              Always loaded — universal standards (~17K tokens)
+.claude/rules/              Always loaded (or path-scoped via `paths:`) — universal standards
 .claude/rules-available/    Opt-in — symlink to enable per project
 .claude/references/         On-demand — loaded by skills when needed
 ```
 
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
-| **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, secrets hygiene, dependency security, database migrations, delivery contract, AI patterns, quality checks, task management, guardrails |
+| **`rules/`** | Every session; a rule with `paths:` frontmatter only when a matching file is read or edited | Code quality, testing, error handling, git workflow, security basics, secrets hygiene, dependency security, database migrations, delivery contract, AI patterns, quality checks, task management, guardrails |
 | **`rules-available/`** | Only when symlinked into `rules/` | Next.js, TypeScript, Python, iOS, Android, Docker, web/mobile security, OWASP |
 | **`references/`** | Only when a skill reads it | Gitmoji, orchestration patterns, quality/security/SOLID checklists, rules guide |
 

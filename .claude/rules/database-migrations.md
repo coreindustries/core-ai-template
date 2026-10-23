@@ -1,6 +1,9 @@
 ---
 paths:
   - "**/migrations/**"
+  - "**/migrate/**"
+  - "**/migration/**"
+  - "**/Migrations/**"
   - "**/supabase/**"
   - "**/prisma/**"
   - "**/drizzle/**"

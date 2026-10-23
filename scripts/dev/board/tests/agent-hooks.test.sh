@@ -41,8 +41,9 @@ copy_hooks_into() {
   mkdir -p "$root/.claude/hooks/lib"
   cp "$REAL_HOOKS_DIR/agent-role.sh" "$root/.claude/hooks/agent-role.sh"
   cp "$REAL_HOOKS_DIR/agent-compact.sh" "$root/.claude/hooks/agent-compact.sh"
+  cp "$REAL_HOOKS_DIR/post-compact.sh" "$root/.claude/hooks/post-compact.sh"
   cp "$REAL_HOOKS_DIR/lib/agent-state.sh" "$root/.claude/hooks/lib/agent-state.sh"
-  chmod +x "$root/.claude/hooks/agent-role.sh" "$root/.claude/hooks/agent-compact.sh"
+  chmod +x "$root/.claude/hooks/agent-role.sh" "$root/.claude/hooks/agent-compact.sh" "$root/.claude/hooks/post-compact.sh"
 }
 
 # ---------------------------------------------------------------------------
@@ -621,4 +622,45 @@ fi
 # comment above).
 pkill -f "$HANG_CHILD_MARKER" 2>/dev/null || true
 
-print_summary "agent-hooks (agent-role.sh + agent-compact.sh)"
+# ---------------------------------------------------------------------------
+# post-compact.sh writes the summary under the MAIN repo's git-common-dir,
+# and agent-compact.sh, run from a linked worktree, lists that same file.
+# ---------------------------------------------------------------------------
+PC_MAIN="$WORK/pc-main"
+git init -q "$PC_MAIN"
+git -C "$PC_MAIN" -c user.email=t@example.com -c user.name=t commit -q --allow-empty -m init
+PC_WT="$WORK/pc-wt"
+git -C "$PC_MAIN" worktree add -q -b pc-wt "$PC_WT"
+copy_hooks_into "$PC_WT"
+mkdir -p "$PC_MAIN/.git/claude-agent-roles"
+printf '{"name":"C-TEST","role":"test","skill":"tech-director"}' > "$PC_MAIN/.git/claude-agent-roles/sess-pc.json"
+
+p="$WORK/pc-none.json"
+printf '{"session_id":"sess-pc","source":"compact"}' > "$p"
+out="$(CLAUDE_PROJECT_DIR="$PC_WT" AGENT_COMPACT_BOARD_TIMEOUT_SECONDS=2 "$PC_WT/.claude/hooks/agent-compact.sh" < "$p")"
+printf '%s' "$out" | grep -q '(none saved for this session)' \
+  && pass "compact-rebrief-says-none-saved-before-any-compaction" \
+  || fail "compact-rebrief-says-none-saved-before-any-compaction (got '$out')"
+
+p="$WORK/pc-input.json"
+printf '{"session_id":"sess-pc","trigger":"auto","compact_summary":"kept detail","transcript_path":"/t.jsonl"}' > "$p"
+CLAUDE_PROJECT_DIR="$PC_WT" "$PC_WT/.claude/hooks/post-compact.sh" < "$p" 2>/dev/null
+rc=$?
+saved="$(ls "$PC_MAIN/.git/claude-compactions/sess-pc/"*-auto.md 2>/dev/null | head -n 1)"
+{ [ "$rc" -eq 0 ] && [ -n "$saved" ] && grep -q 'kept detail' "$saved" && grep -q 'transcript=/t.jsonl' "$saved"; } \
+  && pass "post-compact-saves-summary-under-main-common-dir-from-worktree" \
+  || fail "post-compact-saves-summary-under-main-common-dir-from-worktree (rc=$rc saved='$saved')"
+[ -z "$(find "$PC_WT" -name claude-compactions -print 2>/dev/null)" ] \
+  && pass "post-compact-leaves-worktree-tree-clean" || fail "post-compact-leaves-worktree-tree-clean"
+
+p="$WORK/pc-none.json"
+out="$(CLAUDE_PROJECT_DIR="$PC_WT" AGENT_COMPACT_BOARD_TIMEOUT_SECONDS=2 "$PC_WT/.claude/hooks/agent-compact.sh" < "$p")"
+printf '%s' "$out" | grep -q -- "$(basename "$saved")" \
+  && pass "compact-rebrief-lists-saved-summary-from-worktree" \
+  || fail "compact-rebrief-lists-saved-summary-from-worktree (got '$out')"
+
+CLAUDE_PROJECT_DIR="$PC_WT" "$PC_WT/.claude/hooks/post-compact.sh" < /dev/null 2>/dev/null
+rc=$?
+[ "$rc" -eq 0 ] && pass "post-compact-empty-stdin-exits-0" || fail "post-compact-empty-stdin-exits-0 (got $rc)"
+
+print_summary "agent-hooks (agent-role.sh + agent-compact.sh + post-compact.sh)"

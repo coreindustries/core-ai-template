@@ -10,6 +10,9 @@
 # this repo shares it and nothing lands in the tracked tree.
 # agent-compact.sh lists the newest files in its re-brief.
 #
+# The summary is stored in plaintext, as the transcript it points to already is,
+# so anything pasted into the session (including a secret) can land here too.
+#
 # Contract: side effects only, ALWAYS exits 0, failures reported on stderr.
 set -uo pipefail
 
