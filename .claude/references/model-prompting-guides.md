@@ -241,4 +241,4 @@ See `.claude/references/prompt-caching.md` for patterns and anti-patterns.
 - [Prompting Claude Fable 5.1](https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompting-claude-fable-5-1) — full model-specific guide
 - [What's new in Claude Fable 5.1](https://platform.claude.com/docs/en/models/fable-5-1/whats-new-fable-5-1) — API changes, pricing, refusals, billing
 - `.claude/references/prompt-caching.md` — caching patterns and anti-patterns
-- `.claude/rules/ai-agent-patterns.md` — API defaults (adaptive thinking, streaming, caching defaults)
+- `.claude/rules/claude-api.md` — API defaults (adaptive thinking, streaming, caching defaults)

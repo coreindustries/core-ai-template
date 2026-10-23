@@ -32,7 +32,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 │   ├── decisions/              → ADRs: read before proposing architectural changes
 │   ├── coordination/           → Cross-repo coordination tracking (incoming/outgoing)
 │   └── solutions/              → Knowledge capture from /compound skill
-├── .claude/rules/             → 13 universal rules: 10 always loaded, 3 path-scoped
+├── .claude/rules/             → 17 universal rules: 10 always loaded, 7 path-scoped
 ├── .claude/rules-available/   → 9 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
 ├── .claude/skills/            → 36 slash commands (invoke with /name)
@@ -43,7 +43,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 └── .codex/hooks.json          → Codex project hooks (UserPromptSubmit lane-role adapter)
 ```
 
-**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — those with `paths:` frontmatter (testing, dependency security, database migrations) only when a matching file is read or edited. Do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, secrets hygiene, dependency security, database migrations, delivery contract, AI agent patterns, quality checks, task management, guardrails). Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
+**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — those with `paths:` frontmatter (testing, dependency security, database migrations, Claude API, runtime confirmation, Node error handling, UI QA gate) only when a matching file is read or edited. Do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, secrets hygiene, dependency security, database migrations, delivery contract, AI agent patterns, Claude API, runtime confirmation, Node error handling, UI QA gate, quality checks, task management, guardrails). Long rationale and examples live in `.claude/references/*-detail.md`. Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
 
 ## Commands
 

@@ -32,7 +32,7 @@
 #   WRAPPER ?= <secret-cli> run --env-file=.env.tpl --
 #
 # UNSET IS A VALID STATE. With no WRAPPER, commands run without injection and
-# the app's own fail-closed check (secrets-hygiene.md Rule 8) reports which
+# the app's own fail-closed check (secrets-hygiene.md rule 6) reports which
 # variables are missing. That keeps an uninitialized template runnable.
 #
 # Override per project:
