@@ -11,7 +11,7 @@ This template establishes a foundation for projects where AI agents are primary 
 - **Architecture Decision Records** (ADRs) with agent-specific fields to prevent undoing intentional choices
 - **Product requirements documentation** (PRD) for maintaining project context
 - **Task tracking** for long-running features and session recovery
-- **33 reusable skills** (slash commands) for common development workflows
+- **42 reusable skills** (slash commands) for common development workflows
 - **Compound engineering** practices adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) — knowledge capture, requirements discovery, and multi-perspective code review
 
 ## Features
@@ -25,7 +25,7 @@ This template establishes a foundation for projects where AI agents are primary 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `.claude/agents/` - 11 specialized agents with authority bounds + standardized template
-- `.claude/skills/` - 33 slash commands for common workflows
+- `.claude/skills/` - 42 slash commands for common workflows
 - `.claude/references/` - 15 on-demand references (orchestration patterns, checklists, gitmoji, rule detail)
 - `.claude/mcp.json` - MCP server configuration template
 - `docs/decisions/` - Architecture Decision Records with agent-guidance fields
@@ -138,6 +138,15 @@ A standing team of Claude Code sessions — one Release Manager, one PRD Manager
 | `/brainstorm` | Explore requirements (WHAT) before implementation (HOW) |
 | `/context` | Audit auto-loaded context budget and recommend optimizations |
 | `/adr` | Create Architecture Decision Records with agent guidance |
+| `/retrospective` | Post-incident: PR-history archaeology, RCA-capturing test, enforced workflow gate |
+| `/prd-audit` | Verify each PRD against what shipped; file the prioritized remainder as issues |
+
+**Orchestration**
+| Skill | Purpose |
+|-------|---------|
+| `/goal` | Conductor loop: outcome + criteria, delegate, iterate against judge and test feedback |
+| `/multistream` | Run independent streams concurrently with isolated writers and a serial release rail |
+| `/reflect-agents` | Mine the `/goal` ledger for recurring findings and propose agent-prompt fixes via draft PR |
 
 ### Compound Engineering
 
@@ -678,7 +687,7 @@ core-ai-template/
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   ├── codebase-researcher.md # Deep codebase analysis
     │   └── ci-triage.md         # Failing check → class / cause / fix (agent lanes)
-    └── skills/                  # Slash commands (36 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
+    └── skills/                  # Slash commands (42 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle

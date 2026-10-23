@@ -14,6 +14,7 @@ labels, PR/CI diagnosis, deploys, log triage) so no model call has to rediscover
 |---|---|
 | `board.sh` | Issues and PRs: labels, claims, state, handoffs, queues, PR status, board render, project sync |
 | `pr-watch.sh` | Babysit an agent's PRs; one `ACTION` line per PR that needs it |
+| `pr-monitor.sh` | Standing watch over every open PR: runs `pr-watch.sh --once` per PR each cycle |
 | `wt-clean.sh` | Remove merged PRs' worktrees, safely |
 | `gh-checks.sh` | Read PR check runs even with a fine-grained PAT (sourced) |
 | `issue-fetch.sh` / `issue-watch.sh` | Read an issue with its screenshots / watch for new work (via `board.sh show` / `watch`) |
