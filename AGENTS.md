@@ -52,7 +52,7 @@ Document required variables without exposing values. See `.env.example` for the 
 
 ### Dependency Handling Rules
 
-See `.claude/rules/dependency-security.md` (auto-loaded) for the full directive. Summary:
+See `.claude/rules/dependency-security.md` (loaded when a manifest, lockfile, Dockerfile or workflow is touched) for the full directive. Summary:
 
 * **Pin every direct dependency to an exact version.** No `^`, `~`, `>=`, `latest`, branch refs. Commit lockfiles.
 * **GitHub Actions and Docker images pin by SHA / digest**, not tag. Tags are mutable; digests are not.

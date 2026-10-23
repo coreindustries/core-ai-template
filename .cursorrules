@@ -11,7 +11,7 @@ All project standards live in `.claude/rules/` — read these files for full det
 | `.claude/rules/code-quality.md` | DRY, typing, naming, docs, project organization |
 | `.claude/rules/testing.md` | Unit/integration tests, TDD, coverage requirements |
 | `.claude/rules/error-handling.md` | Specific exceptions, tight error handling |
-| `.claude/rules/ai-agent-patterns.md` | Autonomy, persistence, exploration patterns |
+| `.claude/rules/ai-agent-patterns.md` | Autonomy, scope, delegation (exploration patterns: `.claude/references/ai-agent-patterns-detail.md`) |
 | `.claude/rules/git-workflow.md` | Dirty worktrees, commit standards, hygiene |
 | `.claude/rules/quality-checks.md` | Frequent checks, pre-commit, CI/CD |
 | `.claude/rules/task-management.md` | Task tracking, plan discipline |

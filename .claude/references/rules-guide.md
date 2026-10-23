@@ -13,18 +13,34 @@ This guide explains how the rules system works in this template. It is a **refer
 
 ### Auto-Loaded Rules (`rules/`)
 
-All `.md` files in `.claude/rules/` are automatically loaded into Claude Code's context every session. These are kept lean to preserve context window for actual work.
+Every `.md` file in `.claude/rules/` without `paths:` frontmatter is loaded into Claude Code's context every session. These are kept lean to preserve context window for actual work.
 
 | File | Purpose | ~Tokens |
 |------|---------|---------|
-| `code-quality.md` | DRY, typing, naming, docs | 785 |
-| `testing.md` | Unit/integration tests, TDD, coverage | 424 |
-| `ai-agent-patterns.md` | Autonomy, persistence, exploration | 1,212 |
-| `error-handling.md` | Specific exceptions, tight handling | 474 |
-| `git-workflow.md` | Commit standards, dirty worktrees | 564 |
-| `quality-checks.md` | Frequent checks, pre-commit, CI/CD | 480 |
-| `task-management.md` | Task tracking, PRD workflow | 732 |
-| `security-core.md` | Secrets, database safety, dependencies | 1,659 |
+| `ai-agent-patterns.md` | Autonomy, scope, delegation, failure recovery | 1,103 |
+| `code-quality.md` | Simplest complete solution, DRY, naming | 1,119 |
+| `delivery-contract.md` | Invariant, risk class, real proof | 1,594 |
+| `error-handling.md` | Specific exceptions, no silent failures | 299 |
+| `git-workflow.md` | Commit standards, dirty worktrees | 726 |
+| `guardrails.md` | Agent safety boundaries | 880 |
+| `quality-checks.md` | Pre-commit and CI expectations | 308 |
+| `secrets-hygiene.md` | Never read, print or commit secrets | 792 |
+| `security-core.md` | Secrets, database safety, dependencies | 687 |
+| `task-management.md` | Task tracking, PRD workflow | 609 |
+
+Path-scoped (`paths:` frontmatter) — loaded only when a matching file is read or edited:
+
+| File | Purpose | ~Tokens |
+|------|---------|---------|
+| `claude-api.md` | Claude API defaults | 284 |
+| `database-migrations.md` | Migration safety | 2,608 |
+| `dependency-security.md` | Pinning, audits, lockfiles | 2,336 |
+| `node-error-handling.md` | Process-level Node handlers, timers | 539 |
+| `runtime-confirmation.md` | Prove the feature fires in the running system | 435 |
+| `testing.md` | Tests that prove something | 1,812 |
+| `ui-qa-gate.md` | User-visible output reaches the user | 379 |
+
+Rationale, long examples and incident detail for a rule live in `.claude/references/<rule>-detail.md`, read on demand.
 
 ### Opt-In Rules (`rules-available/`)
 
@@ -65,10 +81,12 @@ Lookup tables and documentation loaded on-demand by skills:
 
 | Project Type | Auto-Loaded | % of 200K Window |
 |--------------|-------------|-------------------|
-| Python API | ~7.7K tokens | 3.9% |
-| Node.js API | ~7.7K tokens | 3.9% |
-| Next.js Web | ~17K tokens | 8.5% |
-| React Native | ~13.3K tokens | 6.7% |
+| Node.js API (`enable-api`) | ~9.5K tokens | 4.8% |
+| Python API (`enable-python`) | ~13K tokens | 6.6% |
+| React Native (`enable-mobile`) | ~16.5K tokens | 8.3% |
+| Next.js Web (`enable-web`) | ~20K tokens | 10.1% |
+
+Always-loaded universal rules only (path-scoped rules and CLAUDE.md excluded), ~4 chars/token.
 
 ## How to Add Rules
 

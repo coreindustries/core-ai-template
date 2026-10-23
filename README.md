@@ -17,16 +17,16 @@ This template establishes a foundation for projects where AI agents are primary 
 ## Features
 
 ### Context-Optimized Rules System
-- `.claude/rules/` - 13 universal rules, auto-loaded (~17K tokens)
+- `.claude/rules/` - 17 universal rules: 10 always loaded, 7 loaded only when a matching file is touched
 - `.claude/rules-available/` - 9 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
-- Only loads what your project needs — a minimal backend stack auto-loads ~18K vs ~45K for every rule, about **59% less context**
+- Only loads what your project needs — a minimal backend stack auto-loads ~9.5K vs ~45K for every rule, about **79% less context**
 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `.claude/agents/` - 11 specialized agents with authority bounds + standardized template
 - `.claude/skills/` - 42 slash commands for common workflows
-- `.claude/references/` - 9 on-demand references (orchestration patterns, checklists, gitmoji)
+- `.claude/references/` - 15 on-demand references (orchestration patterns, checklists, gitmoji, rule detail)
 - `.claude/mcp.json` - MCP server configuration template
 - `docs/decisions/` - Architecture Decision Records with agent-guidance fields
 
@@ -643,7 +643,7 @@ core-ai-template/
 │       └── adr-template.md      # Template for new ADRs
 └── .claude/
     ├── mcp.json                 # MCP server configuration template
-    ├── rules/                   # Auto-loaded rules (~17K tokens)
+    ├── rules/                   # Universal rules (~8K tokens always loaded)
     │   ├── code-quality.md      # Code quality standards
     │   ├── testing.md           # Testing requirements
     │   ├── ai-agent-patterns.md # AI agent principles + failure modes
@@ -652,7 +652,11 @@ core-ai-template/
     │   ├── guardrails.md        # Agent safety boundaries
     │   ├── quality-checks.md    # Quality check requirements
     │   ├── task-management.md   # Task tracking workflow
-    │   └── security-core.md     # Core security (always applies)
+    │   ├── security-core.md     # Core security (always applies)
+    │   ├── claude-api.md        # Claude API defaults (path-scoped)
+    │   ├── runtime-confirmation.md # Prove it works after deploy (path-scoped)
+    │   ├── node-error-handling.md  # Process-level Node handlers (path-scoped)
+    │   └── ui-qa-gate.md        # User-visible output gate (path-scoped)
     ├── rules-available/         # Opt-in rules (symlink into rules/)
     │   ├── android.md           # Android (Kotlin / Compose)
     │   ├── docker.md            # Docker & container best practices
@@ -662,7 +666,7 @@ core-ai-template/
     │   ├── security-web.md      # Web security (React, Next.js)
     │   ├── security-mobile.md   # Mobile security (React Native)
     │   └── security-owasp.md    # OWASP Top 10 standards
-    ├── references/              # On-demand (loaded by skills, 7 files)
+    ├── references/              # On-demand (loaded by skills; *-detail.md hold rule rationale)
     │   ├── code-quality-checklist.md # Code review quality checklist
     │   ├── gitmoji.md           # Gitmoji reference (/commit)
     │   ├── orchestration-patterns.md # Multi-agent coordination patterns
@@ -769,14 +773,14 @@ AI agents have limited context windows. This template is designed to minimize wa
 ### Three-Tier Rule System
 
 ```
-.claude/rules/              Always loaded — universal standards (~17K tokens)
+.claude/rules/              Always loaded (or path-scoped via `paths:`) — universal standards
 .claude/rules-available/    Opt-in — symlink to enable per project
 .claude/references/         On-demand — loaded by skills when needed
 ```
 
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
-| **`rules/`** | Every session, automatically | Code quality, testing, error handling, git workflow, security basics, secrets hygiene, dependency security, database migrations, delivery contract, AI patterns, quality checks, task management, guardrails |
+| **`rules/`** | Every session; a rule with `paths:` frontmatter only when a matching file is read or edited | Code quality, testing, error handling, git workflow, security basics, secrets hygiene, dependency security, database migrations, delivery contract, AI patterns, quality checks, task management, guardrails |
 | **`rules-available/`** | Only when symlinked into `rules/` | Next.js, TypeScript, Python, iOS, Android, Docker, web/mobile security, OWASP |
 | **`references/`** | Only when a skill reads it | Gitmoji, orchestration patterns, quality/security/SOLID checklists, rules guide |
 
@@ -816,16 +820,17 @@ ln -s ../rules-available/nextjs.md .claude/rules/nextjs.md
 
 ### Context Budget by Project Type
 
-Universal rules are ~17K on their own; each row below is that base plus the
-platform rules the matching `make enable-*` symlinks in.
+Always-loaded universal rules are ~8K on their own (path-scoped ones add up to
+~8K more only when matching files are touched); each row below is that base plus
+the platform rules the matching `make enable-*` symlinks in.
 
 | Project Type | Auto-Loaded | % of 200K Context |
 |--------------|-------------|-------------------|
-| Backend API, minimal (`enable-api`) | ~18K tokens | ~9% |
-| Containerized (`enable-docker`) | ~20K tokens | ~10% |
-| Python / Go API (`enable-python`) | ~21K tokens | ~11% |
-| React Native (`enable-mobile`) | ~25K tokens | ~13% |
-| Next.js Web App (`enable-web`) | ~29K tokens | ~15% |
+| Backend API, minimal (`enable-api`) | ~9.5K tokens | ~5% |
+| Containerized (`enable-docker`) | ~11.5K tokens | ~6% |
+| Python / Go API (`enable-python`) | ~13K tokens | ~7% |
+| React Native (`enable-mobile`) | ~16.5K tokens | ~8% |
+| Next.js Web App (`enable-web`) | ~20K tokens | ~10% |
 
 Loading every rule in both directories would be ~45K. Figures are file sizes at
 ~4 chars/token — recompute them when rules are added, or they drift silently as

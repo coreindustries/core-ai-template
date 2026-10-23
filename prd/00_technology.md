@@ -29,7 +29,7 @@ Default platform: **Supabase (Postgres + RLS)**. See `docs/decisions/0003-supaba
 | **ORM / Query Builder** | `{orm}` (e.g. supabase-js, drizzle, prisma, sqlalchemy) |
 | **Schema Location** | `supabase/migrations/` |
 | **Migration Tool** | `supabase CLI` |
-| **Migration Conventions** | See `.claude/rules/database-migrations.md` (auto-loaded) |
+| **Migration Conventions** | See `.claude/rules/database-migrations.md` (loaded when a migration or SQL file is touched) |
 | **RLS** | Mandatory on user-data tables; pgTAP-tested |
 | **Preview Envs** | Supabase Preview Branches (per PR) |
 | **Cache** | `{cache_system}` (if applicable) |
