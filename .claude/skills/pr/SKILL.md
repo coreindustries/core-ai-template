@@ -107,12 +107,11 @@ When this skill is invoked:
 
 7. **Create PR**:
    ```bash
+   body=$(mktemp)
+   cp .github/pull_request_template.md "$body"   # then fill every field
    gh pr create \
      --title "type(scope): description" \
-     --body "$(cat <<'EOF'
-   [Generated PR body]
-   EOF
-   )" \
+     --body-file "$body" \
      --base main
    ```
 
