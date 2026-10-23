@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.{js,cjs,mjs,jsx,ts,cts,mts,tsx,vue,svelte,py,sh,go,rs,rb,java,kt,swift,dart,php,cs}"
+---
+
 # Testing Rules
 
 **Scope:** Testing standards (unit, integration, TDD, coverage)

@@ -1,6 +1,19 @@
+---
+paths:
+  - "**/migrations/**"
+  - "**/migrate/**"
+  - "**/migration/**"
+  - "**/Migrations/**"
+  - "**/supabase/**"
+  - "**/prisma/**"
+  - "**/drizzle/**"
+  - "**/alembic/**"
+  - "**/*.sql"
+---
+
 # Database Migrations — Structure & Discipline
 
-Auto-loaded rule. Default platform: **Supabase (Postgres)**. Adapt for Prisma / Drizzle / Alembic / golang-migrate by mapping the commands; the invariants below are platform-agnostic.
+Loaded when a matching file is read or edited. Default platform: **Supabase (Postgres)**. Adapt for Prisma / Drizzle / Alembic / golang-migrate by mapping the commands; the invariants below are platform-agnostic.
 
 ## Core Directive
 

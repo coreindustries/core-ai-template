@@ -1,6 +1,45 @@
+---
+paths:
+  - "**/package.json"
+  - "**/package-lock.json"
+  - "**/npm-shrinkwrap.json"
+  - "**/yarn.lock"
+  - "**/pnpm-lock.yaml"
+  - "**/pnpm-workspace.yaml"
+  - "**/bun.lock"
+  - "**/bun.lockb"
+  - "**/requirements*.txt"
+  - "**/pyproject.toml"
+  - "**/uv.lock"
+  - "**/poetry.lock"
+  - "**/Pipfile"
+  - "**/Pipfile.lock"
+  - "**/Cargo.toml"
+  - "**/Cargo.lock"
+  - "**/go.mod"
+  - "**/go.sum"
+  - "**/composer.json"
+  - "**/composer.lock"
+  - "**/Gemfile"
+  - "**/Gemfile.lock"
+  - "**/build.gradle"
+  - "**/build.gradle.kts"
+  - "**/gradle/libs.versions.toml"
+  - "**/Podfile"
+  - "**/Podfile.lock"
+  - "**/Package.swift"
+  - "**/Package.resolved"
+  - "**/Dockerfile*"
+  - "**/docker-compose*.yml"
+  - "**/compose*.yml"
+  - "**/.github/workflows/**"
+  - "**/.github/actions/**"
+  - "**/.github/dependabot.yml"
+---
+
 # Dependency Security — Pin Versions, Cooldown New Releases
 
-Auto-loaded rule. Applies to all package-manager ecosystems (npm, pip, uv, poetry, cargo, gomod, composer, Docker base images, GitHub Actions).
+Loaded when a matching file is read or edited. Applies to all package-manager ecosystems (npm, pip, uv, poetry, cargo, gomod, composer, Docker base images, GitHub Actions).
 
 ## Core Directive
 

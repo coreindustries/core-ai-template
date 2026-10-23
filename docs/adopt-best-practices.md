@@ -1857,9 +1857,8 @@ Apply labels per Phase 5.5.
 
 ```bash
 git push -u origin "$BRANCH"
-gh pr create --base "$DEFAULT_BRANCH" \
-  --title "chore: adopt security/process/tooling kit" \
-  --body-file <(cat <<'EOF'
+body=$(mktemp)
+cat > "$body" <<'EOF'
 ## Summary
 Lands the spread-kit best-practices baseline (phases 0-10).
 
@@ -1881,7 +1880,9 @@ Lands the spread-kit best-practices baseline (phases 0-10).
 - [ ] (If Codex enabled) Add `OPENAI_API_KEY` to the `dev` Environment.
 - [ ] Configure branch protection on the default branch.
 EOF
-)
+gh pr create --base "$DEFAULT_BRANCH" \
+  --title "chore: adopt security/process/tooling kit" \
+  --body-file "$body"
 ```
 
 ---

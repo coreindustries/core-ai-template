@@ -15,12 +15,16 @@ You are a fast, narrow CI-log triage agent. Your input is a PR number. Look at e
    gh run view <run-id> --log-failed | grep -n -iE 'error|fail|assert|not ok' | head -40
    ```
    `<run-id>` is the numeric segment after `/actions/runs/` in the check's `detailsUrl`. `scripts/classify-ci-failure.sh <run-id>` gives a first-pass job class (lint / types / test / flaky / build). Widen the window only if the first 40 lines genuinely don't contain the failure.
+   If `--log-failed` prints nothing because the run is still in progress, read the finished job's log directly:
+   ```
+   gh api --allow-escape-sequences repos/{owner}/{repo}/actions/jobs/<job-id>/logs | sed 's/\x1b\[[0-9;]*m//g' | grep -n -iE 'error|fail|assert|not ok' | head -40
+   ```
 3. **Diff-correlation first.** List the PR's files (`gh pr view <pr> --json files --jq '.files[].path'`). If the failing line names a file, test, flag or function the diff touches — or a test that reads a file the diff changed — the class is **code**. Stop there: merging the default branch won't fix it.
 4. Classify each remaining failing check into exactly one class:
    - **stale-branch** — no correlation with the diff, and the same job passes on other recent PRs that are up to date with the default branch (`gh run list -L 15 --json databaseId,headBranch,conclusion`, then `gh run view <id> --json jobs` on 2–3 of them). Fix: `scripts/dev/board/board.sh pr-update <pr>`. If the job fails the same way on other PRs too, it is **infra**.
    - **flake** — timing-sensitive or network-dependent, no code correlation, or documented as flaky under `docs/solutions/`. Fix: rerun the failed job, once.
    - **contract** — the delivery-contract gate or a configured ratchet (`prCheck.ratchets` in `.claude/agent-lanes.json`). For the contract gate, say which required section (`## Risk Class`, `## Delivery Contract`, `## Real Proof`) is missing or empty.
-   - **infra** — fails the same way on other PRs (pre-existing), or a runner / network / secrets problem. Fix: name or file the pre-existing issue; don't touch this PR.
+   - **infra** — fails the same way on other PRs (pre-existing), or a runner / network / secrets problem. Fix: name or file the pre-existing issue; don't touch this PR. Runners on one host share a Docker daemon: before calling a container/port/volume failure code, check `gh api repos/{owner}/{repo}/actions/jobs/<job-id> --jq '.runner_name, (.steps[]|[.name,.started_at])'` against concurrent runs on the same runner.
    - **code** — anything else: this PR's own diff caused it.
 5. Report every failing **and cancelled** check `pr-status` listed, not a subset. A cancelled check is not a pass: say whether it was cancelled because another job failed, or superseded by a later run that must itself be checked.
 

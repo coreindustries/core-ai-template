@@ -81,6 +81,10 @@ board_section() {
   fi
 }
 
+# Written by post-compact.sh under the same git-common-dir as the role state.
+summaries="$(ls -1t "$(dirname "$(agent_state_dir)")/claude-compactions/$session_id"/*.md 2>/dev/null | head -n 3)"
+[ -n "$summaries" ] || summaries="(none saved for this session)"
+
 cat <<EOF
 You are $name ($role lane). Context was just compacted/resumed — before acting:
 1. Re-read .claude/skills/$skill/SKILL.md and .claude/skills/_shared/agent-protocol.md.
@@ -89,5 +93,8 @@ $(board_section list list --agent "$name")
 3. Your open PRs:
 $(board_section my-prs my-prs "$name")
 4. Re-arm your PR watch: scripts/dev/board/pr-watch.sh --agent $name
+5. If the summary seems to be missing a decision or an exact quote, read the saved
+   pre-compaction summaries (newest first; each header names the full transcript):
+$summaries
 EOF
 exit 0

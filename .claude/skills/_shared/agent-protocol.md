@@ -173,7 +173,7 @@ The operator should never have to tell you about a red check, a conflict or a st
 Ownership runs from `gh pr create` to merged.
 
 1. **Open as a draft claim first**: an empty `wip:` commit on a namespaced branch, pushed, then
-   `gh pr create --draft --body-file <md>` with `## Claim` (the path globs you expect to touch) and
+   `gh pr create --draft --body-file <md>`. Start the body from the template (`cp .github/pull_request_template.md <md>`), fill every field, and include `## Claim` (the path globs you expect to touch) and
    `Fixes #<issue>` / `Stream: #<issue>`; then `board.sh pr-own <pr> <NAME>`.
 2. **Before every push that changes the body or the diff:** `make -C <pr-worktree> pr-check BODY=<body.md>`.
    Always pass the PR's worktree with `-C`: the gate reads the branch and diff from its working

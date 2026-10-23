@@ -123,9 +123,11 @@ When this skill is invoked:
    ```bash
    git push -u origin hotfix/{branch_name}
 
+   body=$(mktemp)
+   cp .github/pull_request_template.md "$body"   # then fill every field
    gh pr create \
      --title "HOTFIX: brief description" \
-     --body "[hotfix PR template]" \
+     --body-file "$body" \
      --label "hotfix,urgent"
    ```
 

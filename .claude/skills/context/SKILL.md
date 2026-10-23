@@ -45,7 +45,7 @@ When this skill is invoked:
 Measure all auto-loaded files and report token usage:
 
 1. **Read `CLAUDE.md`** — count characters, estimate tokens
-2. **Glob `.claude/rules/*.md`** — read each file, estimate tokens
+2. **Glob `.claude/rules/*.md`** — read each file, estimate tokens. A rule whose frontmatter has `paths:` loads only when a matching file is read or edited: list it under a separate "Path-scoped" heading and leave it out of the always-loaded total
 3. **Check for enabled platform rules** — identify symlinks in `rules/` that point to `rules-available/`
 4. **Sum totals** and calculate percentage of 200K context window
 
