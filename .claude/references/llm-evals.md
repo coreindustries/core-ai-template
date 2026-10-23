@@ -140,7 +140,7 @@ under `make eval` and under `node --test`.
 ```
 
 Calls the Anthropic Messages API via global `fetch` (no SDK dependency). Model
-comes from `EVAL_JUDGE_MODEL` — **never hardcoded** (`.claude/rules/ai-agent-patterns.md`);
+comes from `EVAL_JUDGE_MODEL` — **never hardcoded** (`.claude/rules/claude-api.md`);
 if it's unset, the judge is unavailable, same as a missing key. Credential
 comes from `ANTHROPIC_API_KEY`, injected by the secret wrapper, never a
 `.env` file. **Use a separate, low-spend API key or workspace for eval
