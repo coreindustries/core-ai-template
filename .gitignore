@@ -109,3 +109,5 @@ secrets.json
 # Generated files (uncomment as needed)
 # prisma/client/
 # generated/
+# /goal working state (read by /reflect-agents)
+.claude/orchestration/ledger/

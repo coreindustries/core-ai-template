@@ -35,7 +35,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 13 auto-loaded rules (~17K tokens)
 ├── .claude/rules-available/   → 9 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 36 slash commands (invoke with /name)
+├── .claude/skills/            → 42 slash commands (invoke with /name)
 ├── .claude/agents/            → 11 specialized agents (see _template.md for structure)
 ├── .claude/agent-lanes.json   → Agent lanes config (environment ladder, PRD layout, name prefix)
 ├── .claude/mcp.json           → MCP server configuration template
@@ -143,7 +143,7 @@ Use cases: onboarding an existing repo to the kit's secret-scan / commit / PR-te
 
 ## Skills (Slash Commands)
 
-36 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+42 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 
