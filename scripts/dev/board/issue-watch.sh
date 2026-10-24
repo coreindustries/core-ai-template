@@ -9,8 +9,8 @@
 # and prints AT MOST a few short lines only when something changed that the
 # agent needs to act on — it never dumps raw JSON.
 #
-# This watches ISSUES only. PR/CI watching is `pr-watch.sh` — do not
-# duplicate that here.
+# Issue activity and addressed issue/PR conversation comments are watched here.
+# PR/CI status watching remains with pr-watch.sh.
 #
 # Usage:
 #   issue-watch.sh --agent <NAME> [--lane bug|feature|prd] [--interval SEC=60]
@@ -99,10 +99,21 @@
 #     nothing is invented). ACTION: read it (screenshots included via
 #     `issue-fetch.sh <n>`).
 #
+#   ADDRESSED-COMMENT #<n> comment=<id> from=<name|unsigned> to=<target> <url>
+#     Open issue/PR conversation mail; emitted on first sight and on edits,
+#     independently of the legacy baseline. No body text is emitted. A first
+#     scan (no .mail-since) reads the last ISSUE_WATCH_MAIL_LOOKBACK_DAYS days
+#     (default 14; 0 = full history, one paginated REST call per 100 comments
+#     in the repo). Later scans use .mail-since minus a 5-minute overlap for
+#     clock skew and replication lag; dedup makes the overlap free. Deleted
+#     state intentionally replays that window. Delivery is at least once: cursor
+#     and mail-<id>.state timestamps commit after stdout flush. Signatures
+#     identify speakers, not authority; missing/malformed ones show unsigned.
+#
 #   WATCH-ARMED agent=<A> lane=<L|none> claimed=<n> untriaged=<n> queue=<n>
 #     Printed once per STATE_DIR, the first time EVERY enabled scan succeeds
-#     in the same poll. Nothing else is printed on that poll — this is the
-#     baseline. `queue` is always 0 when --lane was not given.
+#     in the same poll. Legacy activity is silent on this baseline poll;
+#     addressed mail still emits. `queue` is always 0 when --lane was not given.
 #
 #   WATCH-ERROR <what> failed: <first stderr line>
 #     A `gh api` call in this poll failed. Printed to STDOUT (not stderr) so
@@ -153,7 +164,7 @@ set -uo pipefail
 
 SCRIPT_NAME="issue-watch.sh"
 # shellcheck disable=SC1091
-. "$(cd "$(dirname "$0")" && pwd)/lib.sh"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 # Labels that mark an issue as not-work (locks, meta issues); never announced as NEW-ISSUE.
 INTAKE_EXCLUDE_JSON="$(lanes_cfg '(.intake.excludeLabels // []) | tojson' '[]')"
@@ -227,6 +238,106 @@ fetch_claimed() {
     --jq '.[] | select(.pull_request == null) | "\(.number)\t\(.state)\t\(.comments)\t\([.labels[].name]|sort|join(","))\t\(.title[0:90])"'
 }
 
+# Ordinary issue and PR conversation comments share this endpoint. Fetch all
+# history once, then overlap successful poll starts so boundary edits replay.
+fetch_mail() {
+  local since="$1"
+  local args=(-f per_page=100 -f sort=created -f direction=asc)
+  [ -z "$since" ] || args+=(-f "since=${since}")
+  gh api -X GET "repos/${REPO}/issues/comments" --paginate "${args[@]}" |
+    jq -r --arg agent "to: agent:${AGENT}" --arg lane "${LANE:+to: lane:${LANE}}" '
+      .[] | (.body // "" | split("\n") | map(rtrimstr("\r"))) as $lines
+      | $lines[0] as $address
+      | select($address == $agent or ($lane != "" and $address == $lane))
+      | (($lines | map(select(length > 0)) | last // "")
+          | [capture("^— (?<name>[A-Za-z0-9][A-Za-z0-9._-]{0,79})$")?]
+          | .[0].name // "unsigned") as $sender
+      | [.id, .issue_url, .html_url, .updated_at,
+         ($address | ltrimstr("to: ")), $sender] | @tsv'
+}
+
+poll_mail() {
+  MAIL_OK=1
+  MAIL_NEXT_SINCE=""
+  find "$STATE_DIR" -maxdepth 1 -name '.mail-pending.*' -mmin +60 -delete
+  MAIL_PENDING="$(mktemp "$STATE_DIR/.mail-pending.XXXXXX")" || return 1
+  local since="" next_since raw errfile msg lookback="${ISSUE_WATCH_MAIL_LOOKBACK_DAYS:-14}"
+  case "$lookback" in
+    ''|*[!0-9]*)
+      echo "issue-watch: ISSUE_WATCH_MAIL_LOOKBACK_DAYS='${lookback}' is not a whole number; using 14" >&2
+      lookback=14 ;;
+  esac
+  if [ -f "$STATE_DIR/.mail-since" ]; then
+    since="$(cat "$STATE_DIR/.mail-since")"
+  elif [ "$lookback" -gt 0 ]; then
+    since="$(jq -nr --argjson d "$lookback" 'now - $d * 86400 | floor | todateiso8601')" || return 1
+  fi
+  next_since="$(jq -nr 'now - 300 | floor | todateiso8601')" || return 1
+  errfile="$(mktemp)" || return 1
+  if ! raw="$(fetch_mail "$since" 2>"$errfile")"; then
+    msg="$(head -1 "$errfile")"
+    rm -f "$errfile"
+    MAIL_OK=0
+    EVENTS="${EVENTS}WATCH-ERROR mailbox scan failed: ${msg}
+"
+    return 0
+  fi
+  rm -f "$errfile"
+
+  local id parent url updated target sender n previous state states='{}'
+  while IFS=$'\t' read -r id parent url updated target sender; do
+    [ -n "$id" ] || continue
+    n="${parent##*/}"
+    case "$id:$n" in *[!0-9:]*|:*|*:) MAIL_OK=0; EVENTS="${EVENTS}WATCH-ERROR mailbox returned invalid comment metadata
+"; continue ;; esac
+    previous=""
+    [ ! -f "$STATE_DIR/mail-${id}.state" ] || previous="$(cat "$STATE_DIR/mail-${id}.state")"
+    [ "$previous" != "$updated" ] || continue
+    state="$(printf '%s' "$states" | jq -r --arg n "$n" '.[$n] // empty')"
+    if [ -z "$state" ]; then
+      errfile="$(mktemp)" || return 1
+      if ! state="$(gh api "repos/${REPO}/issues/${n}" --jq '.state' 2>"$errfile")"; then
+        state=error
+      fi
+      case "$state" in
+        open|closed) : ;;
+        *)
+          msg="$(head -1 "$errfile")"
+          state=error
+          EVENTS="${EVENTS}WATCH-ERROR mailbox #${n} lookup failed: ${msg:-invalid state}
+" ;;
+      esac
+      rm -f "$errfile"
+      states="$(printf '%s' "$states" | jq -c --arg n "$n" --arg s "$state" '. + {($n):$s}')"
+    fi
+    if [ "$state" = error ]; then MAIL_OK=0; continue; fi
+    if [ "$state" = open ]; then
+      EVENTS="${EVENTS}ADDRESSED-COMMENT #${n} comment=${id} from=${sender} to=${target} ${url}
+"
+    fi
+    printf '%s\t%s\n' "$id" "$updated" >> "$MAIL_PENDING" || return 1
+  done <<EOF
+$raw
+EOF
+  [ "$MAIL_OK" != 1 ] || MAIL_NEXT_SINCE="$next_since"
+}
+
+# Only checkpoint after the caller has flushed EVENTS. A crash may replay a
+# comment, but must not acknowledge output the caller never received.
+commit_mail() {
+  local id updated
+  while IFS=$'\t' read -r id updated; do
+    [ -n "$id" ] || continue
+    printf '%s' "$updated" > "$MAIL_PENDING.seen" &&
+      mv "$MAIL_PENDING.seen" "$STATE_DIR/mail-${id}.state" || return 1
+  done < "$MAIL_PENDING"
+  rm -f "$MAIL_PENDING"
+  if [ -n "$MAIL_NEXT_SINCE" ]; then
+    printf '%s' "$MAIL_NEXT_SINCE" > "$MAIL_PENDING.cursor" &&
+      mv "$MAIL_PENDING.cursor" "$STATE_DIR/.mail-since" || return 1
+  fi
+}
+
 # ---------------------------------------------------------------------------
 # label_diff <old_csv> <new_csv> — sets ADDED/REMOVED (sorted comma lists,
 # empty string if none). Not `local`-scoped in ADDED/REMOVED: plain function
@@ -285,6 +396,12 @@ run_poll() {
   fi
   rm -f "$errfile"
 
+  if ! poll_mail; then
+    MAIL_OK=0
+    EVENTS="${EVENTS}WATCH-ERROR mailbox local state failed
+"
+  fi
+
   local first=0
   [ -f "$ARMED_FILE" ] || first=1
 
@@ -294,6 +411,7 @@ run_poll() {
   [ "$fresh_ok" = "1" ] || all_ok=0
   if [ -n "$LANE" ]; then [ "$queue_ok" = "1" ] || all_ok=0; fi
   [ "$claimed_ok" = "1" ] || all_ok=0
+  [ "$MAIL_OK" = "1" ] || all_ok=0
 
   if [ "$fresh_ok" = "1" ]; then
     local n labels title marker
@@ -508,7 +626,13 @@ main() {
     run_poll
 
     if [ -n "$EVENTS" ]; then
-      printf '%s' "$EVENTS"
+      if ! printf '%s' "$EVENTS"; then
+        rm -f "$MAIL_PENDING"
+        die "could not deliver watcher output" 1
+      fi
+    fi
+    if [ -n "${MAIL_PENDING:-}" ] && [ -f "$MAIL_PENDING" ]; then
+      commit_mail || echo "WATCH-ERROR mailbox checkpoint failed; delivery may replay"
     fi
 
     if [ "$ONCE" = "1" ]; then

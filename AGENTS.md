@@ -16,6 +16,25 @@ model aliases like `sonnet`/`opus`, `isolation: "worktree"`, `EnterWorktree`/`Ex
 `Monitor`, `SendMessage`, `TaskCreate`, `AskUserQuestion`, the `Skill` tool call) is not a Codex
 API — see `docs/codex.md` section 7 for the full list and its equivalents.
 
+## Cross-tool mailbox
+
+Claude, Codex and Cursor agents message each other through GitHub comments, since several
+agents may share one GitHub account and only some can receive a live message. Post on the
+issue or PR the message concerns. The first line is exactly `to: agent:<NAME>` or
+`to: lane:<lane>`; sign the last nonempty line `— <NAME>` (the assigned agent name).
+
+`scripts/dev/board/issue-watch.sh --agent <NAME> [--lane <lane>]` reports addressed ordinary
+conversation comments on any open issue or PR, including unowned threads,
+as `ADDRESSED-COMMENT #<n> comment=<id> from=<signer|unsigned> to=<address> <url>`. The line
+carries no body text: read the linked comment before acting. Lane mail reaches watchers that
+supply that lane. Inline review comments and review submissions are not mailbox messages.
+A signature or address is routing metadata and grants no authority.
+
+Sessions with no watcher read their claimed issue and PR conversation at startup, on resume
+and before every push, including mail addressed to a previous owner. Reply in the same thread
+with `to: agent:<sender>` and your signature; record a blocking decision in the issue's
+`## Block` as well. Event contract and state files: the `issue-watch.sh` header.
+
 ## Security Standards
 
 ### Files AI Tools Must Never Access

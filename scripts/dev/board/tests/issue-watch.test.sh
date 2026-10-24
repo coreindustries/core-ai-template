@@ -84,6 +84,7 @@ cat > "$FAKE_BIN/gh" <<'FAKE_GH'
 set -uo pipefail
 : "${FAKE_GH_LOG:=/dev/null}"
 printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+mail_default='{}'
 
 if [ "${1:-}" = "repo" ] && [ "${2:-}" = "view" ]; then
   printf '%s' "${FAKE_REPO:-owner/repo}"
@@ -104,10 +105,17 @@ if [ "${1:-}" = "api" ]; then
   for a in "$@"; do
     case "$a" in
       repos/*/issues) path="issues" ;;
+      repos/*/issues/comments) path="mail" ;;
       repos/*/issues/*/comments*) path="comments" ;;
       repos/*/issues/*) path="issue" ;;
     esac
   done
+
+  if [ "$path" = "mail" ]; then
+    printf '%s' "${FAKE_MAIL_JSON:-[]}"
+    if [ -n "${FAKE_MAIL_FAIL:-}" ]; then echo "$FAKE_MAIL_FAIL" >&2; exit 1; fi
+    exit 0
+  fi
 
   if [ "$path" = "comments" ]; then
     n=""
@@ -138,6 +146,12 @@ if [ "${1:-}" = "api" ]; then
           ;;
       esac
     done
+    case "${!#}" in
+      .state)
+        state="$(printf '%s' "${FAKE_MAIL_STATES_JSON:-$mail_default}" | jq -r --arg n "$n" '.[$n] // "open"')"
+        if [ "$state" = error ]; then echo 'gh: mailbox parent unavailable' >&2; exit 1; fi
+        printf '%s' "$state"; exit 0 ;;
+    esac
     failvar="FAKE_ISSUE_LOOKUP_${n}_FAIL"
     failval="$(eval "printf '%s' \"\${${failvar}:-}\"")"
     if [ -n "$failval" ]; then
@@ -195,7 +209,7 @@ export PATH="$FAKE_BIN:$PATH"
 export FAKE_REPO="example-org/example-repo"
 
 reset_env() {
-  unset FAKE_FRESH_TSV FAKE_FRESH_FAIL
+  unset FAKE_FRESH_TSV FAKE_FRESH_FAIL FAKE_MAIL_JSON FAKE_MAIL_FAIL FAKE_MAIL_STATES_JSON
   for v in $(env | grep -o '^FAKE_QUEUE_TSV[A-Za-z0-9_]*' || true); do unset "$v"; done
   for v in $(env | grep -o '^FAKE_CLAIMED_TSV[A-Za-z0-9_]*' || true); do unset "$v"; done
   for v in $(env | grep -o '^FAKE_LAST_COMMENTER[A-Za-z0-9_]*' || true); do unset "$v"; done
@@ -709,6 +723,210 @@ if [ "$rc_prd" = "0" ] && printf '%s' "$out_prd" | grep -qF "WATCH-ARMED agent=C
   pass "--lane prd: accepted (PRD-manager lane)"
 else
   fail "--lane prd (rc=$rc_prd out=[$out_prd])"
+fi
+
+# Mailbox uses actual jq against raw paginated REST arrays, not prefiltered TSV.
+mail_fixture() {
+  jq -nc --argjson id "$1" --argjson number "$2" --arg body "$3" --arg ts "${4:-2026-10-24T15:17:06Z}" \
+    '[{id:$id, issue_url:("https://api.github.com/repos/example/repo/issues/"+($number|tostring)), html_url:("https://github.com/example/repo/issues/"+($number|tostring)+"#issuecomment-"+($id|tostring)), body:$body, updated_at:$ts}]'
+}
+reset_env
+MAIL_SD="$(new_state_dir)"
+export FAKE_MAIL_JSON="$(mail_fixture 9001 800 $'to: agent:AGENT-A\nBODY_CANARY_DO_NOT_PRINT\n\n— AGENT-B')"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #800 comment=9001 from=AGENT-B to=agent:AGENT-A ' \
+  && printf '%s' "$out" | grep -q '^WATCH-ARMED ' \
+  && ! printf '%s' "$out" | grep -q BODY_CANARY; then
+  pass "mailbox: first poll reports unowned open-thread mail without body, preserving legacy baseline"
+else
+  fail "mailbox: first poll routing/body suppression out=$out"
+fi
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if [ -z "$out" ] && grep -q 'since=' "$FAKE_GH_LOG"; then
+  pass "mailbox: restart with same state deduplicates and uses incremental since"
+else
+  fail "mailbox: restart dedup out=$out"
+fi
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #800'; then
+  pass "mailbox: absent state replays historical addressed mail"
+else
+  fail "mailbox: history replay out=$out"
+fi
+export FAKE_MAIL_JSON="$(mail_fixture 9001 800 $'to: agent:AGENT-A\nUpdated\n— AGENT-B' 2026-10-24T16:00:00Z)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #800'; then
+  pass "mailbox: edited comment timestamp re-delivers"
+else
+  fail "mailbox: edited delivery out=$out"
+fi
+
+reset_env
+export FAKE_MAIL_JSON="$(mail_fixture 9002 801 $'to: lane:feature\r\nLane note\r\n— FEATURE-2\r\n')"
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A --lane feature)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #801 comment=9002 from=FEATURE-2 to=lane:feature '; then
+  pass "mailbox: exact lane and CRLF message routes"
+else
+  fail "mailbox: lane routing out=$out"
+fi
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A)"
+if ! printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT '; then
+  pass "mailbox: lane message requires matching --lane"
+else
+  fail "mailbox: lane message wrongly routes without lane"
+fi
+for body in $'to: agent:AGENT-A0\n— OTHER' $'Subject\nto: agent:AGENT-A\n— OTHER' $'> to: agent:AGENT-A\n— OTHER' $'to: lane:bug\n— OTHER'; do
+  export FAKE_MAIL_JSON="$(mail_fixture 9003 802 "$body")"
+  out="$(run_watch "$(new_state_dir)" --agent AGENT-A --lane feature)"
+  if ! printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT '; then
+    pass "mailbox: rejects non-exact or non-first-line address"
+  else
+    fail "mailbox: false match out=$out"
+  fi
+done
+export FAKE_MAIL_JSON="$(mail_fixture 9003 802 $'to: agent:AGENT-A\nUnsigned content')"
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q 'from=unsigned to=agent:AGENT-A'; then
+  pass "mailbox: unsigned addressed mail stays visible without invented speaker"
+else
+  fail "mailbox: unsigned mail out=$out"
+fi
+
+reset_env
+MAIL_SD="$(new_state_dir)"
+export FAKE_MAIL_JSON="$(mail_fixture 9004 803 $'to: agent:AGENT-A\n— OTHER')"
+export FAKE_MAIL_STATES_JSON='{"803":"closed"}'
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if ! printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT '; then
+  pass "mailbox: closed thread does not notify"
+else
+  fail "mailbox: closed thread out=$out"
+fi
+export FAKE_MAIL_STATES_JSON='{"803":"open"}'
+export FAKE_MAIL_JSON="$(mail_fixture 9004 803 $'to: agent:AGENT-A\n— OTHER' 2026-10-24T17:00:00Z)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #803'; then
+  pass "mailbox: open PR/issue conversation edit notifies"
+else
+  fail "mailbox: open thread edit out=$out"
+fi
+
+reset_env
+MAIL_SD="$(new_state_dir)"
+export FAKE_MAIL_JSON="$(mail_fixture 9005 804 $'to: agent:AGENT-A\n— OTHER')"
+export FAKE_MAIL_FAIL='gh: later page failed'
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q 'WATCH-ERROR mailbox scan failed:' \
+  && [ ! -e "$MAIL_SD/.mail-since" ] && [ ! -e "$MAIL_SD/mail-9005.state" ]; then
+  pass "mailbox: partial page failure leaves cursor and delivery unacknowledged"
+else
+  fail "mailbox: page failure out=$out"
+fi
+unset FAKE_MAIL_FAIL
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #804'; then
+  pass "mailbox: page failure retry delivers mail"
+else
+  fail "mailbox: page failure retry out=$out"
+fi
+
+reset_env
+MAIL_SD="$(new_state_dir)"
+export FAKE_MAIL_JSON="$(mail_fixture 9006 805 $'to: agent:AGENT-A\n— OTHER')"
+export FAKE_MAIL_STATES_JSON='{"805":"error"}'
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q 'WATCH-ERROR mailbox #805 lookup failed:' \
+  && [ ! -e "$MAIL_SD/.mail-since" ] && [ ! -e "$MAIL_SD/mail-9006.state" ]; then
+  pass "mailbox: parent API failure preserves retry cursor"
+else
+  fail "mailbox: parent failure out=$out"
+fi
+unset FAKE_MAIL_STATES_JSON
+export FAKE_FRESH_FAIL='gh: unrelated scan failed'
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #805' \
+  && [ -e "$MAIL_SD/.mail-since" ]; then
+  pass "mailbox: recovery delivers independently of failed legacy baseline"
+else
+  fail "mailbox: independent recovery out=$out"
+fi
+
+reset_env
+MAIL_SD="$(new_state_dir)"
+# More than one REST page; no truncation at the first 100 comments.
+page1="$(jq -nc '[range(1;102)|{id:.,issue_url:"https://api.github.com/repos/example/repo/issues/806",html_url:"https://github.com/example/repo/issues/806",updated_at:"2026-10-24T15:17:06Z",body:"not addressed"}]')"
+export FAKE_MAIL_JSON="${page1}
+$(mail_fixture 9007 806 $'to: agent:AGENT-A\n— OTHER')"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #806 comment=9007' \
+  && grep -q 'issues/comments --paginate' "$FAKE_GH_LOG"; then
+  pass "mailbox: paginated JSON stream delivers match after first page"
+else
+  fail "mailbox: pagination out=$out"
+fi
+
+# First scan is bounded by a lookback; 0 opts into full history; later scans
+# send the stored cursor; stale pending files from killed polls are removed.
+reset_env
+MAIL_SD="$(new_state_dir)"
+export FAKE_MAIL_JSON="$(mail_fixture 9010 810 $'to: agent:AGENT-A\n— OTHER')"
+run_watch "$MAIL_SD" --agent AGENT-A >/dev/null
+if grep -q 'since=' "$FAKE_GH_LOG"; then
+  pass "mailbox: first scan is bounded by the default lookback"
+else
+  fail "mailbox: first scan sent no since= (unbounded history)"
+fi
+: > "$FAKE_GH_LOG"
+cursor="$(cat "$MAIL_SD/.mail-since")"
+run_watch "$MAIL_SD" --agent AGENT-A >/dev/null
+if grep -q "since=${cursor}" "$FAKE_GH_LOG"; then
+  pass "mailbox: restart sends the stored cursor"
+else
+  fail "mailbox: restart cursor=$cursor log=$(cat "$FAKE_GH_LOG")"
+fi
+reset_env
+export FAKE_MAIL_JSON="$(mail_fixture 9011 811 $'to: agent:AGENT-A\n— OTHER')"
+out="$(ISSUE_WATCH_MAIL_LOOKBACK_DAYS=0 run_watch "$(new_state_dir)" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #811' && ! grep -q 'since=' "$FAKE_GH_LOG"; then
+  pass "mailbox: lookback 0 scans full history"
+else
+  fail "mailbox: lookback 0 out=$out log=$(cat "$FAKE_GH_LOG")"
+fi
+reset_env
+export FAKE_MAIL_JSON="$(mail_fixture 9012 812 $'to: agent:AGENT-A\n— OTHER')"
+err="$(ISSUE_WATCH_MAIL_LOOKBACK_DAYS=two run_watch "$(new_state_dir)" --agent AGENT-A 2>&1 >/dev/null)"
+if printf '%s' "$err" | grep -q 'ISSUE_WATCH_MAIL_LOOKBACK_DAYS' && grep -q 'since=' "$FAKE_GH_LOG"; then
+  pass "mailbox: invalid lookback warns and stays bounded"
+else
+  fail "mailbox: invalid lookback err=$err"
+fi
+MAIL_SD="$(new_state_dir)"
+touch "$MAIL_SD/.mail-pending.fresh"
+touch -t 202001010000 "$MAIL_SD/.mail-pending.stale"
+run_watch "$MAIL_SD" --agent AGENT-A >/dev/null
+if [ ! -e "$MAIL_SD/.mail-pending.stale" ] && [ -e "$MAIL_SD/.mail-pending.fresh" ]; then
+  pass "mailbox: stale pending files are removed, recent ones kept"
+else
+  fail "mailbox: pending cleanup $(ls -a "$MAIL_SD")"
+fi
+
+# Simulate death after forming events but before stdout/commit_mail. A new
+# process must replay rather than silently acknowledge undelivered output.
+reset_env
+MAIL_SD="$(new_state_dir)"
+export FAKE_MAIL_JSON="$(mail_fixture 9008 807 $'to: agent:AGENT-A\n— OTHER')"
+export ISSUE_WATCH_SH_SOURCED=1
+(
+  source "$WATCH"
+  STATE_DIR="$MAIL_SD"; REPO=example/repo; AGENT=AGENT-A; LANE=''; EVENTS=''
+  poll_mail
+)
+unset ISSUE_WATCH_SH_SOURCED
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #807 comment=9008'; then
+  pass "mailbox: interruption before flush/checkpoint replays message"
+else
+  fail "mailbox: unflushed message lost out=$out"
 fi
 
 reset_env
