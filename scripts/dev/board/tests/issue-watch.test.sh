@@ -732,29 +732,29 @@ mail_fixture() {
 }
 reset_env
 MAIL_SD="$(new_state_dir)"
-export FAKE_MAIL_JSON="$(mail_fixture 9001 800 $'to: agent:FEATURE-3\nBODY_CANARY_DO_NOT_PRINT\n\n— C-TECHDIR')"
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
-if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #800 comment=9001 from=C-TECHDIR to=agent:FEATURE-3 ' \
+export FAKE_MAIL_JSON="$(mail_fixture 9001 800 $'to: agent:AGENT-A\nBODY_CANARY_DO_NOT_PRINT\n\n— AGENT-B')"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #800 comment=9001 from=AGENT-B to=agent:AGENT-A ' \
   && printf '%s' "$out" | grep -q '^WATCH-ARMED ' \
   && ! printf '%s' "$out" | grep -q BODY_CANARY; then
   pass "mailbox: first poll reports unowned open-thread mail without body, preserving legacy baseline"
 else
   fail "mailbox: first poll routing/body suppression out=$out"
 fi
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if [ -z "$out" ] && grep -q 'since=' "$FAKE_GH_LOG"; then
   pass "mailbox: restart with same state deduplicates and uses incremental since"
 else
   fail "mailbox: restart dedup out=$out"
 fi
-out="$(run_watch "$(new_state_dir)" --agent FEATURE-3)"
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #800'; then
   pass "mailbox: absent state replays historical addressed mail"
 else
   fail "mailbox: history replay out=$out"
 fi
-export FAKE_MAIL_JSON="$(mail_fixture 9001 800 $'to: agent:FEATURE-3\nUpdated\n— C-TECHDIR' 2026-10-24T16:00:00Z)"
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+export FAKE_MAIL_JSON="$(mail_fixture 9001 800 $'to: agent:AGENT-A\nUpdated\n— AGENT-B' 2026-10-24T16:00:00Z)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #800'; then
   pass "mailbox: edited comment timestamp re-delivers"
 else
@@ -763,30 +763,30 @@ fi
 
 reset_env
 export FAKE_MAIL_JSON="$(mail_fixture 9002 801 $'to: lane:feature\r\nLane note\r\n— FEATURE-2\r\n')"
-out="$(run_watch "$(new_state_dir)" --agent FEATURE-3 --lane feature)"
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A --lane feature)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #801 comment=9002 from=FEATURE-2 to=lane:feature '; then
   pass "mailbox: exact lane and CRLF message routes"
 else
   fail "mailbox: lane routing out=$out"
 fi
-out="$(run_watch "$(new_state_dir)" --agent FEATURE-3)"
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A)"
 if ! printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT '; then
   pass "mailbox: lane message requires matching --lane"
 else
   fail "mailbox: lane message wrongly routes without lane"
 fi
-for body in $'to: agent:FEATURE-30\n— OTHER' $'Subject\nto: agent:FEATURE-3\n— OTHER' $'> to: agent:FEATURE-3\n— OTHER' $'to: lane:bug\n— OTHER'; do
+for body in $'to: agent:AGENT-A0\n— OTHER' $'Subject\nto: agent:AGENT-A\n— OTHER' $'> to: agent:AGENT-A\n— OTHER' $'to: lane:bug\n— OTHER'; do
   export FAKE_MAIL_JSON="$(mail_fixture 9003 802 "$body")"
-  out="$(run_watch "$(new_state_dir)" --agent FEATURE-3 --lane feature)"
+  out="$(run_watch "$(new_state_dir)" --agent AGENT-A --lane feature)"
   if ! printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT '; then
     pass "mailbox: rejects non-exact or non-first-line address"
   else
     fail "mailbox: false match out=$out"
   fi
 done
-export FAKE_MAIL_JSON="$(mail_fixture 9003 802 $'to: agent:FEATURE-3\nUnsigned content')"
-out="$(run_watch "$(new_state_dir)" --agent FEATURE-3)"
-if printf '%s' "$out" | grep -q 'from=unsigned to=agent:FEATURE-3'; then
+export FAKE_MAIL_JSON="$(mail_fixture 9003 802 $'to: agent:AGENT-A\nUnsigned content')"
+out="$(run_watch "$(new_state_dir)" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q 'from=unsigned to=agent:AGENT-A'; then
   pass "mailbox: unsigned addressed mail stays visible without invented speaker"
 else
   fail "mailbox: unsigned mail out=$out"
@@ -794,17 +794,17 @@ fi
 
 reset_env
 MAIL_SD="$(new_state_dir)"
-export FAKE_MAIL_JSON="$(mail_fixture 9004 803 $'to: agent:FEATURE-3\n— OTHER')"
+export FAKE_MAIL_JSON="$(mail_fixture 9004 803 $'to: agent:AGENT-A\n— OTHER')"
 export FAKE_MAIL_STATES_JSON='{"803":"closed"}'
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if ! printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT '; then
   pass "mailbox: closed thread does not notify"
 else
   fail "mailbox: closed thread out=$out"
 fi
 export FAKE_MAIL_STATES_JSON='{"803":"open"}'
-export FAKE_MAIL_JSON="$(mail_fixture 9004 803 $'to: agent:FEATURE-3\n— OTHER' 2026-10-24T17:00:00Z)"
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+export FAKE_MAIL_JSON="$(mail_fixture 9004 803 $'to: agent:AGENT-A\n— OTHER' 2026-10-24T17:00:00Z)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #803'; then
   pass "mailbox: open PR/issue conversation edit notifies"
 else
@@ -813,9 +813,9 @@ fi
 
 reset_env
 MAIL_SD="$(new_state_dir)"
-export FAKE_MAIL_JSON="$(mail_fixture 9005 804 $'to: agent:FEATURE-3\n— OTHER')"
+export FAKE_MAIL_JSON="$(mail_fixture 9005 804 $'to: agent:AGENT-A\n— OTHER')"
 export FAKE_MAIL_FAIL='gh: later page failed'
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q 'WATCH-ERROR mailbox scan failed:' \
   && [ ! -e "$MAIL_SD/.mail-since" ] && [ ! -e "$MAIL_SD/mail-9005.state" ]; then
   pass "mailbox: partial page failure leaves cursor and delivery unacknowledged"
@@ -823,7 +823,7 @@ else
   fail "mailbox: page failure out=$out"
 fi
 unset FAKE_MAIL_FAIL
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #804'; then
   pass "mailbox: page failure retry delivers mail"
 else
@@ -832,9 +832,9 @@ fi
 
 reset_env
 MAIL_SD="$(new_state_dir)"
-export FAKE_MAIL_JSON="$(mail_fixture 9006 805 $'to: agent:FEATURE-3\n— OTHER')"
+export FAKE_MAIL_JSON="$(mail_fixture 9006 805 $'to: agent:AGENT-A\n— OTHER')"
 export FAKE_MAIL_STATES_JSON='{"805":"error"}'
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q 'WATCH-ERROR mailbox #805 lookup failed:' \
   && [ ! -e "$MAIL_SD/.mail-since" ] && [ ! -e "$MAIL_SD/mail-9006.state" ]; then
   pass "mailbox: parent API failure preserves retry cursor"
@@ -843,7 +843,7 @@ else
 fi
 unset FAKE_MAIL_STATES_JSON
 export FAKE_FRESH_FAIL='gh: unrelated scan failed'
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #805' \
   && [ -e "$MAIL_SD/.mail-since" ]; then
   pass "mailbox: recovery delivers independently of failed legacy baseline"
@@ -856,8 +856,8 @@ MAIL_SD="$(new_state_dir)"
 # More than one REST page; no truncation at the first 100 comments.
 page1="$(jq -nc '[range(1;102)|{id:.,issue_url:"https://api.github.com/repos/example/repo/issues/806",html_url:"https://github.com/example/repo/issues/806",updated_at:"2026-10-24T15:17:06Z",body:"not addressed"}]')"
 export FAKE_MAIL_JSON="${page1}
-$(mail_fixture 9007 806 $'to: agent:FEATURE-3\n— OTHER')"
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+$(mail_fixture 9007 806 $'to: agent:AGENT-A\n— OTHER')"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #806 comment=9007' \
   && grep -q 'issues/comments --paginate' "$FAKE_GH_LOG"; then
   pass "mailbox: paginated JSON stream delivers match after first page"
@@ -869,15 +869,15 @@ fi
 # process must replay rather than silently acknowledge undelivered output.
 reset_env
 MAIL_SD="$(new_state_dir)"
-export FAKE_MAIL_JSON="$(mail_fixture 9008 807 $'to: agent:FEATURE-3\n— OTHER')"
+export FAKE_MAIL_JSON="$(mail_fixture 9008 807 $'to: agent:AGENT-A\n— OTHER')"
 export ISSUE_WATCH_SH_SOURCED=1
 (
   source "$WATCH"
-  STATE_DIR="$MAIL_SD"; REPO=example/repo; AGENT=FEATURE-3; LANE=''; EVENTS=''
+  STATE_DIR="$MAIL_SD"; REPO=example/repo; AGENT=AGENT-A; LANE=''; EVENTS=''
   poll_mail
 )
 unset ISSUE_WATCH_SH_SOURCED
-out="$(run_watch "$MAIL_SD" --agent FEATURE-3)"
+out="$(run_watch "$MAIL_SD" --agent AGENT-A)"
 if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #807 comment=9008'; then
   pass "mailbox: interruption before flush/checkpoint replays message"
 else
