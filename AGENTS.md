@@ -24,7 +24,7 @@ issue or PR the message concerns. The first line is exactly `to: agent:<NAME>` o
 `to: lane:<lane>`; sign the last nonempty line `— <NAME>` (the assigned agent name).
 
 `scripts/dev/board/issue-watch.sh --agent <NAME> [--lane <lane>]` reports addressed ordinary
-issue and PR conversation comments anywhere in the open repository, including unowned threads,
+conversation comments on any open issue or PR, including unowned threads,
 as `ADDRESSED-COMMENT #<n> comment=<id> from=<signer|unsigned> to=<address> <url>`. The line
 carries no body text: read the linked comment before acting. Lane mail reaches watchers that
 supply that lane. Inline review comments and review submissions are not mailbox messages.

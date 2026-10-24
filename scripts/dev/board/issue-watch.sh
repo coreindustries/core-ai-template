@@ -101,9 +101,12 @@
 #
 #   ADDRESSED-COMMENT #<n> comment=<id> from=<name|unsigned> to=<target> <url>
 #     Open issue/PR conversation mail; emitted on first sight and on edits,
-#     independently of the legacy baseline. No body text is emitted. A full
-#     first scan paginates history; subsequent scans use .mail-since. Deleted
-#     state intentionally replays history. Delivery is at least once: cursor
+#     independently of the legacy baseline. No body text is emitted. A first
+#     scan (no .mail-since) reads the last ISSUE_WATCH_MAIL_LOOKBACK_DAYS days
+#     (default 14; 0 = full history, one paginated REST call per 100 comments
+#     in the repo). Later scans use .mail-since minus a 5-minute overlap for
+#     clock skew and replication lag; dedup makes the overlap free. Deleted
+#     state intentionally replays that window. Delivery is at least once: cursor
 #     and mail-<id>.state timestamps commit after stdout flush. Signatures
 #     identify speakers, not authority; missing/malformed ones show unsigned.
 #
@@ -256,10 +259,20 @@ fetch_mail() {
 poll_mail() {
   MAIL_OK=1
   MAIL_NEXT_SINCE=""
+  find "$STATE_DIR" -maxdepth 1 -name '.mail-pending.*' -mmin +60 -delete
   MAIL_PENDING="$(mktemp "$STATE_DIR/.mail-pending.XXXXXX")" || return 1
-  local since="" next_since raw errfile msg
-  [ ! -f "$STATE_DIR/.mail-since" ] || since="$(cat "$STATE_DIR/.mail-since")"
-  next_since="$(jq -nr 'now - 1 | floor | todateiso8601')" || return 1
+  local since="" next_since raw errfile msg lookback="${ISSUE_WATCH_MAIL_LOOKBACK_DAYS:-14}"
+  case "$lookback" in
+    ''|*[!0-9]*)
+      echo "issue-watch: ISSUE_WATCH_MAIL_LOOKBACK_DAYS='${lookback}' is not a whole number; using 14" >&2
+      lookback=14 ;;
+  esac
+  if [ -f "$STATE_DIR/.mail-since" ]; then
+    since="$(cat "$STATE_DIR/.mail-since")"
+  elif [ "$lookback" -gt 0 ]; then
+    since="$(jq -nr --argjson d "$lookback" 'now - $d * 86400 | floor | todateiso8601')" || return 1
+  fi
+  next_since="$(jq -nr 'now - 300 | floor | todateiso8601')" || return 1
   errfile="$(mktemp)" || return 1
   if ! raw="$(fetch_mail "$since" 2>"$errfile")"; then
     msg="$(head -1 "$errfile")"

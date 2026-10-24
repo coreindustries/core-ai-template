@@ -865,6 +865,51 @@ else
   fail "mailbox: pagination out=$out"
 fi
 
+# First scan is bounded by a lookback; 0 opts into full history; later scans
+# send the stored cursor; stale pending files from killed polls are removed.
+reset_env
+MAIL_SD="$(new_state_dir)"
+export FAKE_MAIL_JSON="$(mail_fixture 9010 810 $'to: agent:AGENT-A\n— OTHER')"
+run_watch "$MAIL_SD" --agent AGENT-A >/dev/null
+if grep -q 'since=' "$FAKE_GH_LOG"; then
+  pass "mailbox: first scan is bounded by the default lookback"
+else
+  fail "mailbox: first scan sent no since= (unbounded history)"
+fi
+: > "$FAKE_GH_LOG"
+cursor="$(cat "$MAIL_SD/.mail-since")"
+run_watch "$MAIL_SD" --agent AGENT-A >/dev/null
+if grep -q "since=${cursor}" "$FAKE_GH_LOG"; then
+  pass "mailbox: restart sends the stored cursor"
+else
+  fail "mailbox: restart cursor=$cursor log=$(cat "$FAKE_GH_LOG")"
+fi
+reset_env
+export FAKE_MAIL_JSON="$(mail_fixture 9011 811 $'to: agent:AGENT-A\n— OTHER')"
+out="$(ISSUE_WATCH_MAIL_LOOKBACK_DAYS=0 run_watch "$(new_state_dir)" --agent AGENT-A)"
+if printf '%s' "$out" | grep -q '^ADDRESSED-COMMENT #811' && ! grep -q 'since=' "$FAKE_GH_LOG"; then
+  pass "mailbox: lookback 0 scans full history"
+else
+  fail "mailbox: lookback 0 out=$out log=$(cat "$FAKE_GH_LOG")"
+fi
+reset_env
+export FAKE_MAIL_JSON="$(mail_fixture 9012 812 $'to: agent:AGENT-A\n— OTHER')"
+err="$(ISSUE_WATCH_MAIL_LOOKBACK_DAYS=two run_watch "$(new_state_dir)" --agent AGENT-A 2>&1 >/dev/null)"
+if printf '%s' "$err" | grep -q 'ISSUE_WATCH_MAIL_LOOKBACK_DAYS' && grep -q 'since=' "$FAKE_GH_LOG"; then
+  pass "mailbox: invalid lookback warns and stays bounded"
+else
+  fail "mailbox: invalid lookback err=$err"
+fi
+MAIL_SD="$(new_state_dir)"
+touch "$MAIL_SD/.mail-pending.fresh"
+touch -t 202001010000 "$MAIL_SD/.mail-pending.stale"
+run_watch "$MAIL_SD" --agent AGENT-A >/dev/null
+if [ ! -e "$MAIL_SD/.mail-pending.stale" ] && [ -e "$MAIL_SD/.mail-pending.fresh" ]; then
+  pass "mailbox: stale pending files are removed, recent ones kept"
+else
+  fail "mailbox: pending cleanup $(ls -a "$MAIL_SD")"
+fi
+
 # Simulate death after forming events but before stdout/commit_mail. A new
 # process must replay rather than silently acknowledge undelivered output.
 reset_env
