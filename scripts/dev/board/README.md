@@ -17,7 +17,7 @@ labels, PR/CI diagnosis, deploys, log triage) so no model call has to rediscover
 | `pr-monitor.sh` | Standing watch over every open PR: runs `pr-watch.sh --once` per PR each cycle |
 | `wt-clean.sh` | Remove merged PRs' worktrees, safely |
 | `gh-checks.sh` | Read PR check runs even with a fine-grained PAT (sourced) |
-| `issue-fetch.sh` / `issue-watch.sh` | Read an issue with its screenshots / watch for new work (via `board.sh show` / `watch`) |
+| `issue-fetch.sh` / `issue-watch.sh` | Read an issue with its screenshots / watch for new work (via `board.sh show` / `watch`); `watch` also delivers cross-tool mailbox mail |
 | `ladder.sh` | The environment ladder: health by content, deploy, rollback |
 | `release-prs.sh` | PRs in a release range, deploy-bound or not, with each `## Real Proof` |
 | `log-triage.py` | Before/after log triage per environment, redacted in code, filed as issues |
@@ -40,7 +40,7 @@ scripts/dev/board/board.sh <subcommand> [args...]      # board.sh help for the f
 | `reclaim <issue> <NAME>` | Takes over a claim idle past `claims.ttlHours`. Re-checks staleness live; an OPEN, NON-DRAFT PR referencing the issue makes the claim live regardless of age (a green PR awaiting the operator's merge click has no reason to comment); only a DRAFT PR's age counts as ordinary activity. Posts `release: OLD ... reclaimed-by NEW` (naming any open PR OLD still has, so it isn't silently orphaned), removes `agent:OLD`, then runs the normal `claim` path. **Exit codes:** `2` usage error (bad args, already claimed by you); `3` NOT ELIGIBLE, refused before any write (closed, `agent:*` label gone, state changed, `wip-keep`, `claims.ttlHours` is 0, a live PR, or still under the TTL); `4`/`5` a real claim race, same as `claim`; `6` COULD NOT VERIFY, also refused before any write (a gh/jq lookup failed, including the release comment itself); `7` a write happened (the release comment landed) but the claim afterward failed anyway — never retried. |
 | `state <issue> <new-state>` | Swaps to exactly one `state:*` label, with a `state: old -> new` comment. |
 | `handoff` / `comment <issue> --file <md>` | A resumable `handoff:` comment / a progress note, always from a file. |
-| `show <issue>` / `watch --agent NAME [--lane l]` | Issue text with downloaded screenshots / new-work events for Monitor. |
+| `show <issue>` / `watch --agent NAME [--lane l]` | Issue text with downloaded screenshots / new-work events for Monitor. Also emits `ADDRESSED-COMMENT` for open issue/PR comments addressed `to: agent:NAME` (or `to: lane:l`); state in `.mail-since` and `mail-<id>.state`; a scan failure prints `WATCH-ERROR mailbox ...` and leaves the cursor unmoved. Convention: `AGENTS.md` → "Cross-tool mailbox". |
 | `checkout <issue> <NAME> [--worktree]` | Claim + `implementing` + show, and optionally a worktree under `worktreeDir` on a fresh branch. |
 | `deploy-queue [--json]` | Merged `needs-deploy` PRs (14 days), `NO-PROOF` when the body lacks `## Real Proof`. |
 | `render --out <f.html> [--hash-file <p>]` | Self-contained, mobile-friendly light/dark HTML board. `--hash-file` prints `CHANGED`/`UNCHANGED` ignoring the timestamp. |

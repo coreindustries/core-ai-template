@@ -208,6 +208,9 @@ Ownership runs from `gh pr create` to merged.
 
 ## 8. Communication
 
+- **Cross-tool mailbox:** agent-to-agent messages are issue/PR comments addressed with `to: agent:<NAME>`
+  or `to: lane:<lane>` and signed `— <NAME>`; `issue-watch.sh` surfaces them. Convention, reading
+  duties and reply rules: `AGENTS.md` → "Cross-tool mailbox".
 - **Durable channel = issue and PR comments.** Findings, blockers, lost races, handoffs and review
   requests go there. Cloud sessions cannot receive `SendMessage`; a comment reaches every peer.
 - `SendMessage` only to a **live local** peer whose address you already hold. Don't hunt for peers
