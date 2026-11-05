@@ -163,6 +163,7 @@ Swap it for stock Postgres if you are certain you will not want vector search.
 {type_check_command}                 # Type check
 {security_scan_command}              # Security scan
 scripts/scan-secrets.sh --all        # Secret & PII scan
+make complexity                      # Complexity report (fallow, JS/TS; report-only)
 ```
 
 ### Full Quality Pipeline

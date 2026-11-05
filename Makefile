@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test ratchet eval eval-trend
+.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets complexity deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test ratchet eval eval-trend
 
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
@@ -192,6 +192,10 @@ security: ## Run security scanner
 
 scan-secrets: ## Scan for secrets and PII (gitleaks)
 	@scripts/scan-secrets.sh --all
+
+complexity: ## Report code complexity (fallow, JS/TS; report-only, not a gate)
+	@command -v fallow >/dev/null || { echo "fallow not installed: add it as a pinned devDependency (see dependency-security.md)" >&2; exit 1; }
+	@fallow health
 
 deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-security.md)
 	@echo "Checking dependency age (≥ 24h cooldown)..."

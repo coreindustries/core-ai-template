@@ -13,6 +13,10 @@
   Choose the simplest solution that meets every requested outcome. Justify added
   complexity with a concrete unmet need. Preserve correctness, security and
   required compatibility; deletion counts are not a success criterion.
+- **Measure complexity, then simplify.** On JS/TS projects run `make complexity`
+  (fallow) after implementing. A flagged function is a prompt to find a simpler
+  shape or reuse an existing owner, not a gate or a mandate to refactor unrelated
+  code. Report what remains flagged and why.
 - **Keep documentation concise.** Update the existing authoritative document.
   State the decision, rationale, usage and necessary caveats; retain evidence
   needed to verify consequential claims. Link to shared guidance instead of
