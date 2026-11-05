@@ -217,6 +217,10 @@
   color: "e4e669"
   description: "Requires human review before merge"
 
+- name: large-pr
+  color: "fef2c0"
+  description: "Over the PR-size threshold; add a split rationale (advisory, never blocks)"
+
 # ---------- Agent lanes ----------
 # Read by `scripts/dev/board/board.sh init-labels` together with the Priority
 # section, so a fresh repo gets them before labels-sync runs.

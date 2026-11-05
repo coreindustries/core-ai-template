@@ -38,6 +38,11 @@ jobs:
         with:
           persist-credentials: false
 
+      # Unconditional: fails when always-loaded agent context (CLAUDE.md plus
+      # unscoped rules) exceeds the ceiling in .claude/context-budget.json.
+      - name: Check always-loaded context budget
+        run: node scripts/check-context-budget.mjs
+
       # Unconditional: agent model pins concern .claude/, not the Python
       # toolchain, so this runs even on an uninitialized template. Catches
       # frontmatter hand-edited away from .claude/agent-models.json — that

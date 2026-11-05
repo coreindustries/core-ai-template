@@ -288,6 +288,9 @@ quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@echo "=== Secrets & PII ==="
 	@scripts/scan-secrets.sh --all
 	@echo ""
+	@echo "=== Context budget ==="
+	@node scripts/check-context-budget.mjs
+	@echo ""
 	@echo "=== Ratchet gates ==="
 	@node scripts/ratchet.mjs --strict
 	@echo ""

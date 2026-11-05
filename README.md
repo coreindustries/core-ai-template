@@ -836,6 +836,12 @@ Loading every rule in both directories would be ~45K. Figures are file sizes at
 ~4 chars/token — recompute them when rules are added, or they drift silently as
 they did before.
 
+CI enforces a ceiling on the always-loaded part (`CLAUDE.md` plus rules without
+`paths:` frontmatter): `node scripts/check-context-budget.mjs` against
+`ceilingBytes` in `.claude/context-budget.json`. Enabling extra rules with
+`make enable-*` counts too; raise the ceiling in the same PR and say why, or move
+text to a path-scoped rule or `.claude/references/`.
+
 ### Adding Custom Rules
 
 **Universal rule** (every project needs this):

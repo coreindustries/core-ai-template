@@ -6,6 +6,15 @@
 -
 -
 
+## What did this remove?
+
+<!--
+  Name the code, flags, docs, tests, scripts or mechanisms this change deletes
+  or supersedes (see "Retirement is part of replacement" in
+  .claude/rules/delivery-contract.md). Pure additions: say "Nothing", and why
+  no existing mechanism could be reused or retired.
+-->
+
 ## Files Changed
 
 <!-- List the key files that were modified, added, or removed -->
