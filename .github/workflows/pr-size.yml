@@ -2,7 +2,8 @@ name: PR Size Nudge
 # Advisory only: labels a PR `large-pr` and comments once when it changes more
 # than PR_SIZE_THRESHOLD lines (lockfiles excluded), asking for a split or a
 # one-line rationale. The job is `continue-on-error`, so a failure here (an API
-# hiccup, a label race) never turns the PR red, and it is not a required status.
+# hiccup, a label race) never fails the workflow run or blocks merge (the job's
+# own check may still show a red X), and it is not a required status.
 # Runs only for same-repo PRs: fork PRs get a read-only token, so they are
 # skipped rather than failed. No code is checked out and no PR text is used.
 
