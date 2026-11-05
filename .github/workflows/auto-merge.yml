@@ -5,7 +5,7 @@ name: Auto-Merge Policy
 #
 # Tier 0 — Auto-merge immediately when CI passes
 # Tier 1 — Auto-merge after 30-minute review window
-# Tier 2 — Requires Core review (feat or unknown prefix)
+# Tier 2 — Requires operator review (feat or unknown prefix)
 # Tier 3 — Hold (PRs with auth/billing/db/infra area labels, or touching prd/)
 #
 # Classification itself lives in scripts/dev/board/classify-pr-tier.sh (not
