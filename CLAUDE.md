@@ -162,10 +162,10 @@ See README.md "Getting Started" for the full 7-step setup. Key steps: fill in `p
 
 ## Current State
 <!-- MACHINE UPDATED — do not edit manually -->
-<!-- Last updated by: claude on 2026-09-24 -->
+<!-- Last updated by: claude on 2026-11-05 -->
 
-**Active feature:** agent lanes (issue #52) — implementation complete, PR #53 open as draft
-**Last action:** ported the agent-lanes workflow generically; single priority set P0–P3
+**Active feature:** fallow complexity report and simplicity guidance (issue #77) — PR #78 open
+**Last action:** merged #81 (3-day dependency cooldown, ADR `2026-11-04-three-day-dependency-cooldown`) and #82 (org-specific strings replaced with placeholders)
 **Blockers:** none
-**Next action:** review and merge PR #53; after merge, run labels-sync and retag `priority/pN` → `PN`
-**Worktree:** worktree-agent-lanes (branch feat/agent-lanes)
+**Next action:** merge PR #78; then fix the runtime Slack message `needs Core review` at `.github/workflows/auto-fix.yml:148` (judge P2 left open on #82); the waiver-label gap is tracked in #80
+**Worktree:** none active
