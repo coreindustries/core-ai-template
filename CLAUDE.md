@@ -162,10 +162,10 @@ See README.md "Getting Started" for the full 7-step setup. Key steps: fill in `p
 
 ## Current State
 <!-- MACHINE UPDATED — do not edit manually -->
-<!-- Last updated by: claude on 2026-11-05 -->
+<!-- Last updated by: claude on 2026-11-04 -->
 
 **Active feature:** fallow complexity report and simplicity guidance (issue #77) — PR #78 open
 **Last action:** merged #81 (3-day dependency cooldown, ADR `2026-11-04-three-day-dependency-cooldown`) and #82 (org-specific strings replaced with placeholders)
 **Blockers:** none
 **Next action:** merge PR #78; then fix the runtime Slack message `needs Core review` at `.github/workflows/auto-fix.yml:148` (judge P2 left open on #82); the waiver-label gap is tracked in #80
-**Worktree:** none active
+**Worktree:** genericize-org-specifics (branch docs/refresh-current-state), remove after this merges
