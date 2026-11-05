@@ -178,6 +178,7 @@
 - name: security-hotfix-waiver
   color: "B60205"
   description: Dep bump inside the 3-day cooldown (requires linked GHSA/CVE in PR body)
+  aliases: [security-hotfix-24h-waiver]
 
 - name: skip-delivery-contract
   color: "FBCA04"

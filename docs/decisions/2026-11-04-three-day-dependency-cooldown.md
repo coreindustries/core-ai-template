@@ -1,7 +1,7 @@
 # ADR: Three-Day Cooldown on New Dependency Versions
 
 - **Status**: Accepted
-- **Date**: 2026-11-05
+- **Date**: 2026-11-04
 - **Deciders**: Operator
 - **Supersedes**: ADR-0002 (cooldown length only; its pinning decisions stand)
 - **Related**: `.claude/rules/dependency-security.md`
@@ -35,8 +35,8 @@ unchanged.
 - Covers the observed 4–36 hour yank window with margin; a fix that is not a
   published advisory waits up to 3 days.
 - Dependabot PRs open up to 2 days later than before.
-- Consumers who adopted the old label name need to rename it (`labels-sync`
-  creates the new label; delete the old one by hand).
+- Consumers who adopted the old label name get it renamed in place by
+  `labels-sync` (the `aliases:` entry in `.github/labels.yml`).
 
 ## Alternatives considered
 
