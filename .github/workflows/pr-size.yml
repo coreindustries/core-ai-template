@@ -1,7 +1,8 @@
 name: PR Size Nudge
 # Advisory only: labels a PR `large-pr` and comments once when it changes more
 # than PR_SIZE_THRESHOLD lines (lockfiles excluded), asking for a split or a
-# one-line rationale. It never fails a check and is not a required status.
+# one-line rationale. The job is `continue-on-error`, so a failure here (an API
+# hiccup, a label race) never turns the PR red, and it is not a required status.
 # Runs only for same-repo PRs: fork PRs get a read-only token, so they are
 # skipped rather than failed. No code is checked out and no PR text is used.
 
@@ -18,6 +19,12 @@ jobs:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    continue-on-error: true
+    # One run per PR: two quick pushes must not both miss the marker and post
+    # the comment twice.
+    concurrency:
+      group: pr-size-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     env:
       GH_REPO: ${{ github.repository }}
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,12 +34,15 @@ jobs:
       - name: Count changed lines and nudge
         run: |
           set -euo pipefail
-          changed="$(gh pr view "$PR_NUMBER" --json files \
-            --jq '[.files[] | select(.path | test("(^|/)(package-lock\\.json|pnpm-lock\\.yaml|yarn\\.lock|uv\\.lock|poetry\\.lock|Cargo\\.lock|go\\.sum|bun\\.lock)$") | not) | .additions + .deletions] | add // 0')"
+          # Paginated REST: `gh pr view --json files` stops at 100 files.
+          # --jq runs per page, so sum the per-page numbers.
+          changed="$(gh api --paginate "repos/$GH_REPO/pulls/$PR_NUMBER/files" \
+            --jq '[.[] | select(.filename | test("(^|/)(package-lock\\.json|pnpm-lock\\.yaml|yarn\\.lock|uv\\.lock|poetry\\.lock|Cargo\\.lock|go\\.sum|bun\\.lock)$") | not) | .additions + .deletions] | add // 0' \
+            | awk '{ s += $1 } END { print s + 0 }')"
           echo "changed lines (lockfiles excluded): $changed (threshold $PR_SIZE_THRESHOLD)"
           marker='<!-- pr-size-nudge -->'
-          # REST, not `gh pr edit`: that command also queries classic projects,
-          # which the default workflow token cannot read.
+          # REST for labels, not `gh pr edit`: that command also queries classic
+          # projects, which the default workflow token cannot read.
           has_label="$(gh pr view "$PR_NUMBER" --json labels --jq '[.labels[].name] | index("large-pr") != null')"
           if [ "$changed" -le "$PR_SIZE_THRESHOLD" ]; then
             if [ "$has_label" = "true" ]; then
@@ -43,7 +53,10 @@ jobs:
           if [ "$has_label" != "true" ]; then
             gh api -X POST "repos/$GH_REPO/issues/$PR_NUMBER/labels" -f "labels[]=large-pr" >/dev/null
           fi
-          if ! gh pr view "$PR_NUMBER" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+          # Captured first: `grep -q` exiting early would SIGPIPE gh and, under
+          # pipefail, read as "marker not found" (a duplicate comment).
+          existing="$(gh api --paginate "repos/$GH_REPO/issues/$PR_NUMBER/comments" --jq '.[].body')"
+          if ! grep -qF "$marker" <<<"$existing"; then
             gh pr comment "$PR_NUMBER" --body "$marker
           This PR changes **$changed** lines (threshold $PR_SIZE_THRESHOLD, lockfiles excluded). Large changes are harder to review and more likely to hide unneeded code. Consider splitting it, or add a one-line rationale to the PR body for why it must land together. This is advisory and blocks nothing."
           fi

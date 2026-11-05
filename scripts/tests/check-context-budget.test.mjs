@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,6 +31,20 @@ test('counts CLAUDE.md and unscoped rules, skips path-scoped rules', () => {
 test('a "paths:" mention in the body of an unscoped rule does not make it scoped', () => {
   const root = repo(1000, { 'body.md': '# Title\n\nMentions paths: in prose.\n' });
   assert.equal(alwaysLoaded(root).length, 2);
+});
+
+test('frontmatter without paths: is counted even if the body mentions paths: and has a later ---', () => {
+  const root = repo(1000, {
+    'fm.md': '---\nname: x\n---\nBody mentions\npaths:\n  - a\n---\nmore',
+    'key.md': '---\ninclude-paths:\n  - a\n---\nbody',
+  });
+  assert.equal(alwaysLoaded(root).length, 3);
+});
+
+test('a dangling rule symlink fails with a message naming the file', () => {
+  const root = repo(1000, {});
+  symlinkSync(join(root, 'missing.md'), join(root, '.claude/rules/dangling.md'));
+  assert.throws(() => alwaysLoaded(root), /dangling\.md.*dangling symlink/);
 });
 
 test('under the ceiling passes, over it fails with exit 1', () => {

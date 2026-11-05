@@ -4,6 +4,8 @@
 // (symlinks included) without `paths:` frontmatter; path-scoped rules load only
 // when a matching file is touched, so they do not count.
 //
+// Not counted: CLAUDE.local.md, @imports and nested .claude/rules/ subdirectories.
+//
 // The ceiling lives in .claude/context-budget.json (bytes). Raising it is a
 // reviewed change: say in the PR what the new always-loaded text buys and what
 // you considered moving to a path-scoped rule or `.claude/references/` instead.
@@ -14,15 +16,26 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { realpathSync } from 'node:fs';
 
-const SCOPED = /^---\r?\n[\s\S]*?\bpaths:[\s\S]*?\r?\n---/;
+/** True when the file's leading frontmatter block has a top-level `paths:` key. */
+function isScoped(text) {
+  const fm = text.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+  return fm !== null && /^paths:/m.test(fm[1]);
+}
+
+function read(root, rel) {
+  try {
+    return readFileSync(join(root, rel));
+  } catch (err) {
+    throw new Error(`cannot read ${rel} (dangling symlink?): ${err.code}`);
+  }
+}
 
 /** Always-loaded files and their sizes in bytes, largest first. */
 export function alwaysLoaded(root) {
-  const files = [{ file: 'CLAUDE.md', bytes: Buffer.byteLength(readFileSync(join(root, 'CLAUDE.md'))) }];
-  const dir = join(root, '.claude/rules');
-  for (const name of readdirSync(dir).filter((n) => n.endsWith('.md'))) {
-    const text = readFileSync(join(dir, name), 'utf8');
-    if (!SCOPED.test(text)) files.push({ file: `.claude/rules/${name}`, bytes: Buffer.byteLength(text) });
+  const files = [{ file: 'CLAUDE.md', bytes: read(root, 'CLAUDE.md').length }];
+  for (const name of readdirSync(join(root, '.claude/rules')).filter((n) => n.endsWith('.md'))) {
+    const buf = read(root, `.claude/rules/${name}`);
+    if (!isScoped(buf.toString('utf8'))) files.push({ file: `.claude/rules/${name}`, bytes: buf.length });
   }
   return files.sort((a, b) => b.bytes - a.bytes);
 }

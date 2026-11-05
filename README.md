@@ -286,6 +286,8 @@ make enable-docker   # Dockerized / containerized project
 
 This symlinks platform-specific rules into `.claude/rules/` so they auto-load. See `.claude/references/rules-guide.md` for details.
 
+These rules count toward the always-loaded context budget, so the first `make enable-*` will fail `node scripts/check-context-budget.mjs`. Raise `ceilingBytes` in `.claude/context-budget.json` to the new total (the script prints it) in the same commit.
+
 ### Step 5: Run Setup (1 minute)
 
 ```bash
