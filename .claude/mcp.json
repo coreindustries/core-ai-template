@@ -12,8 +12,8 @@
     //     version, publish date and the credentials it receives in the PR.
     //   - Pass credentials by reference (`${VAR}`), never as literal values.
     // The versions below were the newest 3+ days old on 2026-11-04. The
-    // github and postgres packages are old reference servers no longer
-    // updated; prefer a maintained replacement where one exists.
+    // github and postgres packages are deprecated on npm and no longer
+    // updated; replace them with a maintained server before relying on them.
 
     // GitHub - Access issues, PRs, code search
     // "github": {

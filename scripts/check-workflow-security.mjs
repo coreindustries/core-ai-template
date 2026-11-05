@@ -2,7 +2,8 @@
 // check-workflow-security.mjs — enforce GitHub Actions hardening rules that
 // otherwise exist only as prose. Run by CI lint and `make quality`.
 //
-// Rules, per .github/workflows/*.yml:
+// Rules, per .github/workflows/*.yml (composite actions under .github/actions/
+// are not scanned):
 //   1. A top-level `permissions:` block exists and is not `write-all`.
 //   2. Every actions/checkout step sets `persist-credentials: false`, so the
 //      token is never left in .git/config for later steps (or an agent) to read.
@@ -13,31 +14,38 @@
 //      (`head_repository.full_name == github.repository`), so a fork's run
 //      cannot drive a job that holds write access.
 //
+// Line-based, not a YAML parser: it errs toward flagging. A false positive
+// fails loudly; fix the workflow or the pattern.
+//
 // Usage: node scripts/check-workflow-security.mjs [workflows-dir]
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-/** Split a workflow into steps: a step starts at a `- ` list item under `steps:`. */
-function stepsOf(text) {
-  const steps = [];
-  let current = null;
-  let stepIndent = -1;
-  for (const line of text.split('\n')) {
-    const m = line.match(/^(\s*)- (?:name|uses|run|id|if|env|with|shell):/);
-    if (m && (stepIndent === -1 || m[1].length === stepIndent)) {
-      stepIndent = m[1].length;
-      current = [];
-      steps.push(current);
-    }
-    if (current) current.push(line);
+const indentOf = (l) => l.length - l.trimStart().length;
+const isItem = (l) => /^\s*-\s/.test(l);
+
+/** Text of the step (list item) containing line i. */
+function stepAround(lines, i) {
+  let start = i;
+  if (!isItem(lines[i])) {
+    while (start > 0 && !(isItem(lines[start]) && indentOf(lines[start]) < indentOf(lines[i]))) start--;
   }
-  return steps.map((s) => s.join('\n'));
+  const dash = indentOf(lines[start]);
+  let end = start + 1;
+  while (end < lines.length) {
+    const l = lines[end];
+    if (l.trim() !== '' && (indentOf(l) < dash || (indentOf(l) === dash && isItem(l)))) break;
+    end++;
+  }
+  return lines.slice(start, end).join('\n');
 }
 
 /** Return violation strings for one workflow file's text. */
 export function checkWorkflow(name, text) {
   const out = [];
-  const code = text.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+  const lines = text.split('\n').filter((l) => !/^\s*#/.test(l));
+  const code = lines.join('\n');
 
   if (!/^permissions:/m.test(code)) {
     out.push(`${name}: no top-level "permissions:" block (defaults to the repo-wide token scope)`);
@@ -45,24 +53,27 @@ export function checkWorkflow(name, text) {
     out.push(`${name}: top-level "permissions: write-all"`);
   }
 
-  const checkouts = stepsOf(code).filter((s) => /uses:\s*actions\/checkout@/.test(s));
-  for (const step of checkouts) {
-    if (!/persist-credentials:\s*false/.test(step)) {
+  let checkouts = 0;
+  lines.forEach((l, i) => {
+    if (!/uses:\s*['"]?actions\/checkout@/.test(l)) return;
+    checkouts++;
+    if (!/persist-credentials:\s*['"]?false/.test(stepAround(lines, i))) {
       out.push(`${name}: actions/checkout without "persist-credentials: false"`);
     }
-  }
+  });
 
-  if (/^\s*pull_request_target:/m.test(code) && checkouts.length > 0) {
+  if (/\bpull_request_target\b/.test(code) && checkouts > 0) {
     out.push(`${name}: pull_request_target workflow checks out code`);
   }
 
-  if (/^\s*workflow_run:/m.test(code) && !/head_repository\.full_name\s*==\s*github\.repository/.test(code)) {
+  const onWorkflowRun = /^\s*workflow_run:/m.test(code) || /^on:.*\bworkflow_run\b/m.test(code);
+  if (onWorkflowRun && !/head_repository\.full_name\s*==\s*github\.repository/.test(code)) {
     out.push(`${name}: workflow_run trigger without a "head_repository.full_name == github.repository" guard`);
   }
   return out;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url))) {
   const dir = process.argv[2] ?? '.github/workflows';
   const violations = readdirSync(dir)
     .filter((f) => /\.ya?ml$/.test(f))

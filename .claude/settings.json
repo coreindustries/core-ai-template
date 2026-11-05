@@ -43,11 +43,17 @@
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git push * --force*)",
-      "Bash(git push * -f*)"
+      "Bash(git push * -f*)",
+      "Bash(* ~/.ssh/*)",
+      "Bash(* ~/.aws/*)",
+      "Bash(* ~/.config/gh/*)"
     ],
     "ask": [
       "Bash(rm -rf *)",
       "Bash(rm -fr *)",
+      "Bash(rm -r *)",
+      "Bash(rm -R *)",
+      "Bash(rm -Rf *)",
       "Bash(git reset --hard*)",
       "Bash(git clean *)",
       "Bash(git checkout -- *)"

@@ -120,9 +120,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # The agent step ran with permissions skipped and may have written
+          # git hooks or http/proxy settings into .git/config. Neutralize both
+          # before the token is in scope.
+          # (exit 128 just means there was no [http] section to remove.)
+          git config --local --remove-section http 2>/dev/null || true
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           echo "::add-mask::$auth"
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+          git -c core.hooksPath=/dev/null \
+            -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
             push origin "HEAD:$HEAD_BRANCH"
 
       - name: Notify — auto-fix applied
