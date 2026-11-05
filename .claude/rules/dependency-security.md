@@ -126,11 +126,18 @@ Document the decision in the PR description ("Why this package, what did you che
 
 ## Rule 5 — Containers & supply chain artifacts
 
+**Scope:** applies to a project that builds a container image or publishes a release artifact. CI builds an image (`push: false`) once a `Dockerfile` exists but never publishes one, and the template has no release workflow, so no check below is enforced by CI yet. Whoever adds a `Dockerfile` or any publish/release step owns adding the checks below, and the PR that does so records the evidence under `delivery-contract.md`.
+
+Container images (when the project has a `Dockerfile`):
+
 - Base images: pinned by digest, rebuilt weekly (Dependabot `docker` ecosystem will bump digests on a schedule).
 - Multi-stage builds: every stage's `FROM` is digest-pinned.
 - CI uses minimal base images (`distroless`, `alpine`, `scratch`). Do not install shell utilities "just in case" in production images.
-- SBOMs (Software Bill of Materials) generated on every release build: `syft` / `cyclonedx`. Uploaded as a workflow artifact and (for tagged releases) attached to the GitHub Release.
-- Signed releases: container images signed with `cosign` and verified in deploy. GitHub Release tarballs use `gh attestation` (or equivalent).
+
+Release artifacts (when the project publishes tagged releases or images):
+
+- SBOM generated on every release build (`syft` or `cyclonedx`), uploaded as a workflow artifact and attached to the GitHub Release for tagged releases.
+- Provenance: GitHub Release tarballs get `gh attestation` (or equivalent). Container images are signed with `cosign`, and the deploy step verifies the signature before rollout.
 
 ## Rule 6 — Agent behavior
 

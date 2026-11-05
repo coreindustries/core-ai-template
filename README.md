@@ -80,6 +80,8 @@ A standing team of Claude Code sessions — one Release Manager, one PRD Manager
 - `.devcontainer/` - Reproducible dev environments (Codespaces-ready)
 - `.husky/` - Pre-commit hooks (lint-staged + commitlint)
 - `.github/dependabot.yml` - Automated dependency updates
+- `.github/SECURITY.md` - Security policy entry point; links to [`docs/runbooks/secret-leak.md`](docs/runbooks/secret-leak.md) and the security rules
+- `make prune-branches` - Delete local branches already merged into `origin/main` (dry run; `APPLY=1` to delete)
 - `scripts/statusline/` - Multi-line Claude Code statusline (directory, branch/worktree, context %, model, effort level, cost, token burn rate). See `scripts/statusline/README.md` for install.
 
 ### Skills (Slash Commands)
@@ -604,6 +606,7 @@ core-ai-template/
 ├── .commitlintrc.json           # Commit message linting config
 ├── .lintstagedrc.json           # Pre-commit lint-staged config
 ├── .github/
+│   ├── SECURITY.md              # Reporting entry point; links to the security rules and runbook
 │   ├── dependabot.yml           # Automated dependency updates
 │   └── workflows/
 │       ├── ci.yml.example       # CI/CD pipeline template
