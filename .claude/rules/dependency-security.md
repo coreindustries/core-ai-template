@@ -126,7 +126,7 @@ Document the decision in the PR description ("Why this package, what did you che
 
 ## Rule 5 — Containers & supply chain artifacts
 
-**Scope:** applies to a project that builds and ships a container image or a release artifact. This template builds and ships nothing, so it has no release workflow and nothing here is enforced by CI until a project adds one. Whoever adds the first release or image-build workflow owns adding the checks below to it, and the PR that does so records the evidence under `delivery-contract.md`.
+**Scope:** applies to a project that builds a container image or publishes a release artifact. CI builds an image (`push: false`) once a `Dockerfile` exists but never publishes one, and the template has no release workflow, so no check below is enforced by CI yet. Whoever adds a `Dockerfile` or any publish/release step owns adding the checks below, and the PR that does so records the evidence under `delivery-contract.md`.
 
 Container images (when the project has a `Dockerfile`):
 
