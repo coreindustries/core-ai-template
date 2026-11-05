@@ -32,8 +32,25 @@
       "Read(**/config/secrets/**)",
       "Edit(**/config/secrets/**)",
       "Write(**/config/secrets/**)",
+      "Read(~/.ssh/**)",
+      "Edit(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Edit(~/.aws/**)",
+      "Read(~/.config/gh/**)",
+      "Edit(~/.config/gh/**)",
       "Bash(curl *)",
-      "Bash(wget *)"
+      "Bash(wget *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f*)"
+    ],
+    "ask": [
+      "Bash(rm -rf *)",
+      "Bash(rm -fr *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean *)",
+      "Bash(git checkout -- *)"
     ],
     "allow": [
       "Read(prd/**)",

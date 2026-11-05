@@ -42,7 +42,7 @@ Edit `.github/workflows/ci.yml` and replace all `{placeholders}` with your actua
 #### Package Manager Commands
 Replace `{package_manager} install` with:
 - Python: `uv sync`
-- Node.js: `npm ci` or `pnpm install --frozen-lockfile`
+- Node.js: `npm ci --ignore-scripts` or `pnpm install --frozen-lockfile --ignore-scripts` (see `dependency-security.md` Rule 7)
 - Go: `go mod download`
 
 #### Quality Check Commands
@@ -211,7 +211,7 @@ The CI pipeline enforces **5 quality gates** that must all pass:
     cache: 'npm'
 
 - name: Install dependencies
-  run: npm ci
+  run: npm ci --ignore-scripts
 
 - name: Run linter
   run: npm run lint

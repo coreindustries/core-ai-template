@@ -60,7 +60,7 @@ jobs:
         run: |
           # Replace with your package manager command
           # Python: uv sync
-          # Node.js: npm ci / pnpm install --frozen-lockfile
+          # Node.js: npm ci --ignore-scripts / pnpm install --frozen-lockfile --ignore-scripts
           # Go: go mod download
           {package_manager} install
 
