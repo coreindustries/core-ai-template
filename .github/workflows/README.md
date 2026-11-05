@@ -22,19 +22,19 @@ Edit `.github/workflows/ci.yml` and replace all `{placeholders}` with your actua
 - name: Setup {language}
   # Uncomment and configure for your language:
   # Python:
-  uses: actions/setup-python@v5
+  uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
   with:
     python-version: '3.13'
     cache: 'uv'
   
   # Node.js:
-  # uses: actions/setup-node@v4
+  # uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
   # with:
   #   node-version: '22'
   #   cache: 'npm'
   
   # Go:
-  # uses: actions/setup-go@v5
+  # uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
   # with:
   #   go-version: '1.22'
 ```
@@ -174,7 +174,7 @@ The CI pipeline enforces **5 quality gates** that must all pass:
 
 ```yaml
 - name: Setup Python
-  uses: actions/setup-python@v5
+  uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
   with:
     python-version: '3.13'
     cache: 'uv'
@@ -205,7 +205,7 @@ The CI pipeline enforces **5 quality gates** that must all pass:
 
 ```yaml
 - name: Setup Node.js
-  uses: actions/setup-node@v4
+  uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
   with:
     node-version: '22'
     cache: 'npm'
@@ -236,7 +236,7 @@ The CI pipeline enforces **5 quality gates** that must all pass:
 
 ```yaml
 - name: Setup Go
-  uses: actions/setup-go@v5
+  uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
   with:
     go-version: '1.22'
 
@@ -322,7 +322,7 @@ strategy:
   matrix:
     python-version: ['3.11', '3.12', '3.13']
   steps:
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
       with:
         python-version: ${{ matrix.python-version }}
 ```

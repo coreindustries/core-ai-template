@@ -3,7 +3,7 @@
 # assert-dependency-age.sh
 # -----------------------------------------------------------------------------
 # Fails if any dependency added or upgraded in the current branch was
-# published to its registry less than MIN_AGE_HOURS ago (default: 24).
+# published to its registry less than MIN_AGE_HOURS ago (default: 72 = 3 days).
 #
 # Supports: npm (package-lock.json, pnpm-lock.yaml), pip/uv (uv.lock,
 # poetry.lock, requirements.txt), cargo (Cargo.lock), gomod (go.mod),
@@ -13,7 +13,7 @@
 # -----------------------------------------------------------------------------
 set -euo pipefail
 
-MIN_AGE_HOURS=${MIN_AGE_HOURS:-24}
+MIN_AGE_HOURS=${MIN_AGE_HOURS:-72}  # the one source of the cooldown length
 BASE_REF=${BASE_REF:-origin/main}
 NOW_EPOCH=$(date -u +%s)
 MIN_AGE_SECONDS=$((MIN_AGE_HOURS * 3600))
@@ -221,7 +221,7 @@ if [[ ${#OFFENDERS[@]} -gt 0 ]]; then
   echo "  1. Wait ${MIN_AGE_HOURS}h from each package's publish time, rebase, try again."
   echo "  2. Downgrade to the previous stable version."
   echo "  3. If this is a published security advisory fix, request a waiver and"
-  echo "     apply the 'security-hotfix-24h-waiver' label on the PR."
+  echo "     apply the 'security-hotfix-waiver' label on the PR."
   exit 1
 fi
 

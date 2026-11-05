@@ -130,7 +130,7 @@ ships no such agent, because what counts as triage is project-specific.
 run: npm install -g @anthropic-ai/claude-code
 ```
 
-This violates the 24-hour dependency cooldown rule (`.claude/rules/dependency-security.md`). Once a stable tagged release is available, pin it:
+This violates the 3-day dependency cooldown rule (`.claude/rules/dependency-security.md`). Once a stable tagged release is available, pin it:
 
 ```yaml
 run: npm install -g @anthropic-ai/claude-code@X.Y.Z

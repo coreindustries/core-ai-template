@@ -47,11 +47,11 @@ Run before opening a PR (or let CI run it on push). Full pipeline.
 
 ```bash
 make quality               # lint + typecheck + security + secrets + tests + coverage
-make deps-audit            # pinned + 24h cooldown check
+make deps-audit            # pinned + 3-day cooldown check
 make check-migrations      # filename convention + RLS enforcement
 ```
 
-**Fails on:** coverage regression, unpinned dep, sub-24h-old dep in lockfile, migration missing RLS, any security finding.
+**Fails on:** coverage regression, unpinned dep, dep younger than 3 days in lockfile, migration missing RLS, any security finding.
 **Why it's third:** expensive to run locally but free to run in CI. The goal of running it locally before pushing is avoiding the 5-minute CI feedback loop for trivial fixes. See `.claude/rules/dependency-security.md` and `.claude/rules/secrets-hygiene.md`.
 
 ---

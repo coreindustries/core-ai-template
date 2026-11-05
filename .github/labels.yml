@@ -175,9 +175,10 @@
   color: "0366D6"
   description: Dependabot or manual dependency PR
 
-- name: security-hotfix-24h-waiver
+- name: security-hotfix-waiver
   color: "B60205"
-  description: Sub-24h dep bump waiver (requires linked GHSA/CVE in PR body)
+  description: Dep bump inside the 3-day cooldown (requires linked GHSA/CVE in PR body)
+  aliases: [security-hotfix-24h-waiver]
 
 - name: skip-delivery-contract
   color: "FBCA04"
