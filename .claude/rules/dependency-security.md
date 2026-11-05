@@ -67,7 +67,7 @@ No ranges in manifests for direct dependencies. No `^`, `~`, `>=`, `*`, `latest`
 - **Docker**: pin to an image digest (`@sha256:...`), not just a tag. Tags are mutable; digests are not.
 - **GitHub Actions**: pin to a commit SHA (full 40-character), with the tag as a trailing comment for readability. Dependabot understands this and will bump the SHA.
 - **Transitive pinning**: lockfile commits are mandatory (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `uv.lock`, `poetry.lock`, `Cargo.lock`, `go.sum`).
-- **Installs must use the lockfile exclusively**: `npm ci`, `pnpm install --frozen-lockfile`, `uv sync --frozen`, `poetry install --no-update`, `cargo build --locked`. Never plain `install` in CI or production images.
+- **Installs must use the lockfile exclusively**: `npm ci`, `pnpm install --frozen-lockfile`, `uv sync --frozen`, `poetry install --no-update`, `cargo build --locked`. Never plain `install` in CI or production images. For npm-family installs also pass `--ignore-scripts` (Rule 7).
 
 ## Rule 2 — 3-day cooldown on new versions
 
@@ -126,11 +126,18 @@ Document the decision in the PR description ("Why this package, what did you che
 
 ## Rule 5 — Containers & supply chain artifacts
 
+**Scope:** applies to a project that builds a container image or publishes a release artifact. CI builds an image (`push: false`) once a `Dockerfile` exists but never publishes one, and the template has no release workflow, so no check below is enforced by CI yet. Whoever adds a `Dockerfile` or any publish/release step owns adding the checks below, and the PR that does so records the evidence under `delivery-contract.md`.
+
+Container images (when the project has a `Dockerfile`):
+
 - Base images: pinned by digest, rebuilt weekly (Dependabot `docker` ecosystem will bump digests on a schedule).
 - Multi-stage builds: every stage's `FROM` is digest-pinned.
 - CI uses minimal base images (`distroless`, `alpine`, `scratch`). Do not install shell utilities "just in case" in production images.
-- SBOMs (Software Bill of Materials) generated on every release build: `syft` / `cyclonedx`. Uploaded as a workflow artifact and (for tagged releases) attached to the GitHub Release.
-- Signed releases: container images signed with `cosign` and verified in deploy. GitHub Release tarballs use `gh attestation` (or equivalent).
+
+Release artifacts (when the project publishes tagged releases or images):
+
+- SBOM generated on every release build (`syft` or `cyclonedx`), uploaded as a workflow artifact and attached to the GitHub Release for tagged releases.
+- Provenance: GitHub Release tarballs get `gh attestation` (or equivalent). Container images are signed with `cosign`, and the deploy step verifies the signature before rollout.
 
 ## Rule 6 — Agent behavior
 
@@ -147,6 +154,20 @@ An AI agent editing dependency files must:
 
 If the agent discovers a floating-range dependency or an unpinned base image during unrelated work: flag it in the PR body, do not silently fix it (out-of-scope changes are hard to review).
 
+## Rule 7 — Install scripts and MCP servers run code on your machine
+
+**Install scripts.** npm lifecycle scripts (`preinstall`, `install`, `postinstall`, `prepare`) run arbitrary code the moment a package is installed, before any review of what it does.
+
+- Install with scripts off by default: `npm ci --ignore-scripts`, `pnpm install --frozen-lockfile --ignore-scripts`, `yarn install --immutable --mode=skip-build`. Applies to CI, Makefile targets, Dockerfiles and docs.
+- A package that genuinely needs a build step is allow-listed by name and version in the PR (pnpm: `onlyBuiltDependencies`; npm: run `npm rebuild <pkg>` as a separate, named step), with the Rule 3 install-script review.
+- Known gap: `auto-fix.yml` still installs the exact-pinned Claude Code CLI globally with scripts on, because `--ignore-scripts` has not been tested against it. It is CI-only and never ships in an artifact; test and close this gap when bumping the pin.
+
+**MCP servers** (`.claude/mcp.json`). A server runs with the developer's permissions and feeds output to the agent, so it is a dependency like any other.
+
+- Pin an exact version at least 3 days old; never `npx -y <pkg>` unpinned.
+- Adding or bumping a server is a reviewed change; the PR names the package, version, publish date and the credentials it receives (by `${VAR}` reference only).
+- Prefer a maintained server; an abandoned one is a Rule 3 finding.
+
 ## Enforcement summary
 
 | Control | Where | Fails on |
@@ -155,6 +176,8 @@ If the agent discovers a floating-range dependency or an unpinned base image dur
 | `scripts/assert-dependency-age.sh` | CI + pre-push | Lockfile entries whose registry publish time is < 3 days old |
 | `make deps-audit` | Local + CI | Unpinned manifests, missing lockfile integrity, unreviewed new deps |
 | Pre-commit: gitleaks + assert-no-plaintext-env + optional dep-age | Pre-commit hook | Local fast feedback |
+| `scripts/check-workflow-security.mjs` | CI lint + `make quality` | Workflow without `permissions:`, checkout without `persist-credentials: false`, `pull_request_target` that checks out code, unguarded `workflow_run` |
+| Install-script and MCP pin rules (Rule 7) | Manual review | Not CI-enforced yet |
 | Review checklist (PR template) | Manual | Anything the above missed |
 
 ## References

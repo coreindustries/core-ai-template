@@ -2,11 +2,23 @@
   "$schema": "https://raw.githubusercontent.com/anthropics/claude-code/main/schemas/mcp.json",
   "mcpServers": {
     // --- Uncomment and configure servers for your project ---
+    //
+    // An MCP server runs with your user's permissions and its tool output
+    // reaches the agent, so treat each entry like a dependency
+    // (.claude/rules/dependency-security.md, Rule 7):
+    //   - Pin an exact version, published at least 3 days ago
+    //     (`npm view <pkg> time`). Never an unpinned `npx -y <pkg>`.
+    //   - Adding or bumping a server is a reviewed change: name the package,
+    //     version, publish date and the credentials it receives in the PR.
+    //   - Pass credentials by reference (`${VAR}`), never as literal values.
+    // The versions below were the newest 3+ days old on 2026-11-04. The
+    // github and postgres packages are deprecated on npm and no longer
+    // updated; replace them with a maintained server before relying on them.
 
     // GitHub - Access issues, PRs, code search
     // "github": {
     //   "command": "npx",
-    //   "args": ["-y", "@modelcontextprotocol/server-github"],
+    //   "args": ["-y", "@modelcontextprotocol/server-github@2025.4.8"],
     //   "env": {
     //     "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
     //   }
@@ -15,7 +27,7 @@
     // PostgreSQL - Direct database inspection
     // "postgres": {
     //   "command": "npx",
-    //   "args": ["-y", "@modelcontextprotocol/server-postgres"],
+    //   "args": ["-y", "@modelcontextprotocol/server-postgres@0.6.2"],
     //   "env": {
     //     "POSTGRES_URL": "${DATABASE_URL}"
     //   }
@@ -24,19 +36,19 @@
     // Filesystem - Access to project files
     // "filesystem": {
     //   "command": "npx",
-    //   "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    //   "args": ["-y", "@modelcontextprotocol/server-filesystem@2.1.0", "."]
     // },
 
     // Memory - Persistent knowledge graph
     // "memory": {
     //   "command": "npx",
-    //   "args": ["-y", "@modelcontextprotocol/server-memory"]
+    //   "args": ["-y", "@modelcontextprotocol/server-memory@2.0.1"]
     // },
 
     // Sentry - Error tracking
     // "sentry": {
     //   "command": "npx",
-    //   "args": ["-y", "@sentry/mcp-server"],
+    //   "args": ["-y", "@sentry/mcp-server@0.42.0"],
     //   "env": {
     //     "SENTRY_AUTH_TOKEN": "${SENTRY_AUTH_TOKEN}",
     //     "SENTRY_ORG": "${SENTRY_ORG}"

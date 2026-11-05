@@ -11,7 +11,7 @@
 #   make help      # Show all targets
 # =============================================================================
 
-.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets complexity deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test ratchet eval eval-trend
+.PHONY: help setup dev test start _start-inner test-hermetic doctor lint format typecheck security scan-secrets complexity deps-audit quality db-start db-stop db-new db-reset db-types db-test db-push db-diff check-migrations wt wt-list wt-remove prune-branches clean enable-rules enable-ts pr-check lanes-init lanes-check lanes-test ratchet eval eval-trend
 
 # =============================================================================
 # Secret Injection (see .claude/rules/secrets-hygiene.md)
@@ -292,8 +292,14 @@ quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@echo "=== Secrets & PII ==="
 	@scripts/scan-secrets.sh --all
 	@echo ""
+	@echo "=== Context budget ==="
+	@node scripts/check-context-budget.mjs
+	@echo ""
 	@echo "=== Ratchet gates ==="
 	@node scripts/ratchet.mjs --strict
+	@echo ""
+	@echo "=== Workflow security ==="
+	@node scripts/check-workflow-security.mjs
 	@echo ""
 	@echo "=== Tests ==="
 	{test_coverage_command}
@@ -356,6 +362,9 @@ wt-remove: ## Remove a worktree and delete its branch (usage: make wt-remove nam
 	 git worktree remove "$$PARENT/$$REPO-$(name)" && \
 	 git branch -d "$(name)" && \
 	 echo "Removed worktree and branch: $(name)"
+
+prune-branches: ## Delete local branches merged into origin/main (dry run; APPLY=1 to delete)
+	@scripts/prune-branches.sh
 
 # =============================================================================
 # Context Management

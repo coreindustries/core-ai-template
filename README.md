@@ -80,6 +80,8 @@ A standing team of Claude Code sessions — one Release Manager, one PRD Manager
 - `.devcontainer/` - Reproducible dev environments (Codespaces-ready)
 - `.husky/` - Pre-commit hooks (lint-staged + commitlint)
 - `.github/dependabot.yml` - Automated dependency updates
+- `.github/SECURITY.md` - Security policy entry point; links to [`docs/runbooks/secret-leak.md`](docs/runbooks/secret-leak.md) and the security rules
+- `make prune-branches` - Delete local branches already merged into `origin/main` (dry run; `APPLY=1` to delete)
 - `scripts/statusline/` - Multi-line Claude Code statusline (directory, branch/worktree, context %, model, effort level, cost, token burn rate). See `scripts/statusline/README.md` for install.
 
 ### Skills (Slash Commands)
@@ -285,6 +287,8 @@ make enable-docker   # Dockerized / containerized project
 ```
 
 This symlinks platform-specific rules into `.claude/rules/` so they auto-load. See `.claude/references/rules-guide.md` for details.
+
+These rules count toward the always-loaded context budget, so the first `make enable-*` will fail `node scripts/check-context-budget.mjs`. Raise `ceilingBytes` in `.claude/context-budget.json` to the new total (the script prints it) in the same commit.
 
 ### Step 5: Run Setup (1 minute)
 
@@ -604,6 +608,7 @@ core-ai-template/
 ├── .commitlintrc.json           # Commit message linting config
 ├── .lintstagedrc.json           # Pre-commit lint-staged config
 ├── .github/
+│   ├── SECURITY.md              # Reporting entry point; links to the security rules and runbook
 │   ├── dependabot.yml           # Automated dependency updates
 │   └── workflows/
 │       ├── ci.yml.example       # CI/CD pipeline template
@@ -835,6 +840,12 @@ the platform rules the matching `make enable-*` symlinks in.
 Loading every rule in both directories would be ~45K. Figures are file sizes at
 ~4 chars/token — recompute them when rules are added, or they drift silently as
 they did before.
+
+CI enforces a ceiling on the always-loaded part (`CLAUDE.md` plus rules without
+`paths:` frontmatter): `node scripts/check-context-budget.mjs` against
+`ceilingBytes` in `.claude/context-budget.json`. Enabling extra rules with
+`make enable-*` counts too; raise the ceiling in the same PR and say why, or move
+text to a path-scoped rule or `.claude/references/`.
 
 ### Adding Custom Rules
 
