@@ -26,7 +26,7 @@
 #   AUDIT_LEVEL  npm audit severity threshold (default: critical)
 #   MAX_ATTEMPTS transient-error retry attempts (default: 3)
 #
-# Complements scripts/assert-dependency-age.sh, which enforces the 24h cooldown
+# Complements scripts/assert-dependency-age.sh, which enforces the 3-day cooldown
 # (.claude/rules/dependency-security.md Rule 2). This script enforces Rule 3's
 # "no known vulnerabilities" half.
 # -----------------------------------------------------------------------------

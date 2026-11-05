@@ -2,7 +2,7 @@
 # https://docs.github.com/en/code-security/dependabot
 #
 # Policy: all direct deps pinned (no ranges), all transitive deps locked,
-# every bump respects a 24h cooldown (supply-chain zero-day window).
+# every bump respects a 3-day cooldown (supply-chain window).
 # See .claude/rules/dependency-security.md.
 #
 # Uncomment ecosystems that match your project's tech stack.
@@ -13,7 +13,7 @@ version: 2
 # Cooldown — minimum age before a version is eligible for a Dependabot PR.
 # Applies to ALL ecosystems below unless a given update overrides it.
 # =============================================================================
-# Default: 1 day (= 24h). Major bumps get 7 days to let the ecosystem settle.
+# 3 days for every update type. A shorter cooldown is a policy violation.
 # Security advisories bypass this (Dependabot security updates ignore cooldown).
 
 updates:
@@ -26,8 +26,7 @@ updates:
       interval: "weekly"
       day: "monday"
     cooldown:
-      default-days: 1
-      semver-major-days: 7
+      default-days: 3
     labels:
       - "dependencies"
       - "ci"
@@ -46,8 +45,7 @@ updates:
   #     interval: "weekly"
   #     day: "monday"
   #   cooldown:
-  #     default-days: 1
-  #     semver-major-days: 7
+  #     default-days: 3
   #   versioning-strategy: "increase-if-necessary"  # preserve exact pins
   #   labels:
   #     - "dependencies"
@@ -69,8 +67,7 @@ updates:
   #     interval: "weekly"
   #     day: "monday"
   #   cooldown:
-  #     default-days: 1
-  #     semver-major-days: 7
+  #     default-days: 3
   #   labels:
   #     - "dependencies"
   #   commit-message:
@@ -84,8 +81,7 @@ updates:
   #     interval: "weekly"
   #     day: "monday"
   #   cooldown:
-  #     default-days: 1
-  #     semver-major-days: 7
+  #     default-days: 3
   #   labels:
   #     - "dependencies"
   #   commit-message:
@@ -99,8 +95,7 @@ updates:
   #     interval: "weekly"
   #     day: "monday"
   #   cooldown:
-  #     default-days: 1
-  #     semver-major-days: 7
+  #     default-days: 3
   #   labels:
   #     - "dependencies"
   #   commit-message:
@@ -113,8 +108,7 @@ updates:
   #   schedule:
   #     interval: "weekly"
   #   cooldown:
-  #     default-days: 1
-  #     semver-major-days: 7
+  #     default-days: 3
   #   labels:
   #     - "dependencies"
   #     - "docker"

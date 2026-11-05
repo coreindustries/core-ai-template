@@ -24,7 +24,7 @@ A repo is up to spec when **all** of the following are true:
 | Pillar | Requirement |
 |---|---|
 | **Secrets** | No plaintext `.env` on disk; secrets injected from a secret manager into process memory at start; `.env.tpl` + `.env.example` committed; gitleaks runs in pre-commit, pre-push, and CI |
-| **Dependencies** | All direct deps pinned to exact versions; lockfile committed; 24-hour cooldown enforced via Dependabot/Renovate config + CI gate; base images and CI actions pinned by digest/SHA |
+| **Dependencies** | All direct deps pinned to exact versions; lockfile committed; 3-day cooldown enforced via Dependabot/Renovate config + CI gate; base images and CI actions pinned by digest/SHA |
 | **Quality gates** | Pre-commit runs lint + format + secret scan; CI runs lint → typecheck → test (coverage threshold) → security → build; commit messages enforced (Conventional Commits) |
 | **Migrations** | Numbered, timestamped, reviewed; never edited after merge; expand/contract for breaking changes; RLS enforced where applicable |
 | **Agent guidance** | `CLAUDE.md` + `AGENTS.md` present; `.claude/rules/` auto-loaded universal rules; platform rules opted in via symlink; skills + agents + references available |
@@ -830,7 +830,7 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 1                  # MUST be >= 1 — 24h registry-yank window
+      default-days: 3                  # MUST be >= 3 — registry-yank window
     open-pull-requests-limit: 5
 
   - package-ecosystem: "github-actions"
@@ -838,7 +838,7 @@ updates:
     schedule:
       interval: "weekly"
     cooldown:
-      default-days: 1
+      default-days: 3
 
   - package-ecosystem: "docker"
     directory: "/"
@@ -847,27 +847,27 @@ updates:
 ```
 
 If the target uses Renovate instead, set
-`"minimumReleaseAge": "24 hours"` in `renovate.json`.
+`"minimumReleaseAge": "3 days"` in `renovate.json`.
 
 ### 3.3 CI gate — `scripts/assert-dependency-age.sh`
 
 A CI step that queries the registry API for every changed lockfile entry
-and fails if any version is < 24 h old. Sketch:
+and fails if any version is < 3 days old. Sketch:
 
 ```bash
 #!/usr/bin/env bash
-# Fails CI if any lockfile entry resolves to a version younger than 24h.
+# Fails CI if any lockfile entry resolves to a version younger than 3 days.
 # Exact implementation depends on the package manager — see the
 # template's reference script for npm / pnpm / uv / poetry / cargo.
 
 set -euo pipefail
-COOLDOWN_HOURS=24
+COOLDOWN_HOURS=72
 # ... ecosystem-specific resolution ...
 ```
 
 Wire as a required step before the build stage in CI.
 
-Waiver path: a PR label `security-hotfix-24h-waiver` overrides the gate.
+Waiver path: a PR label `security-hotfix-waiver` overrides the gate.
 Auditable; rate-limit via repo settings.
 
 ### 3.4 SBOM + container signing (if applicable)
@@ -887,7 +887,7 @@ grep -E 'FROM .*:[^@]+$' Dockerfile 2>/dev/null              # empty (no unpinne
 grep -E '^\s*uses:\s+\S+@v\d' .github/workflows/*.yml 2>/dev/null  # empty (no tag pins)
 ```
 
-Commit: `chore(deps): pin all direct deps + enforce 24h cooldown`.
+Commit: `chore(deps): pin all direct deps + enforce 3-day cooldown`.
 
 ---
 
@@ -1136,7 +1136,7 @@ Document the trust relationship in `docs/decisions/`.
      - Priority (one if not P3): P0 | P1 | P2 | P3
      - Process (as needed): codex (cross-model review),
        dependencies (Dependabot or manual dep PR),
-       security-hotfix-24h-waiver (sub-24h dep bump with linked GHSA/CVE)
+       security-hotfix-waiver (dep bump inside the 3-day cooldown with linked GHSA/CVE)
 -->
 
 - [ ] Type label applied
@@ -1201,7 +1201,7 @@ Four orthogonal axes:
 # Process
 - {name: codex,                        color: BFD4F2, description: Request cross-model PR review}
 - {name: dependencies,                 color: 0366D6, description: Dependabot or manual dep PR}
-- {name: security-hotfix-24h-waiver,   color: B60205, description: Sub-24h dep bump waiver}
+- {name: security-hotfix-waiver,       color: B60205, description: Dep bump inside the 3-day cooldown}
 - {name: good-first-issue,             color: 7057FF, description: Good for newcomers}
 - {name: help-wanted,                  color: 008672, description: Maintainers welcome external contributions}
 ```
@@ -1823,7 +1823,7 @@ git status                   # clean
 - [ ] No secrets committed (gitleaks clean)
 - [ ] No plaintext `.env` on disk
 - [ ] All direct deps pinned, lockfile committed
-- [ ] Dependabot/Renovate cooldown ≥ 24 h
+- [ ] Dependabot/Renovate cooldown ≥ 3 days
 - [ ] CI runs all 5 gates and passes
 - [ ] `make help` lists every kit target
 - [ ] `.claude/rules/` auto-loaded; platform rules symlinked

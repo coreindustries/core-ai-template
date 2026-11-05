@@ -45,9 +45,9 @@ Loaded when a matching file is read or edited. Applies to all package-manager ec
 
 **Every dependency — direct and transitive — must be locked to an exact, auditable version.** No floating ranges. No `latest`. No unpinned base images.
 
-**Every new version added to the lockfile must be at least 24 hours old at merge time.** This window lets the ecosystem catch a freshly-published malicious release before it lands in our build.
+**Every new version added to the lockfile must be at least 3 days old at merge time.** This window lets the ecosystem catch a freshly-published malicious release before it lands in our build.
 
-The threat model is identical to `.claude/rules/secrets-hygiene.md`: a malicious package runs with full user permissions at install time (`npm install`, `uv sync`, `pip install`, `docker build`). Documented supply chain attacks — `xz` (2024), `chalk`/`debug` / `color` (Sept 2025 npm), `ctx` / `phpass` on PyPI, multiple typosquats — had their malicious versions yanked within hours to a day of publish. A 24-hour cooldown is the single cheapest control that eliminates the zero-day exposure.
+The threat model is identical to `.claude/rules/secrets-hygiene.md`: a malicious package runs with full user permissions at install time (`npm install`, `uv sync`, `pip install`, `docker build`). Documented supply chain attacks — `xz` (2024), `chalk`/`debug` / `color` (Sept 2025 npm), `ctx` / `phpass` on PyPI, multiple typosquats — had their malicious versions yanked within hours to a day or two of publish. A 3-day cooldown is the single cheapest control that eliminates the zero-day exposure.
 
 ---
 
@@ -69,9 +69,9 @@ No ranges in manifests for direct dependencies. No `^`, `~`, `>=`, `*`, `latest`
 - **Transitive pinning**: lockfile commits are mandatory (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `uv.lock`, `poetry.lock`, `Cargo.lock`, `go.sum`).
 - **Installs must use the lockfile exclusively**: `npm ci`, `pnpm install --frozen-lockfile`, `uv sync --frozen`, `poetry install --no-update`, `cargo build --locked`. Never plain `install` in CI or production images.
 
-## Rule 2 — 24-hour cooldown on new versions
+## Rule 2 — 3-day cooldown on new versions
 
-A package version must be publicly available for **at least 24 hours** before we merge a PR that adds or upgrades to it. This applies to:
+A package version must be publicly available for **at least 3 days (72 hours)** before we merge a PR that adds or upgrades to it. This applies to:
 
 - Direct dependencies (primary target)
 - Transitive dependencies when a lockfile resolution changes the version
@@ -82,27 +82,27 @@ Enforcement layers (defense in depth):
 
 | Layer | Mechanism | Fails on |
 |---|---|---|
-| Dependabot | `cooldown.default-days: 1` in `.github/dependabot.yml` — PRs aren't opened until a version is ≥ 24h old | N/A (prevents at source) |
-| Renovate (if used) | `minimumReleaseAge: "24 hours"` | N/A (prevents at source) |
-| CI gate | `scripts/assert-dependency-age.sh` queries registry APIs for every added/changed lockfile entry | PR merging a <24h-old dep |
+| Dependabot | `cooldown.default-days: 3` in `.github/dependabot.yml` — PRs aren't opened until a version is ≥ 3 days old | N/A (prevents at source) |
+| Renovate (if used) | `minimumReleaseAge: "3 days"` | N/A (prevents at source) |
+| CI gate | `scripts/assert-dependency-age.sh` queries registry APIs for every added/changed lockfile entry | PR merging a dep younger than 3 days (the length lives in the script's `MIN_AGE_HOURS` default) |
 | Manual review | Reviewer checks `npm view <pkg>@<ver> time` or equivalent for any suspicious bump | Human backstop |
 
 ### Waiver process
 
-A sub-24h dependency bump is permitted only when:
+A dependency bump inside the 3-day window is permitted only when:
 
 1. The bump is a published **security advisory** fix (GHSA / CVE with a defined affected range that includes the currently-pinned version).
 2. The incident commander (or merging reviewer) documents the waiver in the PR description with:
    - The advisory ID
    - The CVSS score
-   - Why the 24h wait is worse than the advisory exposure
-3. CI is overridden with the label `security-hotfix-24h-waiver` — the label is auditable and rate-limited (no more than N per month per repo).
+   - Why the 3-day wait is worse than the advisory exposure
+3. CI is overridden with the label `security-hotfix-waiver` — the label is auditable and rate-limited (no more than N per month per repo).
 
 Do not waive the cooldown for "urgent feature" bumps. A feature can wait.
 
 ## Rule 3 — Review every new direct dependency before adding
 
-The 24-hour cooldown does not replace review; it buys time for review to happen.
+The 3-day cooldown does not replace review; it buys time for review to happen.
 
 **Checklist before adding a new direct dependency:**
 
@@ -136,11 +136,11 @@ Document the decision in the PR description ("Why this package, what did you che
 
 An AI agent editing dependency files must:
 
-- **Never** use the latest-by-default when adding a package; look up the version that's at least 24h old.
+- **Never** use the latest-by-default when adding a package; look up the version that's at least 3 days old.
 - **Never** remove a pin to "fix" a resolution error. Diagnose the conflict.
 - **Never** add a package post-install script or shell-out command without calling it out in the PR description.
 - **When asked** to update a dep to a just-released version, respond:
-  > "That version published <N hours> ago. Our cooldown rule is 24 hours. I'll wait, or you can file a security-hotfix waiver if this is a published advisory fix."
+  > "That version published <N days> ago. Our cooldown rule is 3 days. I'll wait, or you can file a security-hotfix waiver if this is a published advisory fix."
 
 - **When asked** to add a package, propose the pin and version plus the review checklist from Rule 3.
 - **When asked** to use an unpinned base image or action, refuse and pin to digest/SHA.
@@ -151,8 +151,8 @@ If the agent discovers a floating-range dependency or an unpinned base image dur
 
 | Control | Where | Fails on |
 |---|---|---|
-| `.github/dependabot.yml` `cooldown:` | Source (prevents PR creation) | New versions younger than 24h |
-| `scripts/assert-dependency-age.sh` | CI + pre-push | Lockfile entries whose registry publish time is < 24h old |
+| `.github/dependabot.yml` `cooldown:` | Source (prevents PR creation) | New versions younger than 3 days |
+| `scripts/assert-dependency-age.sh` | CI + pre-push | Lockfile entries whose registry publish time is < 3 days old |
 | `make deps-audit` | Local + CI | Unpinned manifests, missing lockfile integrity, unreviewed new deps |
 | Pre-commit: gitleaks + assert-no-plaintext-env + optional dep-age | Pre-commit hook | Local fast feedback |
 | Review checklist (PR template) | Manual | Anything the above missed |

@@ -90,7 +90,7 @@ The two files that must carry a literal — they execute — are
 when you change the value here.
 
 Images are pinned by digest, not tag, per `.claude/rules/dependency-security.md`
-Rule 1: tags are mutable, digests are not. A new digest must also clear the 24h
+Rule 1: tags are mutable, digests are not. A new digest must also clear the 3-day
 cooldown in Rule 2 before it is merged.
 
 | Component | Image |
