@@ -194,7 +194,7 @@ scan-secrets: ## Scan for secrets and PII (gitleaks)
 	@scripts/scan-secrets.sh --all
 
 complexity: ## Report code complexity (fallow, JS/TS; report-only, not a gate)
-	@PATH="$$PWD/node_modules/.bin:$$PATH"; command -v fallow >/dev/null || { echo "fallow not installed: add it as a pinned devDependency (see .claude/rules/dependency-security.md)" >&2; exit 1; }; \
+	@PATH="$(CURDIR)/node_modules/.bin:$$PATH"; command -v fallow >/dev/null || { echo "fallow not installed: add it as a pinned devDependency (see .claude/rules/dependency-security.md)" >&2; exit 1; }; \
 	fallow health; rc=$$?; [ $$rc -le 1 ] || exit $$rc  # fallow exits 1 when it reports findings; >1 is a real error
 
 deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-security.md)
