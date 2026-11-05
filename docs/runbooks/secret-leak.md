@@ -124,3 +124,9 @@ If the root cause is "someone bypassed the wrapper and used `.env` directly," th
 - **Don't** assume `git filter-branch` or BFG Repo-Cleaner makes the secret safe. Anyone who cloned or forked the repo has the history. Rotation is the only real fix.
 - **Don't** delay rotation to "investigate first." Rotate, then investigate.
 - **Don't** skip the post-incident report because "we rotated, it's fine." The goal is preventing the next one, not the current one.
+
+## Sources
+
+- Policy: [`.claude/rules/secrets-hygiene.md`](../../.claude/rules/secrets-hygiene.md) and [ADR 0001](../decisions/0001-no-plaintext-secrets-on-disk.md)
+- Wrapper contract and enforcement detail: [`.claude/references/secrets-hygiene-detail.md`](../../.claude/references/secrets-hygiene-detail.md)
+- Entry point for reporting: [`.github/SECURITY.md`](../../.github/SECURITY.md)

@@ -92,6 +92,8 @@ git worktree prune            # removes references to worktrees whose directorie
 
 If a worktree directory was manually deleted, `git worktree prune` cleans the references. Always prefer `make wt-remove` (which also deletes the branch) for graceful cleanup.
 
+Merged branches pile up locally. `make prune-branches` lists local branches already merged into `origin/main` and, with `APPLY=1`, deletes them (`git branch -d`, so unmerged work is refused). It skips `main`, the current branch and any branch checked out in a worktree, and never touches remote branches; turn on GitHub's "Automatically delete head branches" for those. Squash-merged branches are not detected as merged and are listed for manual review.
+
 ## When NOT to use a worktree
 
 - **Quick fix < 5 minutes:** a branch in the main checkout is fine.
