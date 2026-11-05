@@ -1,7 +1,7 @@
 name: Auto-Fix CI Failures
 # Triggered when the main CI workflow completes with a failure.
 # For lint and type errors: runs Claude Code to fix and re-push.
-# For all other failure classes: notifies Core via Slack.
+# For all other failure classes: notifies the operator via Slack.
 #
 # Security: only runs on same-repo branches (not fork PRs).
 # The auto-fix agent commits with write access; review agent

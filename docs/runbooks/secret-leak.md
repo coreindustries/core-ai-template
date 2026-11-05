@@ -11,7 +11,7 @@
 1. **Do not delete the file or rewrite history yet.** You may need forensics.
 2. **Do not share the secret value in Slack, email, or ticket systems.** Refer to it by name only ("the production Anthropic key," not the value).
 3. **Assume the secret is compromised from the moment it hit disk.** The goal is rotation, not concealment.
-4. **Notify:** post in `#sec-incidents` (or email `security@core-industries.com`) with:
+4. **Notify:** post in your security-incident channel (or email your security contact, e.g. `security@example.com`) with:
    - What kind of secret (no value)
    - Where it was found (path, repo, CI job, commit SHA)
    - Who discovered it and when

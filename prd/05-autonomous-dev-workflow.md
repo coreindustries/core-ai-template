@@ -2,20 +2,20 @@
 prd_version: "1.0"
 status: "Draft"
 last_updated: "2026-05-22"
-owner: "@coreyszopinski"
+owner: "@your-handle"
 ---
 
 # PRD-05 — Autonomous Dev Workflow (Stop Babysitting Agents)
 
 ## 1. Purpose
 
-**Audience:** Core (CEO / operator), Claude Code agents, CI/CD pipeline
+**Audience:** The operator (CEO / product owner), Claude Code agents, CI/CD pipeline
 
 **Problem:** A large share of maintainer time goes to agent babysitting — copy-pasting context, monitoring deploys, triaging CI failures, and rubber-stamping trivial PRs. This is a structural problem, not a capacity problem.
 
 **Goal:** Reduce human-in-the-loop overhead to <20% of dev time by building the scaffolding that makes agents self-sufficient, failures self-routing, and deploys self-observable.
 
-**Success metric:** Core spends ≥70% of dev time on feature invention, not coordination.
+**Success metric:** The operator spends ≥70% of dev time on feature invention, not coordination.
 
 **Non-goal:** Fully removing humans from logic/architecture decisions — those stay.
 
@@ -35,7 +35,7 @@ Every agent session MUST terminate by writing a structured handoff file. No agen
 
 **FR1.2 — CLAUDE.md Current State Block**
 
-`CLAUDE.md` MUST include a machine-updated `## Current State` block. Agents update it on every commit. Core never updates it manually.
+`CLAUDE.md` MUST include a machine-updated `## Current State` block. Agents update it on every commit. The operator never updates it manually.
 
 **FR1.3 — Worktree Context File**
 
@@ -80,8 +80,8 @@ PRs are auto-classified by commit type prefix and scope. Auto-merge executes wit
 |---|---|---|
 | 0 — Auto | `chore:` / `docs:` / `style:` + all CI green | Auto-merge immediately |
 | 1 — Fast | `fix:` + full test coverage + CI green | Auto-merge after 30min window |
-| 2 — Review | `feat:` — any size | Requires Core review |
-| 3 — Hold | Any PR touching: auth, billing schema, infra, migrations | Requires Core review + `needs-review` label |
+| 2 — Review | `feat:` — any size | Requires operator review |
+| 3 — Hold | Any PR touching: auth, billing schema, infra, migrations | Requires operator review + `needs-review` label |
 
 **FR3.2 — Auto-Merge Enforcement**
 
@@ -96,7 +96,7 @@ PRs are auto-classified by commit type prefix and scope. Auto-merge executes wit
 
 **FR4.1 — Post-Deploy Health Check**
 
-Every deploy MUST run a health check and report result to Slack. Core never watches a deploy console.
+Every deploy MUST run a health check and report result to Slack. The operator never watches a deploy console.
 
 - Health check hits: `/api/health` + 2–3 critical business endpoints
 - On pass: post green summary to the configured alert channel with deploy SHA and duration
@@ -141,7 +141,7 @@ PR: #{number} | Commit: {sha}
 Class: {lint|types|test|build|unknown}
 Auto-fix attempted: {yes|no}
 Result: {fixed|failed|not attempted}
-Next: {auto-merging|fix agent running|needs Core review}
+Next: {auto-merging|fix agent running|needs operator review}
 Log: {link or 3-line snippet}
 ```
 
