@@ -294,6 +294,9 @@ quality: ## Run full quality suite (lint + format + typecheck + security + test)
 	@echo "=== Ratchet gates ==="
 	@node scripts/ratchet.mjs --strict
 	@echo ""
+	@echo "=== Workflow security ==="
+	@node scripts/check-workflow-security.mjs
+	@echo ""
 	@echo "=== Tests ==="
 	{test_coverage_command}
 	@echo ""

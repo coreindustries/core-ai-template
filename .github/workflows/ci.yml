@@ -65,6 +65,12 @@ jobs:
       - name: Ratchet gates (silent failures, orphaned tests)
         run: node scripts/ratchet.mjs
 
+      # Unconditional: enforces workflow hardening (explicit permissions,
+      # persist-credentials: false, no pull_request_target checkout, same-repo
+      # guard on workflow_run). Reads only .github/workflows/.
+      - name: Check workflow security rules
+        run: node scripts/check-workflow-security.mjs
+
       # Quoted glob, not a bare directory: Node 22 (this runner's default)
       # treats `node --test scripts/tests/` as a file path and fails with
       # MODULE_NOT_FOUND. Node's own directory-recursion support for --test

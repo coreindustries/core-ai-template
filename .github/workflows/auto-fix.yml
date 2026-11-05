@@ -39,8 +39,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-          persist-credentials: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # Not persisted: the agent step below runs with permissions skipped
+          # and must not find the write token in .git/config. Only the push
+          # step receives it.
+          persist-credentials: false
 
       - name: Configure git identity
         run: |
@@ -115,8 +117,19 @@ jobs:
         if: >-
           steps.classify.outputs.failure_class == 'lint' ||
           steps.classify.outputs.failure_class == 'types'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git push origin "HEAD:$HEAD_BRANCH"
+          # The agent step ran with permissions skipped and may have written
+          # git hooks or http/proxy settings into .git/config. Neutralize both
+          # before the token is in scope.
+          # (exit 128 just means there was no [http] section to remove.)
+          git config --local --remove-section http 2>/dev/null || true
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          git -c core.hooksPath=/dev/null \
+            -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" \
+            push origin "HEAD:$HEAD_BRANCH"
 
       - name: Notify — auto-fix applied
         if: >-

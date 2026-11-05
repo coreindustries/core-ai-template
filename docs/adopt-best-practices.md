@@ -817,7 +817,7 @@ For each manifest, replace floating ranges with exact versions:
 | `Dockerfile` | `FROM node:22` | `FROM node:22.11.0-alpine@sha256:<digest>` |
 | `.github/workflows/*.yml` | `actions/checkout@v4` | `actions/checkout@<40-char-sha> # v4.2.2` |
 
-Lockfiles must be committed. CI must use `npm ci` / `pnpm install --frozen-lockfile`
+Lockfiles must be committed. CI must use `npm ci --ignore-scripts` / `pnpm install --frozen-lockfile --ignore-scripts`
 / `uv sync --frozen` / `cargo build --locked` — never plain `install`.
 
 ### 3.2 Cooldown enforcement (`.github/dependabot.yml`)
