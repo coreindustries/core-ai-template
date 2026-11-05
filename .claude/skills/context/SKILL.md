@@ -193,6 +193,7 @@ These mappings come from the Makefile `enable-*` targets:
 | `make enable-python` | python, security-owasp |
 | `make enable-api` | security-owasp |
 | `make enable-ios` | ios, security-owasp |
+| `make enable-macos` | macos, security-owasp |
 | `make enable-android` | android, security-owasp |
 | `make enable-mobile` | security-mobile, security-web, security-owasp |
 | `make enable-docker` | docker, security-owasp |

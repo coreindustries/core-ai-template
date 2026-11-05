@@ -30,6 +30,18 @@
 .DS_Store
 Thumbs.db
 
+# Xcode / SwiftPM (native macOS & iOS)
+xcuserdata/
+DerivedData/
+.build/
+.swiftpm/
+*.xcarchive
+*.dSYM/
+*.p12
+*.p8
+*.provisionprofile
+*.mobileprovision
+
 # Dependencies (language-specific - uncomment as needed)
 # Python
 # __pycache__/

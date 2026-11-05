@@ -165,6 +165,15 @@ Swap it for stock Postgres if you are certain you will not want vector search.
 scripts/scan-secrets.sh --all        # Secret & PII scan
 ```
 
+### Native macOS (if applicable — see `.claude/rules-available/macos.md`)
+
+```bash
+{macos_build_command}                # xcodebuild -scheme {scheme} -destination 'platform=macOS' build
+{macos_test_command}                 # xcodebuild test -scheme {scheme} -destination 'platform=macOS'
+{macos_lint_command}                 # swiftlint --strict
+{macos_notarize_command}             # notarytool submit (credentials from keychain, never on disk)
+```
+
 ### Full Quality Pipeline
 
 ```bash

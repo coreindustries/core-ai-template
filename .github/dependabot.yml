@@ -102,6 +102,19 @@ updates:
   #     prefix: "build"
   #     include: "scope"
 
+  # # SwiftPM — native macOS / iOS (Package.resolved must be committed)
+  # - package-ecosystem: "swift"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   cooldown:
+  #     default-days: 3
+  #   labels:
+  #     - "dependencies"
+  #   commit-message:
+  #     prefix: "build"
+  #     include: "scope"
+
   # # Docker — base images pinned by digest; Dependabot bumps the digest.
   # - package-ecosystem: "docker"
   #   directory: "/"

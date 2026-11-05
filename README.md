@@ -281,6 +281,7 @@ make enable-web      # Next.js / React web app
 make enable-python   # Python (uv, ruff, FastAPI)
 make enable-api      # Backend API (any stack, minimal)
 make enable-ios      # Native iOS (Swift / SwiftUI)
+make enable-macos    # Native macOS (Swift / SwiftUI / AppKit)
 make enable-android  # Native Android (Kotlin / Compose)
 make enable-mobile   # React Native mobile app
 make enable-docker   # Dockerized / containerized project
@@ -666,6 +667,7 @@ core-ai-template/
     │   ├── android.md           # Android (Kotlin / Compose)
     │   ├── docker.md            # Docker & container best practices
     │   ├── ios.md               # iOS (Swift / SwiftUI)
+    │   ├── macos.md             # macOS (Swift / SwiftUI / AppKit; path-scoped)
     │   ├── nextjs.md            # Next.js development patterns
     │   ├── python.md            # Python (uv, ruff, FastAPI)
     │   ├── security-web.md      # Web security (React, Next.js)
@@ -786,7 +788,7 @@ AI agents have limited context windows. This template is designed to minimize wa
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
 | **`rules/`** | Every session; a rule with `paths:` frontmatter only when a matching file is read or edited | Code quality, testing, error handling, git workflow, security basics, secrets hygiene, dependency security, database migrations, delivery contract, AI patterns, quality checks, task management, guardrails |
-| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, TypeScript, Python, iOS, Android, Docker, web/mobile security, OWASP |
+| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, TypeScript, Python, iOS, macOS, Android, Docker, web/mobile security, OWASP |
 | **`references/`** | Only when a skill reads it | Gitmoji, orchestration patterns, quality/security/SOLID checklists, rules guide |
 
 ### Enabling Platform Rules
@@ -803,6 +805,9 @@ make enable-api      # → security-owasp
 
 # Native iOS (Swift / SwiftUI)
 make enable-ios      # → ios, security-owasp
+
+# Native macOS (Swift / SwiftUI / AppKit); combine with enable-ios for shared code
+make enable-macos    # → macos, security-owasp
 
 # Native Android (Kotlin / Compose)
 make enable-android  # → android, security-owasp

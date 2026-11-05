@@ -1446,6 +1446,7 @@ make enable-python   # uv / ruff / FastAPI
 make enable-api      # backend, OWASP only
 make enable-mobile   # React Native
 make enable-ios      # Swift / SwiftUI
+make enable-macos    # Swift / SwiftUI / AppKit
 make enable-android  # Kotlin / Compose
 make enable-docker   # containerized
 ```

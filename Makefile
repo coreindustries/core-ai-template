@@ -382,6 +382,7 @@ enable-rules: ## Symlink platform-specific rules (interactive)
 	@echo "  make enable-python    # Python (uv, ruff, FastAPI)"
 	@echo "  make enable-ts        # TypeScript (strict tsconfig, ESLint, tsc)"
 	@echo "  make enable-ios       # Native iOS (Swift / SwiftUI)"
+	@echo "  make enable-macos     # Native macOS (Swift / SwiftUI / AppKit)"
 	@echo "  make enable-android   # Native Android (Kotlin / Compose)"
 
 enable-web: ## Enable rules for Next.js / React web projects
@@ -414,6 +415,11 @@ enable-ios: ## Enable rules for native iOS (Swift/SwiftUI) projects
 	@ln -sf ../rules-available/ios.md .claude/rules/ios.md
 	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 	@echo "Enabled: ios, security-owasp"
+
+enable-macos: ## Enable rules for native macOS (Swift/SwiftUI/AppKit) projects
+	@ln -sf ../rules-available/macos.md .claude/rules/macos.md
+	@ln -sf ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+	@echo "Enabled: macos, security-owasp"
 
 enable-android: ## Enable rules for native Android (Kotlin/Compose) projects
 	@ln -sf ../rules-available/android.md .claude/rules/android.md

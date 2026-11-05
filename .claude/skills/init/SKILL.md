@@ -221,6 +221,12 @@ ln -s ../rules-available/ios.md .claude/rules/ios.md
 ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ```
 
+**macOS (Swift / SwiftUI / AppKit):**
+```bash
+ln -s ../rules-available/macos.md .claude/rules/macos.md
+ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
+```
+
 **Android (Kotlin / Compose):**
 ```bash
 ln -s ../rules-available/android.md .claude/rules/android.md

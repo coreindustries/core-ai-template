@@ -24,6 +24,7 @@ All project standards live in `.claude/rules/` — read these files for full det
 | `.claude/rules-available/android.md` | Kotlin, Jetpack Compose, Hilt, Room |
 | `.claude/rules-available/docker.md` | Dockerfile, Compose, container security |
 | `.claude/rules-available/ios.md` | Swift, SwiftUI, concurrency, SwiftData |
+| `.claude/rules-available/macos.md` | macOS: sandbox, entitlements, signing, notarization, SPM |
 | `.claude/rules-available/nextjs.md` | Next.js 16+ patterns, server components |
 | `.claude/rules-available/python.md` | uv, ruff, mypy, FastAPI, async patterns |
 | `.claude/rules-available/security-web.md` | XSS, CSRF, SQL injection, CORS, headers |
