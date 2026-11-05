@@ -193,8 +193,8 @@ security: ## Run security scanner
 scan-secrets: ## Scan for secrets and PII (gitleaks)
 	@scripts/scan-secrets.sh --all
 
-deps-audit: ## Enforce dependency pinning + 24h cooldown (see dependency-security.md)
-	@echo "Checking dependency age (≥ 24h cooldown)..."
+deps-audit: ## Enforce dependency pinning + 3-day cooldown (see dependency-security.md)
+	@echo "Checking dependency age (≥ 3-day cooldown)..."
 	@scripts/assert-dependency-age.sh
 	@echo ""
 	@echo "Checking manifests for floating ranges..."

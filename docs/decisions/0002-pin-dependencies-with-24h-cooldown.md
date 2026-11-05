@@ -1,6 +1,6 @@
 # ADR-0002: Pin Dependencies + 24-Hour Cooldown on New Versions
 
-- **Status**: Accepted
+- **Status**: Superseded by [2026-11-05-three-day-dependency-cooldown](2026-11-05-three-day-dependency-cooldown.md) (cooldown length only; pinning decisions stand)
 - **Date**: 2026-04-21
 - **Deciders**: Platform engineering
 - **Supersedes**: —

@@ -32,12 +32,13 @@ with two AI-agent-specific additions: every ADR includes an
 | ID | Title | Status | Date |
 |---|---|---|---|
 | [0001](0001-no-plaintext-secrets-on-disk.md) | No Plaintext Secrets on Disk — Inject Into Process Memory | Accepted | 2026-04-21 |
-| [0002](0002-pin-dependencies-with-24h-cooldown.md) | Pin Dependencies + 24-Hour Cooldown on New Versions | Accepted | 2026-04-21 |
+| [0002](0002-pin-dependencies-with-24h-cooldown.md) | Pin Dependencies + 24-Hour Cooldown on New Versions | Superseded (cooldown length) | 2026-04-21 |
 | [0003](0003-supabase-migrations.md) | Database Migrations via Supabase CLI (Default) | Accepted | 2026-04-21 |
 | [0004](0004-unified-review-skill-claude-and-cursor.md) | Unified `/review` skill for Claude Code and Cursor | Accepted | 2026-05-13 |
 | [0005](0005-ci-cd-supply-chain-hardening.md) | CI/CD Supply Chain Hardening (SHA-pinned actions, credential scope, Zizmor) | Accepted | 2026-05-21 |
 | [0006](0006-autonomous-dev-workflow.md) | Autonomous Dev Workflow (self-healing CI, tier-based auto-merge, alert routing) | Accepted | 2026-05-22 |
 | [2026-09-24-node-for-template-tooling](2026-09-24-node-for-template-tooling.md) | Template Tooling Runs on the Runner's Default Node, Zero npm Dependencies | Accepted | 2026-09-24 |
+| [2026-11-05-three-day-dependency-cooldown](2026-11-05-three-day-dependency-cooldown.md) | Three-Day Cooldown on New Dependency Versions | Accepted | 2026-11-05 |
 
 ## Template
 

@@ -1,7 +1,7 @@
 ---
 name: deps
 description: >-
-  Audit, update, and manage dependencies under the pinning and 24h-cooldown rules in
+  Audit, update, and manage dependencies under the pinning and 3-day-cooldown rules in
   .claude/rules/dependency-security.md. Use when adding a dependency, reviewing a
   Dependabot PR, or checking for known vulnerabilities. Do not use for secret scanning
   or SAST (`/scan`), and note it will refuse a version that has not cleared the
@@ -27,7 +27,7 @@ Audit, update, and manage project dependencies safely.
 
 ## Workflow
 
-Use `prd/00_technology.md` and `.claude/rules/dependency-security.md` for package-manager commands, exact pins, lockfiles, install-script review and the 24-hour age policy. Read `.claude/rules/delivery-contract.md` for ownership and artifact proof.
+Use `prd/00_technology.md` and `.claude/rules/dependency-security.md` for package-manager commands, exact pins, lockfiles, install-script review and the 3-day age policy. Read `.claude/rules/delivery-contract.md` for ownership and artifact proof.
 
 - `audit` and `outdated` are read-only reports. `--security` limits findings to vulnerabilities; `--outdated` limits them to available updates. Name affected versions, evidence and remediation; an available version is not an instruction to upgrade.
 - `add` first checks whether existing dependencies or modules meet the requirement. Review provenance, maintenance, vulnerabilities, release age and install scripts; pin the chosen version.

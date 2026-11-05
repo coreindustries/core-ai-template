@@ -75,12 +75,12 @@ See `.claude/rules/dependency-security.md` (loaded when a manifest, lockfile, Do
 
 * **Pin every direct dependency to an exact version.** No `^`, `~`, `>=`, `latest`, branch refs. Commit lockfiles.
 * **GitHub Actions and Docker images pin by SHA / digest**, not tag. Tags are mutable; digests are not.
-* **New versions must be ≥ 24 hours old** before merge. This window catches malicious publishes the ecosystem yanks within a day.
+* **New versions must be ≥ 3 days old** before merge. This window lets the ecosystem catch and yank malicious publishes.
 * **Installs use the lockfile exclusively.** `npm ci` / `uv sync --frozen` / `cargo build --locked` — never bare `install` in CI or production images.
 * **Agents must not remove a pin to "fix" a resolution error.** Diagnose the conflict.
-* **Agents must not use latest-by-default** when adding a package. Look up a version ≥ 24h old.
+* **Agents must not use latest-by-default** when adding a package. Look up a version ≥ 3 days old.
 * **Install-time scripts** (`postinstall`, `preinstall`, `prepare` in npm; build scripts in PyPI) must be reviewed before adding. Flag any that the agent adds in the PR body.
-* **Waivers** for sub-24h bumps require a published advisory (GHSA/CVE) and the `security-hotfix-24h-waiver` label.
+* **Waivers** for bumps inside the 3-day window require a published advisory (GHSA/CVE) and the `security-hotfix-waiver` label.
 
 ### Network Restrictions
 

@@ -77,7 +77,7 @@ Refs:
     needs-info | blocked | do-not-merge | ready-to-merge
   - **Process** (as needed): codex (request cross-model review),
     dependencies (Dependabot or manual dep PR),
-    security-hotfix-24h-waiver (sub-24h dep bump with linked GHSA/CVE)
+    security-hotfix-waiver (dep bump inside the 3-day cooldown with linked GHSA/CVE)
 
   Full list: .github/labels.yml
 -->

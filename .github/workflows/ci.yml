@@ -307,7 +307,7 @@ jobs:
         if: steps.init.outputs.ready == 'true'
         run: uv run pip-audit --desc
 
-      - name: Enforce 24h dependency cooldown
+      - name: Enforce 3-day dependency cooldown
         run: bash scripts/assert-dependency-age.sh
         env:
           BASE_REF: origin/${{ github.base_ref || github.event.repository.default_branch }}
