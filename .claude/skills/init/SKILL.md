@@ -21,7 +21,7 @@ Initialize a new project with structure, configuration, and boilerplate.
 
 - `project_name`: Name for the new project (kebab-case)
 - `--template`: Project template (api, cli, library, fullstack)
-- `--stack`: Technology stack (python, typescript, go)
+- `--stack`: Technology stack (python, typescript, go, swift)
 
 ## Instructions
 
@@ -215,11 +215,21 @@ ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ```
 
-**iOS (Swift / SwiftUI):**
+**Native Apple (Swift):**
+Select macOS, iOS/iPadOS, or both from the requested deployment targets. Use the native
+Xcode/Swift build and test commands in `prd/00_technology.md`; do not substitute web tooling.
+Read `.claude/references/apple-ai-models.md` when the app uses AI. The common rule owns
+performance, media persistence, security and inference requirements.
+
 ```bash
+ln -s ../rules-available/apple-native.md .claude/rules/apple-native.md
+# macOS target (make enable-macos):
+ln -s ../rules-available/macos.md .claude/rules/macos.md
+# iOS/iPadOS target (make enable-ios):
 ln -s ../rules-available/ios.md .claude/rules/ios.md
-ln -s ../rules-available/security-owasp.md .claude/rules/security-owasp.md
 ```
+Do not enable an unrequested platform. Confirm SDK/deployment-target availability and name
+real-device checks separately from simulator/unit proof before claiming setup is complete.
 
 **Android (Kotlin / Compose):**
 ```bash

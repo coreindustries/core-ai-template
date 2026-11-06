@@ -18,9 +18,9 @@ This template establishes a foundation for projects where AI agents are primary 
 
 ### Context-Optimized Rules System
 - `.claude/rules/` - 17 universal rules: 10 always loaded, 7 loaded only when a matching file is touched
-- `.claude/rules-available/` - 9 platform rules, opt-in via `make enable-*`
+- `.claude/rules-available/` - 11 platform rules, opt-in via `make enable-*`
 - `.claude/references/` - On-demand lookups, loaded by skills when needed
-- Only loads what your project needs — a minimal backend stack auto-loads ~9.5K vs ~45K for every rule, about **79% less context**
+- Enable only the platform rules your project needs; path-scoped rules load when matching files are touched. See the measured context estimates below.
 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
@@ -280,7 +280,8 @@ Edit `CLAUDE.md` and replace placeholders:
 make enable-web      # Next.js / React web app
 make enable-python   # Python (uv, ruff, FastAPI)
 make enable-api      # Backend API (any stack, minimal)
-make enable-ios      # Native iOS (Swift / SwiftUI)
+make enable-macos    # Native macOS (SwiftUI / AppKit)
+make enable-ios      # Native iOS / iPadOS (SwiftUI / UIKit)
 make enable-android  # Native Android (Kotlin / Compose)
 make enable-mobile   # React Native mobile app
 make enable-docker   # Dockerized / containerized project
@@ -288,7 +289,7 @@ make enable-docker   # Dockerized / containerized project
 
 This symlinks platform-specific rules into `.claude/rules/` so they auto-load. See `.claude/references/rules-guide.md` for details.
 
-These rules count toward the always-loaded context budget, so the first `make enable-*` will fail `node scripts/check-context-budget.mjs`. Raise `ceilingBytes` in `.claude/context-budget.json` to the new total (the script prints it) in the same commit.
+Run `node scripts/check-context-budget.mjs` after enabling a preset. Path-scoped native Apple rules do not increase always-loaded context; unscoped additions may exceed the ceiling. Measure first and review rule scoping before proposing a justified `ceilingBytes` change in `.claude/context-budget.json`.
 
 ### Step 5: Run Setup (1 minute)
 
@@ -664,14 +665,17 @@ core-ai-template/
     │   └── ui-qa-gate.md        # User-visible output gate (path-scoped)
     ├── rules-available/         # Opt-in rules (symlink into rules/)
     │   ├── android.md           # Android (Kotlin / Compose)
+    │   ├── apple-native.md      # Shared Apple concurrency, media, security and AI
     │   ├── docker.md            # Docker & container best practices
-    │   ├── ios.md               # iOS (Swift / SwiftUI)
+    │   ├── ios.md               # iOS / iPadOS (SwiftUI / UIKit)
+    │   ├── macos.md             # macOS (SwiftUI / AppKit)
     │   ├── nextjs.md            # Next.js development patterns
     │   ├── python.md            # Python (uv, ruff, FastAPI)
     │   ├── security-web.md      # Web security (React, Next.js)
     │   ├── security-mobile.md   # Mobile security (React Native)
     │   └── security-owasp.md    # OWASP Top 10 standards
     ├── references/              # On-demand (loaded by skills; *-detail.md hold rule rationale)
+    │   ├── apple-ai-models.md    # Dated Apple SDK/model matrix and inference contract
     │   ├── code-quality-checklist.md # Code review quality checklist
     │   ├── gitmoji.md           # Gitmoji reference (/commit)
     │   ├── orchestration-patterns.md # Multi-agent coordination patterns
@@ -786,7 +790,7 @@ AI agents have limited context windows. This template is designed to minimize wa
 | Tier | When Loaded | Contains |
 |------|-------------|----------|
 | **`rules/`** | Every session; a rule with `paths:` frontmatter only when a matching file is read or edited | Code quality, testing, error handling, git workflow, security basics, secrets hygiene, dependency security, database migrations, delivery contract, AI patterns, quality checks, task management, guardrails |
-| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, TypeScript, Python, iOS, Android, Docker, web/mobile security, OWASP |
+| **`rules-available/`** | Only when symlinked into `rules/` | Next.js, TypeScript, Python, shared Apple/macOS/iOS, Android, Docker, web/mobile security, OWASP |
 | **`references/`** | Only when a skill reads it | Gitmoji, orchestration patterns, quality/security/SOLID checklists, rules guide |
 
 ### Enabling Platform Rules
@@ -801,8 +805,14 @@ make enable-python   # → python, security-owasp
 # Backend API (any stack, minimal)
 make enable-api      # → security-owasp
 
-# Native iOS (Swift / SwiftUI)
-make enable-ios      # → ios, security-owasp
+# Shared native Apple foundations only
+make enable-apple    # → apple-native
+
+# Native macOS (SwiftUI / AppKit)
+make enable-macos    # → apple-native, macos
+
+# Native iOS / iPadOS (SwiftUI / UIKit)
+make enable-ios      # → apple-native, ios
 
 # Native Android (Kotlin / Compose)
 make enable-android  # → android, security-owasp
@@ -817,6 +827,15 @@ make enable-docker   # → docker, security-owasp
 make enable-rules
 ```
 
+The Apple presets share [native engineering rules](.claude/rules-available/apple-native.md)
+and a dated [Apple AI model matrix](.claude/references/apple-ai-models.md). They cover bounded
+media pipelines, endurance evidence, capture permissions, local data/telemetry, StoreKit and
+explicit on-device versus Private Cloud Compute selection. Combine macOS and iOS presets for
+a shared app; Apple rules are path-scoped to native source/configuration files. Native presets
+now use the shared Apple security guidance instead of adding the web-oriented OWASP preset.
+They do not remove an existing separately enabled OWASP rule; retain it when another stack
+needs it, or review its removal as an explicit migration.
+
 Each command creates symlinks from `rules-available/` into `rules/`. You can also enable individual rules manually:
 
 ```bash
@@ -825,21 +844,25 @@ ln -s ../rules-available/nextjs.md .claude/rules/nextjs.md
 
 ### Context Budget by Project Type
 
-Always-loaded universal rules are ~8K on their own (path-scoped ones add up to
-~8K more only when matching files are touched); each row below is that base plus
-the platform rules the matching `make enable-*` symlinks in.
+Default always-loaded context is approximately 11.9K tokens. The estimates below count
+`CLAUDE.md` and unscoped rules after each preset; path-scoped universal rules load separately
+when their matching files are touched. Native Apple rules add approximately 2.0K tokens for
+shared guidance, 2.8K for macOS, or 3.0K for iOS when native files match, not on every task.
 
-| Project Type | Auto-Loaded | % of 200K Context |
-|--------------|-------------|-------------------|
-| Backend API, minimal (`enable-api`) | ~9.5K tokens | ~5% |
-| Containerized (`enable-docker`) | ~11.5K tokens | ~6% |
-| Python / Go API (`enable-python`) | ~13K tokens | ~7% |
-| React Native (`enable-mobile`) | ~16.5K tokens | ~8% |
-| Next.js Web App (`enable-web`) | ~20K tokens | ~10% |
+| Project Type | Always-Loaded Estimate | % of 200K Context |
+|--------------|------------------------|-------------------|
+| Native Apple / macOS / iOS (`enable-apple`, `enable-macos`, `enable-ios`) | ~11.9K tokens | ~6% |
+| Backend API, minimal (`enable-api`) | ~13.3K tokens | ~7% |
+| Containerized (`enable-docker`) | ~15.2K tokens | ~8% |
+| Python backend (`enable-python`) | ~16.8K tokens | ~8% |
+| React Native (`enable-mobile`) | ~20.2K tokens | ~10% |
+| Next.js Web App (`enable-web`) | ~24.0K tokens | ~12% |
 
-Loading every rule in both directories would be ~45K. Figures are file sizes at
-~4 chars/token — recompute them when rules are added, or they drift silently as
-they did before.
+Reading every rule in both directories would be approximately 50.8K tokens, excluding
+on-demand references. These are current file-byte estimates divided by four, not measured
+model billing tokens. Recompute them when rules change. Existing unscoped presets may exceed
+the configured ceiling; review scoping or a justified ceiling change rather than silently
+removing security guidance.
 
 CI enforces a ceiling on the always-loaded part (`CLAUDE.md` plus rules without
 `paths:` frontmatter): `node scripts/check-context-budget.mjs` against

@@ -1,345 +1,54 @@
-# iOS Development Rules
-
-**These rules apply to native iOS projects** built with Swift, SwiftUI, and the Apple platform SDK. Follow these practices for modern, performant, and App Store-ready applications.
-
-## Quick Reference
-
-- **SwiftUI First**: Default to SwiftUI, use UIKit only when SwiftUI lacks the capability
-- **Concurrency**: Use Swift structured concurrency (`async/await`, actors) over GCD/closures
-- **Architecture**: MVVM with `@Observable` (iOS 17+) or `ObservableObject` (iOS 16)
-- **Data**: SwiftData for persistence, Keychain for secrets, `UserDefaults` for preferences only
-- **Networking**: `URLSession` with `async/await`, `Codable` for JSON
-- **Testing**: XCTest for unit tests, XCUITest for UI tests, Swift Testing for modern tests
-- **Dependencies**: Swift Package Manager (SPM) over CocoaPods/Carthage
-
-## 1. SwiftUI Patterns
-
-### View Composition
-
-```swift
-// CORRECT: Small, composable views
-struct UserProfileView: View {
-    let user: User
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            AvatarView(url: user.avatarURL)
-            UserInfoSection(user: user)
-            ActionButtonsSection(userId: user.id)
-        }
-    }
-}
-
-// WRONG: Massive view body with all logic inline
-```
-
-### State Management
-
-| Property Wrapper | Use For |
-|-----------------|---------|
-| `@State` | View-local value types |
-| `@Binding` | Two-way reference to parent's state |
-| `@Observable` (iOS 17+) | Reference type models |
-| `@ObservableObject` (iOS 16) | Reference type models (legacy) |
-| `@Environment` | Dependency injection / shared values |
-| `@AppStorage` | UserDefaults-backed preferences |
-
-```swift
-// iOS 17+ with @Observable
-@Observable
-final class UserViewModel {
-    var user: User?
-    var isLoading = false
-    var error: Error?
-
-    func fetchUser(id: String) async {
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            user = try await userService.fetch(id: id)
-        } catch {
-            self.error = error
-        }
-    }
-}
-
-struct UserView: View {
-    @State private var viewModel = UserViewModel()
-
-    var body: some View {
-        Group {
-            if viewModel.isLoading {
-                ProgressView()
-            } else if let user = viewModel.user {
-                UserProfileView(user: user)
-            }
-        }
-        .task { await viewModel.fetchUser(id: userId) }
-    }
-}
-```
-
-### Navigation
-
-```swift
-// Use NavigationStack (iOS 16+) with type-safe navigation
-@Observable
-final class Router {
-    var path = NavigationPath()
-
-    func navigate(to destination: AppDestination) {
-        path.append(destination)
-    }
-
-    func popToRoot() {
-        path.removeLast(path.count)
-    }
-}
-
-enum AppDestination: Hashable {
-    case userProfile(id: String)
-    case settings
-    case detail(Item)
-}
-```
-
-## 2. Swift Concurrency
-
-### Structured Concurrency
-
-```swift
-// CORRECT: async/await
-func fetchDashboard() async throws -> Dashboard {
-    async let profile = fetchProfile()
-    async let posts = fetchPosts()
-    async let notifications = fetchNotifications()
-
-    return Dashboard(
-        profile: try await profile,
-        posts: try await posts,
-        notifications: try await notifications
-    )
-}
-
-// WRONG: Completion handlers / callback hell
-func fetchDashboard(completion: @escaping (Result<Dashboard, Error>) -> Void) {
-    fetchProfile { profileResult in
-        fetchPosts { postsResult in ... }
-    }
-}
-```
-
-### Actors for Thread Safety
-
-```swift
-actor ImageCache {
-    private var cache: [URL: UIImage] = [:]
-
-    func image(for url: URL) -> UIImage? {
-        cache[url]
-    }
-
-    func store(_ image: UIImage, for url: URL) {
-        cache[url] = image
-    }
-}
-```
-
-### MainActor for UI Updates
-
-```swift
-@MainActor
-final class ViewModel: Observable {
-    var items: [Item] = []
-
-    func refresh() async {
-        // Safe to update @Published/UI-bound properties
-        items = try await service.fetchItems()
-    }
-}
-```
-
-## 3. Data Persistence
-
-### Storage Decision Table
-
-| Data Type | Storage | Example |
-|-----------|---------|---------|
-| User preferences | `UserDefaults` / `@AppStorage` | Theme, language |
-| Structured data | SwiftData / Core Data | Users, posts, orders |
-| Secrets & tokens | Keychain | Auth tokens, API keys |
-| Files & media | FileManager (Documents/Caches) | Images, downloads |
-| Temporary cache | `NSCache` / URLCache | API responses, thumbnails |
-
-### SwiftData (iOS 17+)
-
-```swift
-@Model
-final class Task {
-    var title: String
-    var isCompleted: Bool
-    var createdAt: Date
-
-    init(title: String) {
-        self.title = title
-        self.isCompleted = false
-        self.createdAt = .now
-    }
-}
-
-struct TaskListView: View {
-    @Query(sort: \Task.createdAt, order: .reverse) var tasks: [Task]
-    @Environment(\.modelContext) var context
-
-    var body: some View {
-        List(tasks) { task in
-            TaskRow(task: task)
-        }
-    }
-
-    func addTask(title: String) {
-        context.insert(Task(title: title))
-    }
-}
-```
-
-### Keychain for Secrets
-
-```swift
-import Security
-
-enum KeychainHelper {
-    static func save(_ data: Data, for key: String) throws {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        ]
-        SecItemDelete(query as CFDictionary)
-        let status = SecItemAdd(query as CFDictionary, nil)
-        guard status == errSecSuccess else {
-            throw KeychainError.saveFailed(status)
-        }
-    }
-}
-
-// NEVER store tokens in UserDefaults
-// UserDefaults.standard.set(token, forKey: "authToken") // WRONG
-```
-
-## 4. Networking
-
-```swift
-// Protocol-based API client
-protocol APIClient: Sendable {
-    func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T
-}
-
-struct URLSessionAPIClient: APIClient {
-    private let session: URLSession
-    private let decoder: JSONDecoder
-
-    func request<T: Decodable>(_ endpoint: Endpoint) async throws -> T {
-        let (data, response) = try await session.data(for: endpoint.urlRequest)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-
-        guard (200...299).contains(httpResponse.statusCode) else {
-            throw APIError.httpError(statusCode: httpResponse.statusCode, data: data)
-        }
-
-        return try decoder.decode(T.self, from: data)
-    }
-}
-```
-
-## 5. Project Structure
-
-```
-MyApp/
-├── App/
-│   ├── MyApp.swift              # @main entry point
-│   └── AppDelegate.swift        # UIKit lifecycle (if needed)
-├── Features/
-│   ├── Auth/
-│   │   ├── Views/
-│   │   ├── ViewModels/
-│   │   └── Models/
-│   └── Home/
-│       ├── Views/
-│       ├── ViewModels/
-│       └── Models/
-├── Core/
-│   ├── Network/                 # API client, endpoints
-│   ├── Storage/                 # Keychain, SwiftData
-│   ├── Extensions/              # Swift extensions
-│   └── Utilities/               # Shared helpers
-├── Resources/
-│   ├── Assets.xcassets
-│   └── Localizable.xcstrings
-└── Tests/
-    ├── UnitTests/
-    └── UITests/
-```
-
-## 6. Testing
-
-```swift
-// Swift Testing (modern, preferred)
-import Testing
-
-@Suite("UserViewModel Tests")
-struct UserViewModelTests {
-    @Test("Fetches user successfully")
-    func fetchUser() async throws {
-        let mockService = MockUserService(result: .success(.stub))
-        let viewModel = UserViewModel(service: mockService)
-
-        await viewModel.fetchUser(id: "123")
-
-        #expect(viewModel.user?.id == "123")
-        #expect(viewModel.isLoading == false)
-    }
-
-    @Test("Handles fetch error")
-    func fetchUserError() async {
-        let mockService = MockUserService(result: .failure(APIError.notFound))
-        let viewModel = UserViewModel(service: mockService)
-
-        await viewModel.fetchUser(id: "invalid")
-
-        #expect(viewModel.user == nil)
-        #expect(viewModel.error != nil)
-    }
-}
-```
-
-## 7. Performance
-
-- **Lazy loading**: Use `LazyVStack`/`LazyHStack` for large lists
-- **Image caching**: Use `AsyncImage` with cache or a library like Kingfisher
-- **Background tasks**: Use `BGTaskScheduler` for background processing
-- **Memory**: Profile with Instruments, avoid retain cycles with `[weak self]` in closures
-- **Launch time**: Defer non-critical work, minimize `@main` app init
-
-## 8. Common Anti-Patterns
-
-| Anti-Pattern | Fix |
-|-------------|-----|
-| Force unwrapping (`!`) everywhere | Use `guard let`, `if let`, or nil coalescing |
-| Massive view controllers/views | Extract into smaller components |
-| GCD for new code | Use `async/await` and actors |
-| Storing secrets in `UserDefaults` | Use Keychain |
-| Synchronous network calls | Use `async/await` with `URLSession` |
-| Ignoring `@MainActor` | Annotate UI-mutating code |
-| Not handling cancellation | Check `Task.isCancelled`, use `.task` modifier |
-
-## See Also
-
-- `.claude/rules/security-core.md` - Core security practices (always auto-loaded)
-- `.claude/rules-available/security-mobile.md` - Mobile security (React Native, but patterns apply)
-- [Swift Documentation](https://docs.swift.org/swift-book/)
-- [Human Interface Guidelines](https://developer.apple.com/design/human-interface-guidelines/)
+---
+paths:
+  - "**/*.swift"
+  - "**/*.xcodeproj/**"
+  - "**/*.entitlements"
+  - "**/*.plist"
+---
+
+# Native iOS and iPadOS
+
+Enable with `make enable-ios`; also applies [shared Apple rules](apple-native.md).
+
+- Prefer SwiftUI and small views with one observable state owner. Use Observation for new
+  supported targets, retaining ObservableObject where existing shared code owns behavior.
+  Bridge UIKit/AVKit only for native capabilities the SwiftUI surface lacks.
+- Support touch-sized controls, Dynamic Type, VoiceOver, safe areas, rotation, compact width
+  and iPad multitasking. Use adaptive navigation/layouts rather than desktop fixed widths.
+  Changing presentation or entering background must not accidentally start another recording.
+- Use AVAudioSession as the authority for microphone route/category/mode/activation. Choose
+  mixing, Bluetooth, voice processing and speaker routing intentionally, then verify on device.
+  Observe interruptions, route changes and media-services resets. Preserve outputs and surface
+  stopped/incomplete sessions; do not automatically resume sensitive recording without an
+  explicit product policy and authorized user intent.
+- Declare only background modes the feature actually needs. Background audio/screen capture
+  and finite finalization time have different rules; BGTaskScheduler does not grant unlimited
+  live recording or inference time. Test lock, app switching, calls and forced termination.
+- Gate capture by SDK/runtime capabilities. On iOS 27+, ScreenCaptureKit uses Apple's content
+  sharing picker; retain its selected filter and respect the person's microphone selection.
+  Do not port macOS display/app filter constructors, region/sourceRect controls, queue-depth
+  or frame-interval settings without verifying iOS API availability. Throttle downstream
+  video work with bounded storage when capture rate cannot be configured.
+- For older deployment targets, design the supported microphone/import experience or an
+  explicitly scoped ReplayKit path. Do not infer arbitrary other-app/call audio capture from
+  macOS behavior; protected content and microphone contention can prevent it. Screen capture
+  support on a physical device does not imply the simulator has the same framework or behavior.
+- Use document/file pickers and balanced security-scope access for imports/exports. Coordinate
+  provider-backed files; handle downloads, loss of access and cancellation. Keep durable media
+  out of purgeable caches. Choose data-protection/backup classes compatible with the documented
+  locked-device recording behavior; do not silently upload a local-only app's recordings.
+- Use Keychain for secrets; never UserDefaults or a shipped developer key. Keep ATS protections
+  enabled and validate deep links/imported metadata. Use FileManager for media, SwiftData/Core
+  Data when structured storage warrants it; do not add a database just to store recording files.
+- Compile both generic iOS device and simulator targets. Test shared logic with Swift Testing
+  or XCTest, UI with XCUITest, and media/permissions/background behavior on an actual iPhone
+  and iPad. Local speech and Apple Intelligence require runtime availability checks even when
+  the OS version is supported. Record test hardware and language/model-asset state.
+- Test StoreKit with the Xcode scheme's configuration and sandbox/TestFlight as separate
+  environments. A verified fixture entitlement is not a production purchase or App Store
+  Connect product setup. Preserve native purchase/restore/error states and device eligibility.
+
+Sources: [AVAudioSession](https://developer.apple.com/documentation/avfaudio/avaudiosession),
+[iOS screen capture](https://developer.apple.com/documentation/screencapturekit/capturing-screen-content-on-ios),
+[background modes](https://developer.apple.com/documentation/xcode/configuring-background-execution-modes),
+[document access](https://developer.apple.com/documentation/uikit/providing-access-to-directories).
