@@ -16,6 +16,9 @@ Enable with `make enable-ios`; also applies [shared Apple rules](apple-native.md
 - Support touch-sized controls, Dynamic Type, VoiceOver, safe areas, rotation, compact width
   and iPad multitasking. Use adaptive navigation/layouts rather than desktop fixed widths.
   Changing presentation or entering background must not accidentally start another recording.
+- Revalidate macOS features for iOS before sharing implementations: host shells/VMs, desktop
+  paths, window lifecycle and background work are not portable assumptions. Share core logic;
+  adapt capabilities, authorization and presentation to each target.
 - Use AVAudioSession as the authority for microphone route/category/mode/activation. Choose
   mixing, Bluetooth, voice processing and speaker routing intentionally, then verify on device.
   Observe interruptions, route changes and media-services resets. Preserve outputs and surface

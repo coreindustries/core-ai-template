@@ -34,6 +34,17 @@ These shared obligations complement the platform rule. Read
   accepted packets before closing writers, and prevent stale callbacks from publishing.
   Preparation, recording, stopping and failed finalization must be distinct observable states.
 
+## App state and persistence
+
+- Share app-owned database and inference services across windows/scenes. Opening a diagnostic
+  view must not construct another service or restart work. Guard view queries by selection,
+  page and request identity; closing a view cancels its queries, not unrelated app-owned work.
+- Keep SwiftData/Core Data contexts and managed models within their isolation boundary; return
+  immutable Sendable projections to UI/services. Keep expensive work off MainActor explicitly.
+- For structured storage, migrations, retrieval indexes or inspectors, read
+  [Apple persistence](../references/apple-persistence.md). Keep product-specific folder,
+  provider and cloud-routing choices in the project's own PRD; these presets do not select them.
+
 ## Long sessions, CPU and storage
 
 - Stream audio/video to disk; never accumulate a full recording, decoded movie or per-second
@@ -96,6 +107,8 @@ These shared obligations complement the platform rule. Read
 
 ## Verification
 
+- For native feature acceptance or release verification, use `/apple-verify`
+  ([workflow](../skills/apple-verify/SKILL.md)); keep its detailed checks on demand.
 - Probe the installed SDK and deployment target before broad implementation. Compile each
   target with Swift's strict concurrency checks; build iOS device and simulator variants.
   Do not suppress deprecations globally to conceal unsupported platform paths.
