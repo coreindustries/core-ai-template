@@ -35,7 +35,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 ├── .claude/rules/             → 17 universal rules: 10 always loaded, 7 path-scoped
 ├── .claude/rules-available/   → 11 opt-in rules (symlink to enable)
 ├── .claude/references/        → On-demand references (loaded by skills)
-├── .claude/skills/            → 42 slash commands (invoke with /name)
+├── .claude/skills/            → 43 slash commands (invoke with /name)
 ├── .claude/agents/            → 11 specialized agents (see _template.md for structure)
 ├── .claude/agent-lanes.json   → Agent lanes config (environment ladder, PRD layout, name prefix)
 ├── .claude/mcp.json           → MCP server configuration template
@@ -43,7 +43,7 @@ CLAUDE.md (this file)          → Top-level guidance, commands, architecture
 └── .codex/hooks.json          → Codex project hooks (UserPromptSubmit lane-role adapter)
 ```
 
-**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — those with `paths:` frontmatter (testing, dependency security, database migrations, Claude API, runtime confirmation, Node error handling, UI QA gate) only when a matching file is read or edited. Do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, secrets hygiene, dependency security, database migrations, delivery contract, AI agent patterns, Claude API, runtime confirmation, Node error handling, UI QA gate, quality checks, task management, guardrails). Long rationale and examples live in `.claude/references/*-detail.md`. Native Apple guidance shares `apple-native.md` across the macOS and iOS presets, with model selection in `.claude/references/apple-ai-models.md`. Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-apple`, `make enable-macos`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
+**Key**: `.claude/rules/*.md` files are **automatically loaded** into context — those with `paths:` frontmatter (testing, dependency security, database migrations, Claude API, runtime confirmation, Node error handling, UI QA gate) only when a matching file is read or edited. Do not duplicate their content here. They are the **source of truth** for universal standards (code quality, testing, error handling, git workflow, security-core, secrets hygiene, dependency security, database migrations, delivery contract, AI agent patterns, Claude API, runtime confirmation, Node error handling, UI QA gate, quality checks, task management, guardrails). Long rationale and examples live in `.claude/references/*-detail.md`. Native acceptance uses `/apple-verify`; storage details live in `.claude/references/apple-persistence.md`. Native Apple guidance shares `apple-native.md` across the macOS and iOS presets, with model selection in `.claude/references/apple-ai-models.md`. Platform-specific rules live in `rules-available/` and must be symlinked into `rules/` to activate. Use `make enable-web`, `make enable-python`, `make enable-api`, `make enable-apple`, `make enable-macos`, `make enable-ios`, `make enable-android`, `make enable-mobile`, or `make enable-docker`.
 
 ## Commands
 
@@ -143,7 +143,7 @@ Use cases: onboarding an existing repo to the kit's secret-scan / commit / PR-te
 
 ## Skills (Slash Commands)
 
-42 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+43 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 

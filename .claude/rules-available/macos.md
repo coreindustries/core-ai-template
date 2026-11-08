@@ -11,8 +11,9 @@ paths:
 Enable with `make enable-macos`; also applies [shared Apple rules](apple-native.md).
 
 - Use SwiftUI with AppKit adapters where native window lifecycle, menus, panels or AVKit need
-  them. Keep one recording owner across windows/menu-bar controls. Compact/expanded views must
-  not create another capture session or reset recording state; preserve intended window geometry.
+  them. Share feature state across windows/menu-bar controls; auxiliary windows observe the
+  existing owner. Compact/expanded views must not duplicate sessions or reset state. Verify
+  close/reopen and selection changes while work continues; preserve intended window geometry.
 - Use public ScreenCaptureKit selection/capture APIs available to the deployment target.
   Validate a selected region against its original display and scale before each capture;
   never substitute another display silently. Audio-only capture must not save screen pixels.
@@ -33,6 +34,8 @@ Enable with `make enable-macos`; also applies [shared Apple rules](apple-native.
 - Stop and detach players/observers when replacing a session or leaving playback. Opening a
   recording should not autoplay or start capture. Validate actual AVKit linking in the app
   executable; a typecheck or differently linked test harness cannot establish launch success.
+- When packaging is requested, preserve prior apps and user data. Verify the exact signed
+  output and any requested Finder alias/launcher target; a successful build is not a launch test.
 - Test the signed app bundle, not only `swift run`: launch/quit/reopen, permission denial and
   revocation, multi-display geometry, sleep/device changes, save/open/export and native playback.
   Archive/signing/notarization or Mac App Store sandbox checks remain separate release gates.

@@ -67,6 +67,23 @@ as offline or silently route a failed local request to PCC/another provider.
   cases on supported real hardware. Compare before/after output when prompts/OS models change;
   distinguish deterministic validators, human review and an actually executed model judge.
 
+## Interactive agents and retrieval
+
+- Distinguish configured/candidate routing from an active SDK request. Set execution indicators
+  from the actual request lifecycle, including preflight, failure, cancellation and idle. Preserve
+  the request's identity when the user selects another agent/conversation; do not auto-replay
+  side-effecting tools during fallback. Follow the project's authorized local/cloud policy.
+- Where an operator requests prompt inspection, capture the exact app instructions, input,
+  generated output, tool segments and public SDK metadata at their real boundaries. Label
+  absent metadata unavailable; reconstructed chat text is not a raw trace. Internal provider
+  prompts/wire data are not exposed merely because the app can inspect a session transcript.
+- Label character, whitespace-word and SDK token counts separately. Separate prose from JSON;
+  prior assistant history is input on replay. Count only generated output as output, excluding
+  app errors/status notices. Keep captures bounded and transient unless persistence is requested.
+- For conversation retrieval or embeddings, follow [Apple persistence](apple-persistence.md).
+  A language model, embedding provider, vector store and text index have distinct responsibilities;
+  availability of one does not establish the others. Validate the selected embedding API on device.
+
 ## Diagnostics boundary
 
 Keep meeting content out of automatic crash/product analytics. Useful opt-in aggregates include

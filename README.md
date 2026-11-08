@@ -11,7 +11,7 @@ This template establishes a foundation for projects where AI agents are primary 
 - **Architecture Decision Records** (ADRs) with agent-specific fields to prevent undoing intentional choices
 - **Product requirements documentation** (PRD) for maintaining project context
 - **Task tracking** for long-running features and session recovery
-- **42 reusable skills** (slash commands) for common development workflows
+- **43 reusable skills** (slash commands) for common development workflows
 - **Compound engineering** practices adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) — knowledge capture, requirements discovery, and multi-perspective code review
 
 ## Features
@@ -25,8 +25,8 @@ This template establishes a foundation for projects where AI agents are primary 
 ### AI Agent Guidance
 - `CLAUDE.md` - Project-level instructions and coding standards
 - `.claude/agents/` - 11 specialized agents with authority bounds + standardized template
-- `.claude/skills/` - 42 slash commands for common workflows
-- `.claude/references/` - 15 on-demand references (orchestration patterns, checklists, gitmoji, rule detail)
+- `.claude/skills/` - 43 slash commands for common workflows
+- `.claude/references/` - 17 on-demand references (orchestration patterns, checklists, gitmoji, rule detail)
 - `.claude/mcp.json` - MCP server configuration template
 - `docs/decisions/` - Architecture Decision Records with agent-guidance fields
 
@@ -96,6 +96,7 @@ A standing team of Claude Code sessions — one Release Manager, one PRD Manager
 | `/review` | Code review against standards |
 | `/code-review-expert` | Senior engineer lens review (SOLID, security, perf) |
 | `/debug` | Systematic debugging workflow |
+| `/apple-verify` | Verify native macOS/iOS features in the signed app with isolated data and device evidence |
 | `/api` | Design REST/GraphQL endpoints |
 
 **Git & Workflow**
@@ -696,7 +697,7 @@ core-ai-template/
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   ├── codebase-researcher.md # Deep codebase analysis
     │   └── ci-triage.md         # Failing check → class / cause / fix (agent lanes)
-    └── skills/                  # Slash commands (42 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
+    └── skills/                  # Slash commands (43 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle
@@ -727,6 +728,7 @@ core-ai-template/
         ├── compound/            # Knowledge capture from solved problems
         ├── brainstorm/          # Requirements exploration
         ├── context/             # Context budget audit and optimization
+        ├── apple-verify/        # Native signed-app acceptance and device verification
         └── handoff/             # Session-end handoff for context recovery
 ```
 
@@ -836,6 +838,19 @@ now use the shared Apple security guidance instead of adding the web-oriented OW
 They do not remove an existing separately enabled OWASP rule; retain it when another stack
 needs it, or review its removal as an explicit migration.
 
+For native feature acceptance, use [`/apple-verify`](.claude/skills/apple-verify/SKILL.md).
+Structured-storage features use the on-demand [persistence guide](.claude/references/apple-persistence.md).
+Keep project paths, providers and routing defaults in the project's PRD.
+
+A starting prompt for a new Apple project:
+
+> Build a native Apple app for the platforms and features in this brief. Fill in
+> `prd/00_technology.md`, enable the relevant Apple presets, and verify SDK, deployment,
+> signing and capability requirements before choosing implementations. Reuse native frameworks
+> and existing owners; preserve user data and use isolated fixtures. Use `/apple-verify` for
+> the signed app's user workflow. Report what ran on which build/device and any unverified
+> release requirements.
+
 Each command creates symlinks from `rules-available/` into `rules/`. You can also enable individual rules manually:
 
 ```bash
@@ -846,8 +861,8 @@ ln -s ../rules-available/nextjs.md .claude/rules/nextjs.md
 
 Default always-loaded context is approximately 11.9K tokens. The estimates below count
 `CLAUDE.md` and unscoped rules after each preset; path-scoped universal rules load separately
-when their matching files are touched. Native Apple rules add approximately 2.0K tokens for
-shared guidance, 2.8K for macOS, or 3.0K for iOS when native files match, not on every task.
+when their matching files are touched. Native Apple rules add approximately 2.3K tokens for
+shared guidance, 3.1K for macOS, or 3.3K for iOS when native files match, not on every task.
 
 | Project Type | Always-Loaded Estimate | % of 200K Context |
 |--------------|------------------------|-------------------|
@@ -858,7 +873,7 @@ shared guidance, 2.8K for macOS, or 3.0K for iOS when native files match, not on
 | React Native (`enable-mobile`) | ~20.2K tokens | ~10% |
 | Next.js Web App (`enable-web`) | ~24.0K tokens | ~12% |
 
-Reading every rule in both directories would be approximately 50.8K tokens, excluding
+Reading every rule in both directories would be approximately 51.2K tokens, excluding
 on-demand references. These are current file-byte estimates divided by four, not measured
 model billing tokens. Recompute them when rules change. Existing unscoped presets may exceed
 the configured ceiling; review scoping or a justified ceiling change rather than silently
