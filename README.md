@@ -345,7 +345,10 @@ Nobody self-merges — you click merge. Only the Release Manager deploys.
    first, each with `deploy`, `health`, `logs` and `rollback` commands), the PRD location and
    requirement-id pattern, test commands per area, and the name prefix.
 2. `make lanes-init` — validates the config and creates the lane labels.
-3. Optional: the live GitHub Projects board (`scripts/dev/board/README.md`, "Live board").
+3. Fill in [`WORKFLOW.md`](WORKFLOW.md): which agents run here, how issues route, one worked
+   example task and what the operator has pre-approved. It is the front door an agent or a
+   cross-repo orchestrator reads first.
+4. Optional: the live GitHub Projects board (`scripts/dev/board/README.md`, "Live board").
 
 **Launch a lane:** open `claude` in the main checkout and start the first prompt with one of:
 
@@ -602,6 +605,7 @@ core-ai-template/
 ├── CLAUDE.md                    # AI agent project guidance
 ├── CONTRIBUTING.md              # Contributor guide and workflow
 ├── REPO_SETUP.md                # GitHub repo configuration for autonomous workflow
+├── WORKFLOW.md                  # Agents, issue routing, example task, guardrails (fill in per repo)
 ├── Makefile                     # One-command setup, dev, test, quality
 ├── .editorconfig                # Cross-IDE formatting consistency
 ├── .env.example                 # Environment variable template
