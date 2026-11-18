@@ -4,6 +4,7 @@ Apply [Simplest complete solution](.claude/rules/code-quality.md#simplest-comple
 to planning, implementation, documentation and review.
 
 Security and behavioral standards for all AI coding agents working in this repository.
+Which agents work here and where each kind of issue goes: [WORKFLOW.md](WORKFLOW.md).
 
 ## Codex
 
