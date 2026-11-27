@@ -176,6 +176,25 @@ run_role_hook "$WORK/p.txt" sess-prd2 >/dev/null
 [ "$(name_of sess-prd2)" = "C-PRD" ] && pass "prd-manager-numbered-prompt-still-yields-c-prd-singleton" \
   || fail "prd-manager-numbered-prompt-still-yields-c-prd-singleton (got '$(name_of sess-prd2)')"
 
+rm -rf "$STATE_DIR"; printf '%s' "You are the Tech Director" > "$WORK/p.txt"
+run_role_hook "$WORK/p.txt" sess-techdir >/dev/null
+[ "$(role_of sess-techdir)" = "techdir" ] && pass "tech-director-phrase-matches" \
+  || fail "tech-director-phrase-matches (got role='$(role_of sess-techdir)')"
+[ "$(name_of sess-techdir)" = "C-TECHDIR" ] && pass "tech-director-name-is-c-techdir" \
+  || fail "tech-director-name-is-c-techdir (got '$(name_of sess-techdir)')"
+
+# Singleton lane: a trailing number must not produce C-TECHDIR-2.
+rm -rf "$STATE_DIR"; printf '%s' "You are the Tech Director 2" > "$WORK/p.txt"
+run_role_hook "$WORK/p.txt" sess-techdir2 >/dev/null
+[ "$(name_of sess-techdir2)" = "C-TECHDIR" ] && pass "tech-director-numbered-prompt-still-yields-singleton" \
+  || fail "tech-director-numbered-prompt-still-yields-singleton (got '$(name_of sess-techdir2)')"
+
+# A mid-sentence mention must not assign the role.
+rm -rf "$STATE_DIR"; printf '%s' "ask the tech director about it" > "$WORK/p.txt"
+run_role_hook "$WORK/p.txt" sess-techdir-mid >/dev/null
+[ "$(role_of sess-techdir-mid)" = "" ] && pass "tech-director-mid-sentence-mention-ignored" \
+  || fail "tech-director-mid-sentence-mention-ignored (got role='$(role_of sess-techdir-mid)')"
+
 # MUTATION CHECK: break the prd role regex (swap it for a pattern that can
 # never match anything) and confirm the positive prd cases above would then
 # fail — proving those tests are actually exercising the regex, not passing

@@ -11,7 +11,7 @@ This template establishes a foundation for projects where AI agents are primary 
 - **Architecture Decision Records** (ADRs) with agent-specific fields to prevent undoing intentional choices
 - **Product requirements documentation** (PRD) for maintaining project context
 - **Task tracking** for long-running features and session recovery
-- **43 reusable skills** (slash commands) for common development workflows
+- **44 reusable skills** (slash commands) for common development workflows
 - **Compound engineering** practices adapted from [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) — knowledge capture, requirements discovery, and multi-perspective code review
 
 ## Features
@@ -67,7 +67,7 @@ See `REPO_SETUP.md` for one-time GitHub configuration (auto-merge setting, branc
 
 ### Agent Lanes
 
-A standing team of Claude Code sessions — one Release Manager, one PRD Manager, plus parallel Feature and Bugfix agents — coordinating through GitHub Issues, configured by one file (`.claude/agent-lanes.json`). Deploys are verified by the SHA actually running, logs are redacted by the tool before any model or issue sees them, and every agent babysits its own PRs to merged. See [Running the agent lanes](#running-the-agent-lanes).
+A standing team of Claude Code sessions — one Release Manager, one PRD Manager, one advisory Tech Director, plus parallel Feature and Bugfix agents — coordinating through GitHub Issues, configured by one file (`.claude/agent-lanes.json`). Deploys are verified by the SHA actually running, logs are redacted by the tool before any model or issue sees them, and every agent babysits its own PRs to merged. See [Running the agent lanes](#running-the-agent-lanes).
 
 ### Adopt Into Any Existing Repo
 - `docs/adopt-best-practices.md` - **Self-contained** markdown file you can hand to any Claude Code (or compatible) agent in another repo to land this template's tooling discipline (secret scanning, Conventional Commits, PR template, ADR/PRD/coordination workflows) in a single PR
@@ -133,6 +133,7 @@ A standing team of Claude Code sessions — one Release Manager, one PRD Manager
 | `/feature-agent` | Find unbuilt PRD requirements, file and claim them, build through architect → judge → PR |
 | `/bugfix-agent` | Take the highest-priority `lane:bug`, reproduce, fix the class, babysit the PR to merged |
 | `/prd-manager` | Write and groom PRDs so every requirement is honest and testable, hand buildable FRs to FEATURES |
+| `/tech-director` | Advisory: align new work with old, sweep across lanes for repeat fixes and parallel inventions, file evidence-backed consolidation issues; never implements, approves, merges or deploys |
 
 **Knowledge & Discovery**
 | Skill | Purpose |
@@ -334,7 +335,7 @@ git checkout -b feat/my-feature
 ## Running the agent lanes
 
 A standing team of Claude Code sessions that coordinate through GitHub Issues: one **Release
-Manager**, one **PRD Manager**, and any number of parallel **Feature** and **Bugfix** agents. Every
+Manager**, one **PRD Manager**, one advisory **Tech Director**, and any number of parallel **Feature** and **Bugfix** agents. Every
 task is an issue with one `lane:*`, one `P0`–`P3`, exactly one `state:*` (`backlog → implementing →
 built → deployed → verifying → done`, or `blocked` / `dropped`) and, while claimed, `agent:<NAME>`.
 Nobody self-merges — you click merge. Only the Release Manager deploys.
@@ -358,6 +359,7 @@ Nobody self-merges — you click merge. Only the Release Manager deploys.
 | `You are the Feature manager` (or `You are feature agent 2`) | `C-FEATURE-<id>` — finds unbuilt PRD requirements, files and claims them, architect → planner → implement → judge → PR |
 | `You handle bug fixes` (or `You are bugfix agent 3`) | `C-BUGFIX-<id>` — takes the highest-priority `lane:bug`, reproduces it, fixes the class, same review and PR loop |
 | `You are the PRD manager` | `C-PRD` — writes and grooms PRDs, keeps every requirement honest and testable, hands buildable FRs to the Feature lane |
+| `You are the Tech Director` | `C-TECHDIR` — advisory: finds overlapping ownership and repeated delivery cost across lanes, files consolidation issues and PR review comments, keeps open PRs moving; never implements, merges or deploys |
 
 A hook records the role and re-injects it after every compaction, so a lane survives long sessions
 (`CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude` compacts early). Each agent babysits its own PRs to
@@ -701,7 +703,7 @@ core-ai-template/
     │   ├── data-integrity-reviewer.md # Data consistency & validation
     │   ├── codebase-researcher.md # Deep codebase analysis
     │   └── ci-triage.md         # Failing check → class / cause / fix (agent lanes)
-    └── skills/                  # Slash commands (43 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
+    └── skills/                  # Slash commands (44 skills, each <name>/SKILL.md; _shared/ holds the agent-lanes protocol)
         ├── adr/                 # Architecture Decision Records
         ├── compact/             # Context state snapshots
         ├── feature/             # Full feature lifecycle

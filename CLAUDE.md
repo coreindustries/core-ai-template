@@ -88,9 +88,9 @@ Before proposing changes to project architecture, patterns, or dependencies, che
 
 ## Agent Routing
 
-**Default model:** `sonnet` (set in `.claude/settings.json`). Opus is reserved for the three-stage design chain below — do not override any other agent upward to Opus.
+**Default model:** `sonnet` (set in `.claude/settings.json`). Opus and fable are reserved for the three-stage design chain below — do not override any other agent upward to Opus.
 
-**Model pins use short-form aliases** (`opus` / `sonnet` / `haiku` / `inherit`), never dated IDs like `claude-sonnet-5`. An alias tracks the current generation, so a model upgrade needs no edit and no agent silently pins to a retired version. Dated IDs belong only in application code and API examples, where the alias is not a valid model identifier. The pins live in `.claude/agent-models.json` and are written into agent frontmatter by `node scripts/sync-agent-models.mjs`; edit the config, not the frontmatter. CI enforces that they match.
+**Model pins use short-form aliases** (`fable` / `opus` / `sonnet` / `haiku` / `inherit`), never dated IDs like `claude-sonnet-5`. An alias tracks the current generation, so a model upgrade needs no edit and no agent silently pins to a retired version. Dated IDs belong only in application code and API examples, where the alias is not a valid model identifier. The pins live in `.claude/agent-models.json` and are written into agent frontmatter by `node scripts/sync-agent-models.mjs`; edit the config, not the frontmatter. CI enforces that they match.
 
 **Proportionate delegation.** Handle direct lookups and routine edits locally. Delegate bounded independent work when useful, retain shared mutations and synthesis with the parent, and use the design-chain routing below. The mandatory judge remains the final gate.
 
@@ -107,7 +107,7 @@ Each agent's file carries role boundaries. Invoke architect and planner at the d
 1. **No agent.** If it is one `Grep`/`Glob`/`Read`/`Bash` away, do it directly.
 2. **`haiku`** — lookups, listing, scanning, formatting: `codebase-researcher`, or `Agent` with `model: "haiku"`. Do NOT use `general-purpose` for lookups.
 3. **`sonnet`** — implementation, tests, multi-file research, reviews other than `judge`: `Explore`, the sonnet-pinned project agents, or `Agent` with `model: "sonnet"`. This is the default for any subagent that writes code.
-4. **`opus`** — only `architect`, `planner`, `judge`, through their pins.
+4. **`opus` / `fable`** — only `architect`, `planner`, `judge`, through their pins (`architect` and `judge` on `fable`, `planner` on `opus`).
 
 - **Always pass `model:` explicitly** when calling a built-in agent (`general-purpose`, `Explore`, `Plan`). Without it the agent inherits the session model, which may be Opus if the user switched, and that quietly moves routine work up a tier.
 - **Delegate bounded work, keep the verdict.** Independent research or implementation may use subagents; avoid delegation merely because more than two files need reading. The parent integrates compact evidence and retains shared mutations.
@@ -143,7 +143,7 @@ Use cases: onboarding an existing repo to the kit's secret-scan / commit / PR-te
 
 ## Skills (Slash Commands)
 
-43 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
+44 skills available in `.claude/skills/`. Each is auto-discovered from its `SKILL.md` frontmatter — invoke with `/name`. See README.md for the full catalog with descriptions.
 
 ## CI/CD
 
