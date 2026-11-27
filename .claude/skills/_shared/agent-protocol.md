@@ -24,6 +24,7 @@ The operator opens `claude` in the main checkout and says one sentence:
 | "You are the Feature manager" / "You are feature agent 2" | feature | `<P>-FEATURE-<id>` | `feature-agent` |
 | "You handle bug fixes" / "You are bugfix agent 3" | bugfix | `<P>-BUGFIX-<id>` | `bugfix-agent` |
 | "You are the PRD manager" | prd | `<P>-PRD` (one at a time) | `prd-manager` |
+| "You are the Tech Director" | techdir | `<P>-TECHDIR` (one at a time) | `tech-director` |
 
 The sentence must **start** the prompt; the same words later in a prompt are ignored.
 
@@ -37,7 +38,7 @@ After every compaction or resume, the `SessionStart` hook (`.claude/hooks/agent-
 re-injects your role, claimed issues and open PRs. Obey it: re-read your SKILL.md and this file,
 then re-arm your PR watch (§7). A compaction summary alone does not keep a lane.
 
-Run any number of FEATURE and BUGFIX agents at once; run one RELEASE-MANAGER and one PRD-MANAGER.
+Run any number of FEATURE and BUGFIX agents at once; run one RELEASE-MANAGER, one PRD-MANAGER and one TECH-DIRECTOR (advisory: it files issues and review comments, claims no lane work, and never merges or deploys).
 For long sessions, compact early: `CLAUDE_CODE_AUTO_COMPACT_WINDOW=200000 claude`.
 
 ## 1. Lanes

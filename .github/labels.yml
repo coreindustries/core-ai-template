@@ -171,6 +171,10 @@
   color: "BFD4F2"
   description: Request opt-in cross-model PR review
 
+- name: techdir-reviewed
+  color: "D4C5F9"
+  description: Tech Director has reviewed this PR for overlap with existing work
+
 - name: dependencies
   color: "0366D6"
   description: Dependabot or manual dependency PR

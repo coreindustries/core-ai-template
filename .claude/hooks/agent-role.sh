@@ -23,13 +23,14 @@
 #   bugfix   ^/bugfix-agent    | ^you (handle|do|own) (the )?bug ?fix(es)?
 #                              | ^you are (the |a )?bug ?fix(es)? (manager|agent|lane)
 #   prd      ^/prd-manager     | ^you are (the |a )?(prd|product requirements?) (manager|agent|lane)
+#   techdir  ^/tech-director   | ^you are (the |a )?tech(nical)?[- ]?director
 # A lane number ("feature agent 2") is taken ONLY when it directly follows the
 # role noun in that anchored span; a number elsewhere ("... for issue #123")
 # falls back to the first four characters of the session id. release and prd
-# are both SINGLETON lanes (their ROLES entry's number-pattern is None), so a
+# and techdir are all SINGLETON lanes (their ROLES entry's number-pattern is None), so a
 # trailing number in the prompt ("you are the PRD manager 2") is simply never
-# looked at — they always name C-RELEASE / C-PRD.
-# Names: <P>-RELEASE, <P>-FEATURE-<id>, <P>-BUGFIX-<id>, <P>-PRD; <P> =
+# looked at — they always name C-RELEASE / C-PRD / C-TECHDIR.
+# Names: <P>-RELEASE, <P>-FEATURE-<id>, <P>-BUGFIX-<id>, <P>-PRD, <P>-TECHDIR; <P> =
 # namePrefix in .claude/agent-lanes.json (default C).
 set -uo pipefail
 
@@ -86,6 +87,10 @@ ROLES = [
         # lookahead also excludes a following word character (managerial).
         r"^\s*you are (?:the |a )?(?:prd|product requirements?) (?:manager|agent|lane)(?![\w\x27])",
     ], None),
+    ("techdir", "tech-director", [
+        r"^\s*/tech-director\b",
+        r"^\s*you are (?:the |a )?tech(?:nical)?[ -]?director\b",
+    ], None),
 ]
 
 match = next(((r, s, n) for r, s, pats, n in ROLES
@@ -110,6 +115,8 @@ if role == "release":
     name = "%s-RELEASE" % prefix
 elif role == "prd":
     name = "%s-PRD" % prefix
+elif role == "techdir":
+    name = "%s-TECHDIR" % prefix
 else:
     m = re.search(num_pattern, prompt, re.IGNORECASE)
     name = "%s-%s-%s" % (prefix, role.upper(), m.group(1) if m else (session_id[:4] or "0000"))
